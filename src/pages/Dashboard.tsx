@@ -11,21 +11,33 @@ import {
 } from 'lucide-react'
 import { useWorkspace } from '@/hooks/useWorkspace'
 import { useDashboardStats, useAgentPerformance, useRecentActivity } from '@/hooks/useDashboard'
+import { useAgents } from '@/hooks/useAgents'
 import { StatCard } from '@/components/dashboard/StatCard'
 import { AgentPerformanceGrid } from '@/components/dashboard/AgentPerformanceGrid'
 import { ActivityTimeline } from '@/components/dashboard/ActivityTimeline'
 import { QuickActions } from '@/components/dashboard/QuickActions'
 import { ErrorState } from '@/components/shared/ErrorState'
+import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard'
 
 /**
  * Dashboard page — stat cards, agent performance grid, activity timeline, quick actions.
- * Data auto-refreshes every 30 seconds.
+ * Shows onboarding wizard for first-time users with empty workspaces.
  */
 export function Dashboard() {
-  const { workspaceId } = useWorkspace()
+  const { workspace, workspaceId } = useWorkspace()
+  const { agents } = useAgents(workspaceId)
   const { stats, isLoading: isLoadingStats, error: statsError } = useDashboardStats(workspaceId)
-  const { agents, isLoading: isLoadingAgents } = useAgentPerformance(workspaceId)
+  const { agents: performanceAgents, isLoading: isLoadingAgents } = useAgentPerformance(workspaceId)
   const { activity, isLoading: isLoadingActivity } = useRecentActivity(workspaceId)
+
+  // Show onboarding for new users
+  const onboardingCompleted = workspace?.settings.onboarding_completed === true
+  const hasAgents = agents.length > 0
+  const showOnboarding = !onboardingCompleted && !hasAgents
+
+  if (showOnboarding) {
+    return <OnboardingWizard />
+  }
 
   const today = new Date().toLocaleDateString('en-US', {
     weekday: 'long',
@@ -107,7 +119,7 @@ export function Dashboard() {
           <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500">
             Agent Performance
           </h2>
-          <AgentPerformanceGrid agents={agents} isLoading={isLoadingAgents} />
+          <AgentPerformanceGrid agents={performanceAgents} isLoading={isLoadingAgents} />
         </div>
 
         {/* Activity Timeline */}

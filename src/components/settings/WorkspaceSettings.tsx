@@ -92,19 +92,6 @@ export function WorkspaceSettings() {
                 </div>
             </div>
 
-            {/* Plan info */}
-            <div className="rounded-lg border border-border bg-surface-card p-5">
-                <h3 className="mb-2 text-sm font-medium text-gray-200">Current Plan</h3>
-                <div className="flex items-center gap-2">
-                    <span className="rounded-md bg-brand-primary/10 px-2.5 py-1 text-xs font-semibold uppercase text-brand-primary">
-                        {workspace?.plan ?? 'free'}
-                    </span>
-                    <span className="text-xs text-gray-500">
-                        Upgrade options coming with Stripe billing integration.
-                    </span>
-                </div>
-            </div>
-
             {/* Danger zone — owner only */}
             {isOwner && (
                 <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-5">

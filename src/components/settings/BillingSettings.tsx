@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 CrewForm
 
-import { Loader2, CreditCard, ExternalLink } from 'lucide-react'
+import { Loader2, CreditCard, ExternalLink, Sparkles } from 'lucide-react'
 import { useWorkspace } from '@/hooks/useWorkspace'
 import { useSubscription, useUsage, useCreatePortal } from '@/hooks/useBilling'
 import { PricingTable } from '@/components/billing/PricingTable'
@@ -52,15 +52,19 @@ function UsageMeter({ label, current, limit }: MeterProps) {
 
 /**
  * Billing settings tab — current plan, usage meters, upgrade options.
+ * Reads plan from workspace.plan (single source of truth).
  */
 export function BillingSettings() {
-    const { workspaceId } = useWorkspace()
+    const { workspace, workspaceId } = useWorkspace()
     const { data: subscription, isLoading: isLoadingSub } = useSubscription(workspaceId)
     const { data: usage, isLoading: isLoadingUsage } = useUsage(workspaceId)
     const portalMutation = useCreatePortal()
 
-    const plan = subscription?.plan ?? 'free'
+    // Single source of truth: workspace.plan
+    const plan = workspace?.plan ?? 'free'
+    const isBeta = workspace?.is_beta ?? false
     const isPaid = plan !== 'free'
+    const hasStripe = !!subscription?.stripe_subscription_id
 
     if (isLoadingSub || isLoadingUsage) {
         return (
@@ -70,7 +74,7 @@ export function BillingSettings() {
         )
     }
 
-    // Plan limits (hardcoded for display — matches seeded data)
+    // Plan limits — beta overrides everything to unlimited
     const LIMITS: Record<string, Record<string, number>> = {
         free: { agents: 3, tasks: 50, teams: 1, members: 1, triggers: 1 },
         pro: { agents: 25, tasks: 1000, teams: 10, members: 3, triggers: 10 },
@@ -78,7 +82,11 @@ export function BillingSettings() {
         enterprise: { agents: -1, tasks: -1, teams: -1, members: -1, triggers: -1 },
     }
 
-    const limits = LIMITS[plan] ?? LIMITS.free
+    const baseLimits = LIMITS[plan] ?? LIMITS.free
+    // Beta workspaces get unlimited everything
+    const limits = isBeta
+        ? { agents: -1, tasks: -1, teams: -1, members: -1, triggers: -1 }
+        : baseLimits
 
     return (
         <div className="space-y-6">
@@ -89,13 +97,27 @@ export function BillingSettings() {
                         <CreditCard className="h-5 w-5 text-brand-primary" />
                         <h3 className="text-sm font-medium text-gray-200">Current Plan</h3>
                     </div>
-                    <span className={cn(
-                        'rounded-md px-2.5 py-1 text-xs font-bold uppercase',
-                        PLAN_COLORS[plan],
-                    )}>
-                        {plan}
-                    </span>
+                    <div className="flex items-center gap-2">
+                        <span className={cn(
+                            'rounded-md px-2.5 py-1 text-xs font-bold uppercase',
+                            PLAN_COLORS[plan],
+                        )}>
+                            {plan}
+                        </span>
+                        {isBeta && (
+                            <span className="flex items-center gap-1 rounded-md bg-emerald-500/10 px-2.5 py-1 text-xs font-bold text-emerald-400">
+                                <Sparkles className="h-3 w-3" />
+                                Beta
+                            </span>
+                        )}
+                    </div>
                 </div>
+
+                {isBeta && (
+                    <p className="mb-3 text-xs text-emerald-400/70">
+                        Beta access — all features unlocked with unlimited usage.
+                    </p>
+                )}
 
                 {subscription?.current_period_end && (
                     <p className="mb-3 text-xs text-gray-500">
@@ -106,7 +128,7 @@ export function BillingSettings() {
                     </p>
                 )}
 
-                {isPaid && (
+                {hasStripe && (
                     <button
                         type="button"
                         onClick={() => workspaceId && portalMutation.mutate({ workspaceId })}
@@ -137,13 +159,15 @@ export function BillingSettings() {
                 </div>
             )}
 
-            {/* Pricing table */}
-            <div>
-                <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-500">
-                    {isPaid ? 'Change Plan' : 'Upgrade Your Plan'}
-                </h3>
-                <PricingTable />
-            </div>
+            {/* Pricing table — only show if not beta and not on highest plan */}
+            {!isBeta && plan !== 'enterprise' && (
+                <div>
+                    <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-500">
+                        {isPaid ? 'Change Plan' : 'Upgrade Your Plan'}
+                    </h3>
+                    <PricingTable />
+                </div>
+            )}
         </div>
     )
 }

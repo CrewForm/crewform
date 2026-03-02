@@ -15,6 +15,7 @@ export interface Workspace {
   slug: string
   owner_id: string
   plan: WorkspacePlan
+  is_beta: boolean
   settings: Record<string, unknown>
   created_at: string
   updated_at: string
