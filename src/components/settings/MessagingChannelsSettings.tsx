@@ -16,6 +16,8 @@ import {
     useChannelLogs,
 } from '@/hooks/useMessagingChannels'
 import type { ChannelPlatform, CreateChannelInput, MessagingChannel } from '@/db/messagingChannels'
+import { useAgents } from '@/hooks/useAgents'
+import { useTeams } from '@/hooks/useTeams'
 import { cn } from '@/lib/utils'
 
 // ─── Constants ──────────────────────────────────────────────────────────────
@@ -167,13 +169,18 @@ function CreateChannelForm({ workspaceId, onClose }: { workspaceId: string; onCl
     const [name, setName] = useState('')
     const [config, setConfig] = useState<Record<string, string>>({})
     const [isManaged, setIsManaged] = useState(true)
+    const [routeType, setRouteType] = useState<'agent' | 'team'>('agent')
+    const [selectedId, setSelectedId] = useState('')
     const createChannel = useCreateChannel()
+    const { agents } = useAgents(workspaceId)
+    const { teams } = useTeams(workspaceId)
 
     const meta = PLATFORM_META[platform]
     const isEmail = platform === 'email'
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
+        if (!selectedId) return
         const input: CreateChannelInput = {
             workspace_id: workspaceId,
             platform,
@@ -181,6 +188,8 @@ function CreateChannelForm({ workspaceId, onClose }: { workspaceId: string; onCl
             config: isManaged ? {} : config,
             is_managed: isManaged,
             connect_code: isManaged && !isEmail ? generateConnectCode() : undefined,
+            default_agent_id: routeType === 'agent' ? selectedId : undefined,
+            default_team_id: routeType === 'team' ? selectedId : undefined,
         }
         createChannel.mutate(input, {
             onSuccess: () => { onClose() },
@@ -228,6 +237,45 @@ function CreateChannelForm({ workspaceId, onClose }: { workspaceId: string; onCl
                     placeholder={`My ${meta.label} Channel`}
                     className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-gray-200 placeholder-gray-600 focus:border-brand-primary focus:outline-none"
                 />
+            </div>
+
+            {/* Route To (Agent or Team) */}
+            <div>
+                <label className="mb-1 block text-xs text-gray-400">Route messages to</label>
+                <div className="flex gap-2 mb-2">
+                    <button
+                        type="button"
+                        onClick={() => { setRouteType('agent'); setSelectedId('') }}
+                        className={cn(
+                            'flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
+                            routeType === 'agent' ? 'bg-brand-primary/10 text-brand-primary' : 'text-gray-500 hover:text-gray-400',
+                        )}
+                    >
+                        Agent
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => { setRouteType('team'); setSelectedId('') }}
+                        className={cn(
+                            'flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
+                            routeType === 'team' ? 'bg-brand-primary/10 text-brand-primary' : 'text-gray-500 hover:text-gray-400',
+                        )}
+                    >
+                        Team
+                    </button>
+                </div>
+                <select
+                    value={selectedId}
+                    onChange={e => setSelectedId(e.target.value)}
+                    required
+                    className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-gray-200 focus:border-brand-primary focus:outline-none"
+                >
+                    <option value="">Select {routeType === 'agent' ? 'an agent' : 'a team'}...</option>
+                    {routeType === 'agent'
+                        ? agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)
+                        : teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)
+                    }
+                </select>
             </div>
 
             {/* Managed vs BYOB toggle (not for email) */}
