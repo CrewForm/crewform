@@ -4,12 +4,22 @@ import { processPipelineRun } from './pipelineExecutor';
 import { processOrchestratorRun } from './orchestratorExecutor';
 import { processCollaborationRun } from './collaborationExecutor';
 import { writeTeamRunAudit } from './auditWriter';
-import { registerRunner, deregisterRunner, getRunnerId, getInstanceName, runRecoverySweep, RECOVERY_INTERVAL_MS } from './runnerRegistry';
+import {
+    registerRunner, deregisterRunner, getRunnerId, getInstanceName,
+    runRecoverySweep, RECOVERY_INTERVAL_MS, MAX_CONCURRENT, decrementLoad,
+} from './runnerRegistry';
 import { evaluateTriggers, TRIGGER_EVAL_INTERVAL_MS } from './triggerScheduler';
 import type { Task, TeamRun } from './types';
 
-const POLL_INTERVAL_MS = 5000;
-let isPolling = false;
+// ─── Adaptive Polling ────────────────────────────────────────────────────────
+
+const POLL_MIN_MS = 1_000;
+const POLL_MAX_MS = 15_000;
+let pollIntervalMs = POLL_MIN_MS;
+let pollTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** Active slots — how many tasks/runs are currently being processed. */
+let activeSlots = 0;
 
 function log(msg: string) {
     const name = getInstanceName();
@@ -25,106 +35,141 @@ function logError(msg: string, err?: unknown) {
     }
 }
 
+/** Schedule the next poll with the current adaptive interval. */
+function scheduleNextPoll() {
+    if (pollTimer) clearTimeout(pollTimer);
+    pollTimer = setTimeout(() => { void poll(); }, pollIntervalMs);
+}
+
+/** Reset poll interval to minimum (work found). */
+function resetPollInterval() {
+    pollIntervalMs = POLL_MIN_MS;
+}
+
+/** Back off the poll interval (no work found). */
+function backOffPollInterval() {
+    pollIntervalMs = Math.min(pollIntervalMs * 2, POLL_MAX_MS);
+}
+
+/**
+ * Called when a task/run finishes (success or failure).
+ * Decrements the active slot count, updates DB load, and triggers a new poll.
+ */
+function onSlotFreed() {
+    activeSlots = Math.max(activeSlots - 1, 0);
+    log(`Slot freed — active: ${activeSlots}/${MAX_CONCURRENT}`);
+    void decrementLoad();
+    // Immediately try to fill the freed slot
+    resetPollInterval();
+    scheduleNextPoll();
+}
+
+// ─── Team Run Executor Router ────────────────────────────────────────────────
+
+async function executeTeamRun(run: TeamRun): Promise<void> {
+    // Audit: team run started
+    void writeTeamRunAudit(run.workspace_id, run.created_by, 'team_run_started', {
+        team_id: run.team_id, run_id: run.id,
+    });
+
+    // Determine team mode
+    const teamResponse = await supabase
+        .from('teams')
+        .select('mode')
+        .eq('id', run.team_id)
+        .single();
+
+    const teamMode = (teamResponse.data as { mode: string } | null)?.mode ?? 'pipeline';
+
+    if (teamMode === 'orchestrator') {
+        await processOrchestratorRun(run);
+    } else if (teamMode === 'collaboration') {
+        await processCollaborationRun(run);
+    } else {
+        await processPipelineRun(run);
+    }
+
+    void writeTeamRunAudit(run.workspace_id, run.created_by, 'team_run_completed', {
+        team_id: run.team_id, run_id: run.id,
+    });
+}
+
+// ─── Poll Loop ───────────────────────────────────────────────────────────────
+
 async function poll() {
-    if (isPolling) return;
-    isPolling = true;
+    if (pollTimer) clearTimeout(pollTimer);
+
+    // Don't claim if already at capacity
+    if (activeSlots >= MAX_CONCURRENT) {
+        scheduleNextPoll();
+        return;
+    }
 
     const runnerId = getRunnerId();
+    let foundWork = false;
 
     try {
-        // ─── 1. Check for pending tasks ──────────────────────────────────────
+        // ─── 1. Check for pending tasks ──────────────────────────────────
         const rpcResponse = await supabase.rpc('claim_next_task', {
             p_runner_id: runnerId,
         });
-        const data = rpcResponse.data as Task[] | null;
-        const error = rpcResponse.error;
+        const taskData = rpcResponse.data as Task[] | null;
+        const taskError = rpcResponse.error;
 
-        if (error) {
-            logError(`RPC Error claiming task: ${error.message}`);
-        } else if (data && data.length > 0) {
-            const claimedTask = data[0];
-            log(`Claimed task ${claimedTask.id}`);
-            processTask(claimedTask).catch((err: unknown) => {
-                logError(`Unhandled outer error processing task ${claimedTask.id}:`, err);
-            });
+        if (taskError) {
+            logError(`RPC Error claiming task: ${taskError.message}`);
+        } else if (taskData && taskData.length > 0) {
+            const claimedTask = taskData[0];
+            activeSlots++;
+            foundWork = true;
+            log(`Claimed task ${claimedTask.id} — active: ${activeSlots}/${MAX_CONCURRENT}`);
 
-            // If we found a task, poll again immediately
-            isPolling = false;
-            return await poll();
+            processTask(claimedTask)
+                .catch((err: unknown) => {
+                    logError(`Unhandled error processing task ${claimedTask.id}:`, err);
+                })
+                .finally(() => { onSlotFreed(); });
         }
 
-        // ─── 2. Check for pending team runs ──────────────────────────────────
-        const teamRunResponse = await supabase.rpc('claim_next_team_run', {
-            p_runner_id: runnerId,
-        });
-        const teamRunData = teamRunResponse.data as TeamRun[] | null;
-        const teamRunError = teamRunResponse.error;
-
-        if (teamRunError) {
-            logError(`RPC Error claiming team run: ${teamRunError.message}`);
-        } else if (teamRunData && teamRunData.length > 0) {
-            const claimedRun = teamRunData[0];
-            log(`Claimed team run ${claimedRun.id}`);
-
-            // Audit: team run started
-            void writeTeamRunAudit(claimedRun.workspace_id, claimedRun.created_by, 'team_run_started', {
-                team_id: claimedRun.team_id, run_id: claimedRun.id,
+        // ─── 2. Check for pending team runs (if still have capacity) ─────
+        if (activeSlots < MAX_CONCURRENT) {
+            const teamRunResponse = await supabase.rpc('claim_next_team_run', {
+                p_runner_id: runnerId,
             });
+            const teamRunData = teamRunResponse.data as TeamRun[] | null;
+            const teamRunError = teamRunResponse.error;
 
-            // Determine team mode to route to correct executor
-            const teamResponse = await supabase
-                .from('teams')
-                .select('mode')
-                .eq('id', claimedRun.team_id)
-                .single();
+            if (teamRunError) {
+                logError(`RPC Error claiming team run: ${teamRunError.message}`);
+            } else if (teamRunData && teamRunData.length > 0) {
+                const claimedRun = teamRunData[0];
+                activeSlots++;
+                foundWork = true;
+                log(`Claimed team run ${claimedRun.id} — active: ${activeSlots}/${MAX_CONCURRENT}`);
 
-            const teamMode = (teamResponse.data as { mode: string } | null)?.mode ?? 'pipeline';
-
-            if (teamMode === 'orchestrator') {
-                processOrchestratorRun(claimedRun).then(() => {
-                    void writeTeamRunAudit(claimedRun.workspace_id, claimedRun.created_by, 'team_run_completed', {
-                        team_id: claimedRun.team_id, run_id: claimedRun.id,
-                    });
-                }).catch((err: unknown) => {
-                    logError(`Unhandled outer error processing orchestrator run ${claimedRun.id}:`, err);
-                    void writeTeamRunAudit(claimedRun.workspace_id, claimedRun.created_by, 'team_run_failed', {
-                        team_id: claimedRun.team_id, run_id: claimedRun.id,
-                    });
-                });
-            } else if (teamMode === 'collaboration') {
-                processCollaborationRun(claimedRun).then(() => {
-                    void writeTeamRunAudit(claimedRun.workspace_id, claimedRun.created_by, 'team_run_completed', {
-                        team_id: claimedRun.team_id, run_id: claimedRun.id,
-                    });
-                }).catch((err: unknown) => {
-                    logError(`Unhandled outer error processing collaboration run ${claimedRun.id}:`, err);
-                    void writeTeamRunAudit(claimedRun.workspace_id, claimedRun.created_by, 'team_run_failed', {
-                        team_id: claimedRun.team_id, run_id: claimedRun.id,
-                    });
-                });
-            } else {
-                processPipelineRun(claimedRun).then(() => {
-                    void writeTeamRunAudit(claimedRun.workspace_id, claimedRun.created_by, 'team_run_completed', {
-                        team_id: claimedRun.team_id, run_id: claimedRun.id,
-                    });
-                }).catch((err: unknown) => {
-                    logError(`Unhandled outer error processing team run ${claimedRun.id}:`, err);
-                    void writeTeamRunAudit(claimedRun.workspace_id, claimedRun.created_by, 'team_run_failed', {
-                        team_id: claimedRun.team_id, run_id: claimedRun.id,
-                    });
-                });
+                executeTeamRun(claimedRun)
+                    .catch((err: unknown) => {
+                        logError(`Unhandled error processing team run ${claimedRun.id}:`, err);
+                        void writeTeamRunAudit(claimedRun.workspace_id, claimedRun.created_by, 'team_run_failed', {
+                            team_id: claimedRun.team_id, run_id: claimedRun.id,
+                        });
+                    })
+                    .finally(() => { onSlotFreed(); });
             }
-
-            // If we found a run, poll again immediately
-            isPolling = false;
-            return await poll();
         }
     } catch (err: unknown) {
         const errMsg = err instanceof Error ? err.message : String(err);
         logError(`Unexpected error in polling loop: ${errMsg}`);
     }
 
-    isPolling = false;
+    // Adjust polling speed
+    if (foundWork) {
+        resetPollInterval();
+    } else {
+        backOffPollInterval();
+    }
+
+    scheduleNextPoll();
 }
 
 // ─── Startup ─────────────────────────────────────────────────────────────────
@@ -133,20 +178,16 @@ async function start() {
     try {
         const id = await registerRunner();
         log(`Registered with ID ${id}`);
-        log(`Polling every ${POLL_INTERVAL_MS}ms for tasks and team runs.`);
+        log(`MAX_CONCURRENT=${MAX_CONCURRENT}`);
+        log(`Poll interval: ${POLL_MIN_MS}ms (min) → ${POLL_MAX_MS}ms (max, adaptive)`);
         log(`Recovery sweep every ${RECOVERY_INTERVAL_MS}ms for stale runners.`);
         log(`Trigger evaluation every ${TRIGGER_EVAL_INTERVAL_MS}ms.`);
 
-        // Start the polling interval
-        setInterval(() => { void poll(); }, POLL_INTERVAL_MS);
-
-        // Start the recovery sweep interval
+        // Start recovery sweep and trigger evaluation on fixed intervals
         setInterval(() => { void runRecoverySweep(); }, RECOVERY_INTERVAL_MS);
-
-        // Start the trigger evaluation interval
         setInterval(() => { void evaluateTriggers(); }, TRIGGER_EVAL_INTERVAL_MS);
 
-        // Initial poll
+        // Initial poll (adaptive setTimeout chain starts here)
         void poll();
     } catch (err: unknown) {
         const errMsg = err instanceof Error ? err.message : String(err);
@@ -159,6 +200,12 @@ async function start() {
 
 async function shutdown(signal: string) {
     log(`Received ${signal}, shutting down gracefully...`);
+    if (pollTimer) clearTimeout(pollTimer);
+    // Wait briefly for in-flight tasks to complete (best effort)
+    if (activeSlots > 0) {
+        log(`Waiting for ${activeSlots} active task(s) to finish...`);
+        await new Promise(resolve => setTimeout(resolve, 5000));
+    }
     await deregisterRunner();
     process.exit(0);
 }

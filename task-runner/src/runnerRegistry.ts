@@ -8,6 +8,9 @@ const HEARTBEAT_INTERVAL_MS = 10_000;
 export const RECOVERY_INTERVAL_MS = 30_000;
 const INSTANCE_NAME = `${os.hostname()}-${process.pid}`;
 
+/** Max concurrent tasks this runner can handle. */
+export const MAX_CONCURRENT = Math.max(1, parseInt(process.env.MAX_CONCURRENT ?? '3', 10));
+
 /**
  * Register this task runner instance in the database.
  * Returns the assigned runner UUID.
@@ -18,7 +21,7 @@ export async function registerRunner(): Promise<string> {
         .insert({
             instance_name: INSTANCE_NAME,
             status: 'active',
-            max_concurrency: 3,
+            max_concurrency: MAX_CONCURRENT,
             current_load: 0,
         })
         .select('id')
@@ -51,6 +54,21 @@ async function sendHeartbeat(): Promise<void> {
 
     if (error) {
         console.error(`[Runner ${INSTANCE_NAME}] Heartbeat failed:`, error.message);
+    }
+}
+
+/**
+ * Decrement runner load in the database after a task/run completes.
+ */
+export async function decrementLoad(): Promise<void> {
+    if (!runnerId) return;
+
+    const { error } = await supabase.rpc('decrement_runner_load', {
+        p_runner_id: runnerId,
+    });
+
+    if (error) {
+        console.error(`[Runner ${INSTANCE_NAME}] decrement_runner_load failed:`, error.message);
     }
 }
 
