@@ -2,6 +2,7 @@
 // Copyright (C) 2026 CrewForm
 
 import { supabase } from '@/lib/supabase'
+import { enforceQuota } from '@/lib/enforceQuota'
 import { writeAuditLog } from '@/db/members'
 import type { Team, TeamMember, TeamMode, PipelineConfig, OrchestratorConfig, CollaborationConfig } from '@/types'
 
@@ -45,6 +46,8 @@ export interface CreateTeamInput {
 }
 
 export async function createTeam(input: CreateTeamInput): Promise<Team> {
+    await enforceQuota(input.workspace_id, 'teams')
+
     const result = await supabase
         .from('teams')
         .insert(input)

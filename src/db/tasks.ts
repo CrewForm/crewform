@@ -2,6 +2,7 @@
 // Copyright (C) 2026 CrewForm
 
 import { supabase } from '@/lib/supabase'
+import { enforceQuota } from '@/lib/enforceQuota'
 import type { Task, TaskStatus, TaskPriority } from '@/types'
 
 /**
@@ -67,6 +68,8 @@ export interface CreateTaskInput {
 }
 
 export async function createTask(input: CreateTaskInput): Promise<Task> {
+    await enforceQuota(input.workspace_id, 'tasks_per_month')
+
     const result = await supabase
         .from('tasks')
         .insert(input)

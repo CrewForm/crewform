@@ -2,6 +2,7 @@
 // Copyright (C) 2026 CrewForm
 
 import { supabase } from '@/lib/supabase'
+import { enforceQuota } from '@/lib/enforceQuota'
 
 export type TriggerType = 'cron' | 'webhook' | 'manual'
 export type TriggerLogStatus = 'fired' | 'failed'
@@ -67,6 +68,8 @@ export async function fetchTeamTriggers(teamId: string): Promise<AgentTrigger[]>
 
 /** Create a new trigger for an agent */
 export async function createTrigger(input: CreateTriggerInput): Promise<AgentTrigger> {
+    await enforceQuota(input.workspace_id, 'triggers')
+
     // Generate a webhook token if webhook type
     const data = {
         ...input,
@@ -98,6 +101,8 @@ export interface CreateTeamTriggerInput {
 
 /** Create a new trigger for a team */
 export async function createTeamTrigger(input: CreateTeamTriggerInput): Promise<AgentTrigger> {
+    await enforceQuota(input.workspace_id, 'triggers')
+
     const data = {
         ...input,
         agent_id: null,

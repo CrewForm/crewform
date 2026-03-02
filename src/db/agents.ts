@@ -2,6 +2,7 @@
 // Copyright (C) 2026 CrewForm
 
 import { supabase } from '@/lib/supabase'
+import { enforceQuota } from '@/lib/enforceQuota'
 import { savePromptVersion } from '@/db/promptHistory'
 import type { Agent } from '@/types'
 
@@ -51,6 +52,8 @@ export interface CreateAgentInput {
 }
 
 export async function createAgent(input: CreateAgentInput): Promise<Agent> {
+    await enforceQuota(input.workspace_id, 'agents')
+
     const result = await supabase
         .from('agents')
         .insert(input)

@@ -2,6 +2,7 @@
 // Copyright (C) 2026 CrewForm
 
 import { supabase } from '@/lib/supabase'
+import { enforceQuota } from '@/lib/enforceQuota'
 import type { WorkspaceRole } from '@/types'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -122,6 +123,8 @@ export async function createInvitation(
     role: WorkspaceRole,
     invitedBy: string,
 ): Promise<WorkspaceInvitation> {
+    await enforceQuota(workspaceId, 'members')
+
     const result = await supabase
         .from('workspace_invitations')
         .insert({
