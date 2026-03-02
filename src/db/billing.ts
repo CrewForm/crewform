@@ -138,20 +138,27 @@ export async function checkQuota(
     workspaceId: string,
     resource: string,
 ): Promise<QuotaCheckResult> {
-    // Beta workspaces bypass all quota limits
+    // Fetch workspace to get plan and beta flag
     const wsResult = await supabase
         .from('workspaces')
-        .select('is_beta')
+        .select('plan, is_beta')
         .eq('id', workspaceId)
         .single()
 
-    if (!wsResult.error && (wsResult.data as { is_beta: boolean }).is_beta) {
+    if (wsResult.error) {
+        // If we can't read workspace, deny by default
+        return { allowed: false, current: 0, limit: 0, resource }
+    }
+
+    const ws = wsResult.data as { plan: string; is_beta: boolean }
+
+    // Beta workspaces bypass all quota limits
+    if (ws.is_beta) {
         return { allowed: true, current: 0, limit: -1, resource }
     }
 
-    // Get current plan
-    const subscription = await fetchSubscription(workspaceId)
-    const plan = subscription?.plan ?? 'free'
+    // Use workspace.plan as the single source of truth
+    const plan = ws.plan || 'free'
 
     // Get limit for this resource
     const limit = await getPlanLimit(plan, resource)
