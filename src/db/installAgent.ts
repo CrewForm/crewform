@@ -2,6 +2,7 @@
 // Copyright (C) 2026 CrewForm
 
 import { supabase } from '@/lib/supabase'
+import { enforceQuota } from '@/lib/enforceQuota'
 import type { Agent } from '@/types'
 
 export interface InstallResult {
@@ -36,7 +37,8 @@ export async function installMarketplaceAgent(
 
     const sourceAgent = fetchResult.data as Agent
 
-
+    // Check agent quota before cloning
+    await enforceQuota(workspaceId, 'agents')
 
     // 2. Clone agent into user's workspace
     const cloneResult = await supabase
