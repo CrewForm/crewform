@@ -4,17 +4,16 @@
 /**
  * Discord Channel — Inbound Interaction Handler
  *
- * Receives Discord Interactions (slash commands).
- * Creates a task from the command and routes to the configured agent/team.
+ * Supports two modes:
+ * - **Managed bot**: Uses DISCORD_BOT_TOKEN env var. Users link via /connect command.
+ * - **BYOB**: Bot token stored per-channel in config.
  *
- * Setup: Set Discord Interactions Endpoint URL to:
- *   POST {SUPABASE_URL}/functions/v1/channel-discord
+ * Discord Interactions Endpoint: POST {SUPABASE_URL}/functions/v1/channel-discord
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { ok, serverError } from '../_shared/response.ts';
 
-// Discord interaction types
 const INTERACTION_PING = 1;
 const INTERACTION_APPLICATION_COMMAND = 2;
 
@@ -40,6 +39,15 @@ interface ChannelRow {
     config: Record<string, unknown>;
     default_agent_id: string | null;
     default_team_id: string | null;
+    is_managed: boolean;
+    platform_chat_id: string | null;
+}
+
+function reply(content: string) {
+    return new Response(
+        JSON.stringify({ type: 4, data: { content } }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
 }
 
 Deno.serve(async (req: Request) => {
@@ -58,63 +66,70 @@ Deno.serve(async (req: Request) => {
             });
         }
 
-        // Only handle application commands (slash commands)
-        if (interaction.type !== INTERACTION_APPLICATION_COMMAND) {
+        if (interaction.type !== INTERACTION_APPLICATION_COMMAND || !interaction.data) {
             return ok({ type: 1 });
         }
 
-        // Extract the prompt from /ask command
-        if (interaction.data?.name !== 'ask') {
-            return new Response(
-                JSON.stringify({
-                    type: 4,
-                    data: { content: '❌ Unknown command. Use `/ask <your prompt>` to send a request.' },
-                }),
-                { status: 200, headers: { 'Content-Type': 'application/json' } },
-            );
-        }
-
-        const prompt = interaction.data.options?.find(o => o.name === 'prompt')?.value;
-        if (!prompt) {
-            return new Response(
-                JSON.stringify({
-                    type: 4,
-                    data: { content: '❌ Please provide a prompt: `/ask <your prompt>`' },
-                }),
-                { status: 200, headers: { 'Content-Type': 'application/json' } },
-            );
-        }
-
-        const channelId = interaction.channel_id;
-        const guildId = interaction.guild_id;
-        const userName = interaction.member?.user?.username ?? interaction.user?.username ?? 'Unknown';
-
-        // Service client
         const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
         const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
+        const managedBotToken = Deno.env.get('DISCORD_BOT_TOKEN');
+
+        const channelId = interaction.channel_id ?? '';
+        const guildId = interaction.guild_id ?? '';
+        const userName = interaction.member?.user?.username ?? interaction.user?.username ?? 'Unknown';
+
+        // ── Handle /connect command ─────────────────────────────────────
+        if (interaction.data.name === 'connect') {
+            const code = interaction.data.options?.find(o => o.name === 'code')?.value;
+            if (!code) return reply('❌ Usage: `/connect code:<your_code>`');
+
+            const { data: channel, error: cErr } = await supabase
+                .from('messaging_channels')
+                .select('id, default_agent_id, default_team_id')
+                .eq('connect_code', code)
+                .eq('platform', 'discord')
+                .single();
+
+            if (cErr || !channel) return reply('❌ Invalid connect code. Check Settings → Channels in CrewForm.');
+
+            await supabase
+                .from('messaging_channels')
+                .update({ platform_chat_id: channelId, connect_code: null })
+                .eq('id', (channel as ChannelRow).id);
+
+            return reply('✅ Connected! Use `/ask prompt:<your question>` to send requests to your agent.');
+        }
+
+        // ── Handle /ask command ─────────────────────────────────────────
+        if (interaction.data.name !== 'ask') {
+            return reply('❌ Unknown command. Use `/ask prompt:<your question>` or `/connect code:<code>`.');
+        }
+
+        const prompt = interaction.data.options?.find(o => o.name === 'prompt')?.value;
+        if (!prompt) return reply('❌ Please provide a prompt: `/ask prompt:<your question>`');
 
         // Find matching channel
         const { data: channels } = await supabase
             .from('messaging_channels')
-            .select('id, workspace_id, config, default_agent_id, default_team_id')
+            .select('id, workspace_id, config, default_agent_id, default_team_id, is_managed, platform_chat_id')
             .eq('platform', 'discord')
             .eq('is_active', true);
 
         const channelRows = (channels ?? []) as ChannelRow[];
-        const channel = channelRows.find(c =>
-            String(c.config.guild_id) === guildId ||
-            String(c.config.channel_id) === channelId,
-        );
+
+        // Try managed mode first
+        let channel = channelRows.find(c => c.is_managed && c.platform_chat_id === channelId);
+
+        // Fallback to BYOB
+        if (!channel) {
+            channel = channelRows.find(c =>
+                !c.is_managed && (String(c.config.guild_id) === guildId || String(c.config.channel_id) === channelId),
+            );
+        }
 
         if (!channel || (!channel.default_agent_id && !channel.default_team_id)) {
-            return new Response(
-                JSON.stringify({
-                    type: 4,
-                    data: { content: '❌ No agent or team configured for this channel.' },
-                }),
-                { status: 200, headers: { 'Content-Type': 'application/json' } },
-            );
+            return reply('❌ No agent configured. Run `/connect code:<code>` first, or set up a channel in CrewForm Settings.');
         }
 
         // Resolve workspace owner
@@ -127,11 +142,15 @@ Deno.serve(async (req: Request) => {
         const ownerId = (ws as { owner_id: string } | null)?.owner_id;
         if (!ownerId) return serverError('Could not resolve workspace owner');
 
+        const botToken = channel.is_managed
+            ? (managedBotToken ?? '')
+            : (channel.config.bot_token as string ?? '');
+
         const sourceChannel = {
             platform: 'discord',
             channel_id: channelId,
             guild_id: guildId,
-            bot_token: channel.config.bot_token as string,
+            bot_token: botToken,
             channel_db_id: channel.id,
         };
 
@@ -179,7 +198,6 @@ Deno.serve(async (req: Request) => {
             taskOrRunId = (task as { id: string }).id;
         }
 
-        // Log inbound
         await supabase.from('channel_message_log').insert({
             channel_id: channel.id,
             direction: 'inbound',
@@ -190,16 +208,7 @@ Deno.serve(async (req: Request) => {
             status: 'delivered',
         });
 
-        // Respond to Discord immediately (deferred → follow-up will come from task runner)
-        return new Response(
-            JSON.stringify({
-                type: 4,
-                data: {
-                    content: `⏳ Processing your request...\n> ${prompt.substring(0, 200)}`,
-                },
-            }),
-            { status: 200, headers: { 'Content-Type': 'application/json' } },
-        );
+        return reply(`⏳ Processing your request...\n> ${prompt.substring(0, 200)}`);
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         console.error('[channel-discord] Error:', message);

@@ -16,6 +16,9 @@ export interface MessagingChannel {
     default_agent_id: string | null
     default_team_id: string | null
     is_active: boolean
+    is_managed: boolean
+    connect_code: string | null
+    platform_chat_id: string | null
     created_at: string
     updated_at: string
 }
@@ -27,6 +30,8 @@ export interface CreateChannelInput {
     config: Record<string, unknown>
     default_agent_id?: string | null
     default_team_id?: string | null
+    is_managed?: boolean
+    connect_code?: string | null
 }
 
 export interface UpdateChannelInput {

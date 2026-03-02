@@ -5,6 +5,7 @@ import { useState } from 'react'
 import {
     Send, MessageSquare, Hash, Mail, Plus, Trash2, Power, PowerOff,
     Loader2, ChevronDown, ChevronUp, ExternalLink, ArrowDownLeft, ArrowUpRight,
+    Copy, Check, Link2,
 } from 'lucide-react'
 import { useWorkspace } from '@/hooks/useWorkspace'
 import {
@@ -14,7 +15,7 @@ import {
     useDeleteChannel,
     useChannelLogs,
 } from '@/hooks/useMessagingChannels'
-import type { ChannelPlatform, CreateChannelInput } from '@/db/messagingChannels'
+import type { ChannelPlatform, CreateChannelInput, MessagingChannel } from '@/db/messagingChannels'
 import { cn } from '@/lib/utils'
 
 // ─── Constants ──────────────────────────────────────────────────────────────
@@ -25,6 +26,7 @@ const PLATFORM_META: Record<ChannelPlatform, {
     color: string
     bgColor: string
     setupGuide: string
+    connectCommand: string
     configFields: { key: string; label: string; type: 'text' | 'password'; placeholder: string; required: boolean }[]
 }> = {
     telegram: {
@@ -33,6 +35,7 @@ const PLATFORM_META: Record<ChannelPlatform, {
         color: 'text-sky-400',
         bgColor: 'bg-sky-500/10',
         setupGuide: 'https://core.telegram.org/bots#botfather',
+        connectCommand: '/connect',
         configFields: [
             { key: 'bot_token', label: 'Bot Token', type: 'password', placeholder: '123456:ABC-DEF...', required: true },
             { key: 'chat_id', label: 'Chat ID', type: 'text', placeholder: '-100123456789', required: true },
@@ -44,6 +47,7 @@ const PLATFORM_META: Record<ChannelPlatform, {
         color: 'text-indigo-400',
         bgColor: 'bg-indigo-500/10',
         setupGuide: 'https://discord.com/developers/applications',
+        connectCommand: '/connect code:',
         configFields: [
             { key: 'bot_token', label: 'Bot Token', type: 'password', placeholder: 'MTIz...', required: true },
             { key: 'guild_id', label: 'Server (Guild) ID', type: 'text', placeholder: '123456789012345678', required: true },
@@ -56,6 +60,7 @@ const PLATFORM_META: Record<ChannelPlatform, {
         color: 'text-purple-400',
         bgColor: 'bg-purple-500/10',
         setupGuide: 'https://api.slack.com/apps',
+        connectCommand: 'connect',
         configFields: [
             { key: 'bot_token', label: 'Bot Token (xoxb-...)', type: 'password', placeholder: 'xoxb-...', required: true },
             { key: 'signing_secret', label: 'Signing Secret', type: 'password', placeholder: 'abc123...', required: true },
@@ -68,10 +73,20 @@ const PLATFORM_META: Record<ChannelPlatform, {
         color: 'text-amber-400',
         bgColor: 'bg-amber-500/10',
         setupGuide: 'https://resend.com/docs/dashboard/webhooks/introduction',
+        connectCommand: '',
         configFields: [
             { key: 'inbound_address', label: 'Inbound Email Address', type: 'text', placeholder: 'agent@inbound.crewform.tech', required: true },
         ],
     },
+}
+
+function generateConnectCode(): string {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
+    let code = 'crw_'
+    for (let i = 0; i < 8; i++) {
+        code += chars[Math.floor(Math.random() * chars.length)]
+    }
+    return code
 }
 
 // ─── Main Component ─────────────────────────────────────────────────────────
@@ -151,9 +166,11 @@ function CreateChannelForm({ workspaceId, onClose }: { workspaceId: string; onCl
     const [platform, setPlatform] = useState<ChannelPlatform>('telegram')
     const [name, setName] = useState('')
     const [config, setConfig] = useState<Record<string, string>>({})
+    const [isManaged, setIsManaged] = useState(true)
     const createChannel = useCreateChannel()
 
     const meta = PLATFORM_META[platform]
+    const isEmail = platform === 'email'
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
@@ -161,7 +178,9 @@ function CreateChannelForm({ workspaceId, onClose }: { workspaceId: string; onCl
             workspace_id: workspaceId,
             platform,
             name: name || `${meta.label} Channel`,
-            config,
+            config: isManaged ? {} : config,
+            is_managed: isManaged,
+            connect_code: isManaged && !isEmail ? generateConnectCode() : undefined,
         }
         createChannel.mutate(input, {
             onSuccess: () => { onClose() },
@@ -184,7 +203,7 @@ function CreateChannelForm({ workspaceId, onClose }: { workspaceId: string; onCl
                         <button
                             key={p}
                             type="button"
-                            onClick={() => { setPlatform(p); setConfig({}) }}
+                            onClick={() => { setPlatform(p); setConfig({}); setIsManaged(true) }}
                             className={cn(
                                 'flex flex-col items-center gap-1.5 rounded-lg border p-3 text-xs font-medium transition-colors',
                                 platform === p
@@ -211,8 +230,45 @@ function CreateChannelForm({ workspaceId, onClose }: { workspaceId: string; onCl
                 />
             </div>
 
-            {/* Platform-specific config fields */}
-            {meta.configFields.map(field => (
+            {/* Managed vs BYOB toggle (not for email) */}
+            {!isEmail && (
+                <div className="flex items-center gap-3 rounded-lg border border-gray-700 p-3">
+                    <button
+                        type="button"
+                        onClick={() => setIsManaged(true)}
+                        className={cn(
+                            'flex-1 rounded-lg px-3 py-2 text-xs font-medium transition-colors',
+                            isManaged ? 'bg-brand-primary/10 text-brand-primary' : 'text-gray-500 hover:text-gray-400',
+                        )}
+                    >
+                        CrewForm Bot (recommended)
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setIsManaged(false)}
+                        className={cn(
+                            'flex-1 rounded-lg px-3 py-2 text-xs font-medium transition-colors',
+                            !isManaged ? 'bg-brand-primary/10 text-brand-primary' : 'text-gray-500 hover:text-gray-400',
+                        )}
+                    >
+                        Use Your Own Bot
+                    </button>
+                </div>
+            )}
+
+            {/* Managed mode info */}
+            {isManaged && !isEmail && (
+                <div className="rounded-lg border border-gray-700 bg-gray-900/50 p-3">
+                    <p className="text-xs text-gray-400">
+                        After creating this channel, you&apos;ll get a <strong className="text-gray-300">connect code</strong>.
+                        Send <code className="rounded bg-gray-800 px-1 text-brand-primary">{meta.connectCommand} &lt;code&gt;</code> in your
+                        {' '}{meta.label} chat to link it to this agent.
+                    </p>
+                </div>
+            )}
+
+            {/* BYOB config fields */}
+            {!isManaged && meta.configFields.map(field => (
                 <div key={field.key}>
                     <label className="mb-1 block text-xs text-gray-400">{field.label}</label>
                     <input
@@ -226,16 +282,33 @@ function CreateChannelForm({ workspaceId, onClose }: { workspaceId: string; onCl
                 </div>
             ))}
 
-            {/* Setup guide link */}
-            <a
-                href={meta.setupGuide}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1 text-xs text-brand-primary hover:underline"
-            >
-                <ExternalLink className="h-3 w-3" />
-                How to set up a {meta.label} bot
-            </a>
+            {/* Email always shows config */}
+            {isEmail && meta.configFields.map(field => (
+                <div key={field.key}>
+                    <label className="mb-1 block text-xs text-gray-400">{field.label}</label>
+                    <input
+                        type={field.type}
+                        value={config[field.key] ?? ''}
+                        onChange={e => setConfig({ ...config, [field.key]: e.target.value })}
+                        placeholder={field.placeholder}
+                        required={field.required}
+                        className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-gray-200 placeholder-gray-600 focus:border-brand-primary focus:outline-none"
+                    />
+                </div>
+            ))}
+
+            {/* Setup guide link (BYOB only) */}
+            {!isManaged && (
+                <a
+                    href={meta.setupGuide}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-xs text-brand-primary hover:underline"
+                >
+                    <ExternalLink className="h-3 w-3" />
+                    How to set up a {meta.label} bot
+                </a>
+            )}
 
             {/* Actions */}
             <div className="flex items-center justify-end gap-2 pt-2">
@@ -266,7 +339,7 @@ function ChannelCard({
     isExpanded,
     onToggleLogs,
 }: {
-    channel: { id: string; platform: ChannelPlatform; name: string; is_active: boolean; created_at: string }
+    channel: MessagingChannel
     isExpanded: boolean
     onToggleLogs: () => void
 }) {
@@ -274,9 +347,19 @@ function ChannelCard({
     const updateChannel = useUpdateChannel(workspaceId ?? undefined)
     const deleteChannelMut = useDeleteChannel(workspaceId ?? undefined)
     const { data: logs } = useChannelLogs(isExpanded ? channel.id : undefined)
+    const [copied, setCopied] = useState(false)
 
     const meta = PLATFORM_META[channel.platform]
     const Icon = meta.icon
+    const isLinked = !!channel.platform_chat_id
+
+    const copyConnectCommand = () => {
+        if (!channel.connect_code) return
+        const cmd = `${meta.connectCommand} ${channel.connect_code}`
+        void navigator.clipboard.writeText(cmd)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+    }
 
     return (
         <div className="rounded-xl border border-gray-700 bg-gray-800/30 overflow-hidden">
@@ -290,6 +373,11 @@ function ChannelCard({
                 <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                         <span className="text-sm font-medium text-gray-200 truncate">{channel.name}</span>
+                        {channel.is_managed && (
+                            <span className="rounded-full bg-brand-primary/10 px-2 py-0.5 text-[10px] font-medium text-brand-primary">
+                                Managed
+                            </span>
+                        )}
                         <span className={cn(
                             'rounded-full px-2 py-0.5 text-[10px] font-medium',
                             channel.is_active
@@ -299,7 +387,18 @@ function ChannelCard({
                             {channel.is_active ? 'Active' : 'Inactive'}
                         </span>
                     </div>
-                    <p className="text-xs text-gray-500">{meta.label}</p>
+                    <div className="flex items-center gap-2">
+                        <p className="text-xs text-gray-500">{meta.label}</p>
+                        {channel.is_managed && (
+                            <span className={cn(
+                                'flex items-center gap-1 text-[10px]',
+                                isLinked ? 'text-emerald-500' : 'text-amber-500',
+                            )}>
+                                <Link2 className="h-2.5 w-2.5" />
+                                {isLinked ? 'Connected' : 'Awaiting connection'}
+                            </span>
+                        )}
+                    </div>
                 </div>
 
                 {/* Actions */}
@@ -334,6 +433,28 @@ function ChannelCard({
                     </button>
                 </div>
             </div>
+
+            {/* Connect Code Banner (managed + not yet linked) */}
+            {channel.is_managed && channel.connect_code && !isLinked && (
+                <div className="border-t border-gray-700 bg-amber-500/5 p-3">
+                    <p className="mb-2 text-xs text-amber-400">
+                        Send this command in your {meta.label} chat to connect:
+                    </p>
+                    <div className="flex items-center gap-2">
+                        <code className="flex-1 rounded-lg bg-gray-900 px-3 py-1.5 text-sm font-mono text-gray-200">
+                            {meta.connectCommand} {channel.connect_code}
+                        </code>
+                        <button
+                            type="button"
+                            onClick={copyConnectCommand}
+                            className="rounded-lg bg-gray-800 p-1.5 text-gray-400 hover:text-gray-200"
+                            title="Copy command"
+                        >
+                            {copied ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Message Log */}
             {isExpanded && (

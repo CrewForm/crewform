@@ -4,11 +4,11 @@
 /**
  * Telegram Channel — Inbound Message Handler
  *
- * Receives Telegram Bot webhook updates.
- * Creates a task from the message and routes it to the configured agent/team.
+ * Supports two modes:
+ * - **Managed bot**: Uses TELEGRAM_BOT_TOKEN env var. Users link via /connect <code>.
+ * - **BYOB (Bring Your Own Bot)**: Bot token stored per-channel in config.
  *
- * Setup: Set Telegram webhook URL to:
- *   POST {SUPABASE_URL}/functions/v1/channel-telegram
+ * Telegram webhook URL: POST {SUPABASE_URL}/functions/v1/channel-telegram
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -29,10 +29,13 @@ interface ChannelRow {
     id: string;
     workspace_id: string;
     platform: string;
-    config: { bot_token: string };
+    config: Record<string, unknown>;
     default_agent_id: string | null;
     default_team_id: string | null;
     is_active: boolean;
+    is_managed: boolean;
+    connect_code: string | null;
+    platform_chat_id: string | null;
 }
 
 Deno.serve(async (req: Request) => {
@@ -43,7 +46,6 @@ Deno.serve(async (req: Request) => {
     try {
         const update = (await req.json()) as TelegramUpdate;
 
-        // Only handle text messages
         if (!update.message?.text) {
             return ok({ ok: true, skipped: true });
         }
@@ -55,7 +57,49 @@ Deno.serve(async (req: Request) => {
             ? `${msg.from.first_name}${msg.from.last_name ? ` ${msg.from.last_name}` : ''}`
             : 'Unknown';
 
-        // Ignore bot commands that aren't /ask
+        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+        const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+        const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+        // Managed bot token from env, fallback to per-channel BYOB
+        const managedBotToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
+
+        // ── Handle /connect command ─────────────────────────────────────
+        if (messageText.startsWith('/connect ')) {
+            const code = messageText.substring(9).trim();
+            if (!code) {
+                await sendTelegramMessage(managedBotToken, chatId, '❌ Usage: /connect <code>');
+                return ok({ ok: true });
+            }
+
+            const { data: channel, error: cErr } = await supabase
+                .from('messaging_channels')
+                .select('id, workspace_id, default_agent_id, default_team_id')
+                .eq('connect_code', code)
+                .eq('platform', 'telegram')
+                .single();
+
+            if (cErr || !channel) {
+                await sendTelegramMessage(managedBotToken, chatId, '❌ Invalid connect code. Check Settings → Channels in CrewForm.');
+                return ok({ ok: true });
+            }
+
+            // Link the chat
+            await supabase
+                .from('messaging_channels')
+                .update({ platform_chat_id: chatId, connect_code: null })
+                .eq('id', (channel as ChannelRow).id);
+
+            const agentLabel = (channel as ChannelRow).default_agent_id ? 'your configured agent' : 'your configured team';
+            await sendTelegramMessage(
+                managedBotToken,
+                chatId,
+                `✅ Connected! Messages in this chat will be routed to ${agentLabel}.\n\nSend any message to get started.`,
+            );
+            return ok({ ok: true, connected: true });
+        }
+
+        // Ignore other bot commands
         if (messageText.startsWith('/') && !messageText.startsWith('/ask')) {
             return ok({ ok: true, skipped: true });
         }
@@ -69,32 +113,34 @@ Deno.serve(async (req: Request) => {
             return ok({ ok: true, skipped: true, reason: 'empty prompt' });
         }
 
-        // Service client
-        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-        const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-        const supabase = createClient(supabaseUrl, supabaseServiceKey);
+        // ── Find matching channel ───────────────────────────────────────
 
-        // Find a matching channel by looking up all active telegram channels
-        // and matching by chat_id in config (bot_token isn't in the webhook payload)
-        const { data: channels, error: chErr } = await supabase
+        const { data: channels } = await supabase
             .from('messaging_channels')
-            .select('id, workspace_id, config, default_agent_id, default_team_id, is_active')
+            .select('id, workspace_id, config, default_agent_id, default_team_id, is_active, is_managed, platform_chat_id')
             .eq('platform', 'telegram')
             .eq('is_active', true);
 
-        if (chErr || !channels || channels.length === 0) {
-            return ok({ ok: true, skipped: true, reason: 'no matching channel' });
+        const channelRows = (channels ?? []) as ChannelRow[];
+
+        // Try managed mode first (match by platform_chat_id)
+        let channel = channelRows.find(c => c.is_managed && c.platform_chat_id === chatId);
+
+        // Fallback to BYOB mode (match by chat_id in config)
+        if (!channel) {
+            channel = channelRows.find(c => !c.is_managed && String(c.config.chat_id) === chatId);
         }
 
-        // Match by chat_id in config
-        const channelRows = channels as ChannelRow[];
-        const channel = channelRows.find(c => {
-            const cfg = c.config as Record<string, unknown>;
-            return String(cfg.chat_id) === chatId;
-        });
-
         if (!channel) {
-            return ok({ ok: true, skipped: true, reason: 'no matching chat_id' });
+            // If managed bot is configured, tell user to connect
+            if (managedBotToken) {
+                await sendTelegramMessage(
+                    managedBotToken,
+                    chatId,
+                    '👋 Hi! To get started, run `/connect <code>` with the code from your CrewForm Settings → Channels.',
+                );
+            }
+            return ok({ ok: true, skipped: true, reason: 'no matching channel' });
         }
 
         if (!channel.default_agent_id && !channel.default_team_id) {
@@ -111,18 +157,22 @@ Deno.serve(async (req: Request) => {
         const ownerId = (ws as { owner_id: string } | null)?.owner_id;
         if (!ownerId) return serverError('Could not resolve workspace owner');
 
+        // Bot token: managed env var or BYOB config
+        const botToken = channel.is_managed
+            ? (managedBotToken ?? '')
+            : (channel.config.bot_token as string ?? '');
+
         const sourceChannel = {
             platform: 'telegram',
             chat_id: chatId,
             message_id: String(msg.message_id),
-            bot_token: (channel.config as Record<string, unknown>).bot_token as string,
+            bot_token: botToken,
             channel_db_id: channel.id,
         };
 
         let taskOrRunId: string;
 
         if (channel.default_team_id) {
-            // Create team run
             const { data: run, error: runErr } = await supabase
                 .from('team_runs')
                 .insert({
@@ -139,7 +189,6 @@ Deno.serve(async (req: Request) => {
             if (runErr) return serverError(`Failed to create team run: ${runErr.message}`);
             taskOrRunId = (run as { id: string }).id;
         } else {
-            // Create task
             const { data: task, error: taskErr } = await supabase
                 .from('tasks')
                 .insert({
@@ -177,7 +226,6 @@ Deno.serve(async (req: Request) => {
         });
 
         // Send "processing" indicator
-        const botToken = (channel.config as Record<string, unknown>).bot_token as string;
         await fetch(`https://api.telegram.org/bot${botToken}/sendChatAction`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -191,3 +239,13 @@ Deno.serve(async (req: Request) => {
         return serverError(message);
     }
 });
+
+// Helper to send a Telegram message
+async function sendTelegramMessage(botToken: string | undefined, chatId: string, text: string) {
+    if (!botToken) return;
+    await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'Markdown' }),
+    });
+}
