@@ -10,6 +10,8 @@ import { useWorkspace } from '@/hooks/useWorkspace'
 import { useCreateAgent } from '@/hooks/useCreateAgent'
 import { useAgents } from '@/hooks/useAgents'
 import { MODEL_OPTIONS, inferProviderFromModel } from '@/lib/agentSchema'
+import { upsertApiKey } from '@/db/apiKeys'
+import { toggleProviderActive } from '@/db/apiKeys'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 import { useNavigate } from 'react-router-dom'
@@ -91,24 +93,28 @@ export function OnboardingWizard() {
         setError(null)
     }, [])
 
-    // ── Save API key to workspace settings ──
+    // ── Save API key to api_keys table ──
     async function handleSaveKey() {
         if (!workspaceId || !apiKey.trim()) return
         setKeySaving(true)
         setError(null)
         try {
-            const settings = workspace?.settings ?? {}
-            const providerKeys = ((settings.provider_keys as Record<string, string> | undefined) ?? {})
-            providerKeys[providerKey] = apiKey.trim()
+            const trimmedKey = apiKey.trim()
+            const hint = trimmedKey.slice(-4)
 
-            const { error: err } = await supabase
-                .from('workspaces')
-                .update({ settings: { ...settings, provider_keys: providerKeys } })
-                .eq('id', workspaceId)
+            // Upsert the key into the api_keys table
+            const saved = await upsertApiKey({
+                workspace_id: workspaceId,
+                provider: providerKey,
+                encrypted_key: trimmedKey,
+                key_hint: hint,
+                is_valid: true,
+            })
 
-            if (err) throw new Error(err.message)
+            // Mark the provider as active
+            await toggleProviderActive(saved.id, true)
 
-            void queryClient.invalidateQueries({ queryKey: ['workspace'] })
+            void queryClient.invalidateQueries({ queryKey: ['apiKeys', workspaceId] })
             setKeySaved(true)
             setStep('agent')
         } catch (e) {
