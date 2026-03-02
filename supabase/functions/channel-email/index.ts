@@ -2,28 +2,35 @@
 // Copyright (C) 2026 CrewForm
 
 /**
- * Email Channel — Inbound Email Handler
+ * Email Channel — Inbound Email Handler (Resend)
  *
- * Receives inbound emails via email provider webhook (Resend, SendGrid, etc.).
- * Creates a task from the email and routes to the configured agent/team.
+ * Resend's email.received webhook sends metadata only (no body).
+ * This function fetches the email content via the Resend API.
  *
- * Setup: Configure email provider's inbound webhook to:
- *   POST {SUPABASE_URL}/functions/v1/channel-email
+ * Setup:
+ * 1. Add MX record: inbound-smtp.us-east-1.resend.com (priority 10) for your inbound subdomain
+ * 2. Add webhook in Resend dashboard → event: email.received → URL: this function
+ * 3. Set RESEND_API_KEY as Supabase Edge Function secret
+ *
+ * POST {SUPABASE_URL}/functions/v1/channel-email
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { ok, badRequest, serverError } from '../_shared/response.ts';
 
 /**
- * Resend inbound email webhook payload
- * See: https://resend.com/docs/dashboard/webhooks/event-types
+ * Resend email.received webhook payload
+ * Note: Body content is NOT included — must be fetched via API
  */
-interface InboundEmail {
-    from: string;
-    to: string;
-    subject: string;
-    text?: string;
-    html?: string;
+interface ResendWebhookPayload {
+    type: string;
+    data: {
+        email_id: string;
+        from: string;
+        to: string[];
+        subject: string;
+        created_at: string;
+    };
 }
 
 interface ChannelRow {
@@ -40,44 +47,53 @@ Deno.serve(async (req: Request) => {
     }
 
     try {
-        const contentType = req.headers.get('content-type') ?? '';
-        let email: InboundEmail;
+        const payload = (await req.json()) as ResendWebhookPayload;
 
-        if (contentType.includes('application/json')) {
-            email = (await req.json()) as InboundEmail;
-        } else if (contentType.includes('multipart/form-data')) {
-            // Some email providers send form data
-            const formData = await req.formData();
-            email = {
-                from: formData.get('from') as string ?? '',
-                to: formData.get('to') as string ?? '',
-                subject: formData.get('subject') as string ?? '',
-                text: formData.get('text') as string ?? undefined,
-                html: formData.get('html') as string ?? undefined,
-            };
-        } else {
-            return badRequest('Unsupported content type');
+        // Validate this is an email.received event
+        if (payload.type !== 'email.received' || !payload.data?.email_id) {
+            return ok({ ok: true, skipped: true, reason: 'not an email.received event' });
         }
 
-        if (!email.to || !email.from) {
+        const { email_id, from, to, subject } = payload.data;
+
+        if (!from || !to || to.length === 0) {
             return badRequest('Missing required from/to fields');
         }
 
-        // Extract the prompt from email body (prefer text over html)
-        const body = email.text ?? email.html?.replace(/<[^>]*>/g, '') ?? '';
-        const prompt = `${email.subject}\n\n${body}`.trim();
-
-        if (!prompt) {
-            return ok({ ok: true, skipped: true, reason: 'empty email body' });
-        }
-
-        // Service client
         const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
         const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+        const resendApiKey = Deno.env.get('RESEND_API_KEY');
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-        // Match to-address against configured channels
-        const toAddress = email.to.toLowerCase();
+        // ── Fetch email content via Resend API ──────────────────────────
+        let body = '';
+        if (resendApiKey) {
+            try {
+                const resp = await fetch(`https://api.resend.com/emails/${email_id}/content`, {
+                    headers: { Authorization: `Bearer ${resendApiKey}` },
+                    signal: AbortSignal.timeout(10000),
+                });
+
+                if (resp.ok) {
+                    const content = (await resp.json()) as { text?: string; html?: string };
+                    // Prefer plain text, fallback to stripped HTML
+                    body = content.text ?? content.html?.replace(/<[^>]*>/g, '') ?? '';
+                } else {
+                    console.warn(`[channel-email] Failed to fetch email content: ${resp.status}`);
+                }
+            } catch (fetchErr) {
+                console.warn('[channel-email] Error fetching email content:', fetchErr);
+            }
+        }
+
+        const prompt = `${subject}\n\n${body}`.trim();
+        if (!prompt) {
+            return ok({ ok: true, skipped: true, reason: 'empty email' });
+        }
+
+        // ── Match to-address against configured channels ────────────────
+        const toAddresses = to.map(a => a.toLowerCase());
+
         const { data: channels } = await supabase
             .from('messaging_channels')
             .select('id, workspace_id, config, default_agent_id, default_team_id')
@@ -87,7 +103,7 @@ Deno.serve(async (req: Request) => {
         const channelRows = (channels ?? []) as ChannelRow[];
         const channel = channelRows.find(c => {
             const inboundAddr = (c.config.inbound_address as string ?? '').toLowerCase();
-            return inboundAddr && toAddress.includes(inboundAddr);
+            return inboundAddr && toAddresses.some(a => a.includes(inboundAddr));
         });
 
         if (!channel) {
@@ -110,8 +126,8 @@ Deno.serve(async (req: Request) => {
 
         const sourceChannel = {
             platform: 'email',
-            from_email: email.from,
-            subject: email.subject,
+            from_email: from,
+            subject: subject,
             channel_db_id: channel.id,
         };
 
@@ -137,7 +153,7 @@ Deno.serve(async (req: Request) => {
             const { data: task, error: taskErr } = await supabase
                 .from('tasks')
                 .insert({
-                    title: email.subject || `Email from ${email.from}`,
+                    title: subject || `Email from ${from}`,
                     description: body,
                     workspace_id: channel.workspace_id,
                     assigned_agent_id: channel.default_agent_id,
@@ -148,8 +164,9 @@ Deno.serve(async (req: Request) => {
                     metadata: {
                         source: 'messaging_channel',
                         platform: 'email',
-                        sender: email.from,
+                        sender: from,
                         channel_id: channel.id,
+                        email_id: email_id,
                     },
                 })
                 .select('id')
@@ -166,7 +183,7 @@ Deno.serve(async (req: Request) => {
             task_id: channel.default_team_id ? null : taskOrRunId,
             team_run_id: channel.default_team_id ? taskOrRunId : null,
             message_preview: prompt.substring(0, 200),
-            platform_ref: { from: email.from, subject: email.subject },
+            platform_ref: { from, subject, email_id },
             status: 'delivered',
         });
 
