@@ -2,6 +2,7 @@
 // Copyright (C) 2026 CrewForm
 
 import { supabase } from './supabase';
+import { Resend } from 'resend';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -725,9 +726,8 @@ export async function replyToSourceChannel(
                     delivered = await replySlack(sc, emoji, row.title, content);
                     break;
                 case 'email':
-                    // Email reply deferred to Edge Function (requires email provider SDK)
-                    console.log(`[SourceChannel] Email reply not yet implemented for task ${taskId}`);
-                    return;
+                    delivered = await replyEmail(sc, emoji, row.title, content);
+                    break;
                 default:
                     return;
             }
@@ -847,4 +847,51 @@ async function replySlack(sc: SourceChannel, emoji: string, title: string, conte
     });
 
     return resp.ok;
+}
+
+async function replyEmail(sc: SourceChannel, emoji: string, title: string, content: string): Promise<boolean> {
+    const apiKey = process.env.RESEND_API_KEY;
+    const fromAddress = process.env.RESEND_FROM_ADDRESS ?? 'CrewForm <noreply@crewform.tech>';
+
+    if (!apiKey || !sc.from_email) return false;
+
+    const resend = new Resend(apiKey);
+
+    const truncated = content.length > 10000
+        ? `${content.substring(0, 10000)}\n\n... truncated (${content.length} chars)`
+        : content;
+
+    const htmlBody = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px;">
+            <h2>${emoji} ${escapeHtml(title)}</h2>
+            <div style="background: #f4f4f5; border-radius: 8px; padding: 16px; white-space: pre-wrap; font-size: 14px; line-height: 1.6;">
+${escapeHtml(truncated)}
+            </div>
+            <p style="color: #71717a; font-size: 12px; margin-top: 16px;">
+                Sent by CrewForm
+            </p>
+        </div>
+    `;
+
+    const { error: sendErr } = await resend.emails.send({
+        from: fromAddress,
+        to: sc.from_email,
+        subject: `Re: ${sc.subject ?? title}`,
+        html: htmlBody,
+    });
+
+    if (sendErr) {
+        console.error('[SourceChannel] Resend error:', sendErr.message);
+        return false;
+    }
+
+    return true;
+}
+
+function escapeHtml(text: string): string {
+    return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
 }
