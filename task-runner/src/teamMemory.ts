@@ -19,8 +19,9 @@ const EMBEDDING_DIMS = 1536;
 async function generateEmbedding(
     text: string,
     apiKey: string,
+    baseURL?: string,
 ): Promise<number[]> {
-    const openai = new OpenAI({ apiKey });
+    const openai = new OpenAI({ apiKey, ...(baseURL ? { baseURL } : {}) });
     const response = await openai.embeddings.create({
         model: EMBEDDING_MODEL,
         input: text.slice(0, 8000), // Avoid exceeding token limits
@@ -42,18 +43,29 @@ export async function storeTeamMemory(
     content: string,
 ): Promise<void> {
     try {
-        const apiKey = await getOpenAIKey(workspaceId);
-        if (!apiKey) {
-            console.log(`[TeamMemory] No OpenAI key for workspace ${workspaceId}, skipping memory storage`);
+        console.log(`[TeamMemory] storeTeamMemory called — team=${teamId}, run=${runId}, contentLen=${content.length}`);
+
+        if (!content || content.trim().length === 0) {
+            console.log(`[TeamMemory] Empty content, skipping memory storage`);
             return;
         }
+
+        const keyResult = await getEmbeddingKey(workspaceId);
+        if (!keyResult) {
+            console.log(`[TeamMemory] No embedding-capable API key for workspace ${workspaceId}, skipping`);
+            return;
+        }
+
+        console.log(`[TeamMemory] Using ${keyResult.provider} key for embeddings`);
 
         // Summarise long outputs to keep embeddings focused
         const memoryContent = content.length > 2000
             ? `${content.slice(0, 2000)}…`
             : content;
 
-        const embedding = await generateEmbedding(memoryContent, apiKey);
+        console.log(`[TeamMemory] Generating embedding (${memoryContent.length} chars)…`);
+        const embedding = await generateEmbedding(memoryContent, keyResult.apiKey, keyResult.baseURL);
+        console.log(`[TeamMemory] Embedding generated (${embedding.length} dimensions)`);
 
         const { error } = await supabase
             .from('team_memory')
@@ -70,13 +82,16 @@ export async function storeTeamMemory(
             });
 
         if (error) {
-            console.error(`[TeamMemory] Failed to store memory:`, error.message);
+            console.error(`[TeamMemory] Supabase insert failed:`, error.message, error.details, error.hint);
         } else {
-            console.log(`[TeamMemory] Stored memory for team ${teamId}, run ${runId}`);
+            console.log(`[TeamMemory] ✓ Memory stored for team ${teamId}, run ${runId}`);
         }
     } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         console.error(`[TeamMemory] Error storing memory:`, msg);
+        if (err instanceof Error && err.stack) {
+            console.error(`[TeamMemory] Stack:`, err.stack);
+        }
     }
 }
 
@@ -93,12 +108,12 @@ export async function retrieveRelevantMemories(
     topK = 5,
 ): Promise<string[]> {
     try {
-        const apiKey = await getOpenAIKey(workspaceId);
-        if (!apiKey) {
+        const keyResult = await getEmbeddingKey(workspaceId);
+        if (!keyResult) {
             return [];
         }
 
-        const embedding = await generateEmbedding(query, apiKey);
+        const embedding = await generateEmbedding(query, keyResult.apiKey, keyResult.baseURL);
 
         const { data, error } = await supabase.rpc('match_team_memories', {
             p_team_id: teamId,
@@ -143,34 +158,60 @@ export function buildMemoryContext(memories: string[]): string {
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
+interface EmbeddingKeyResult {
+    apiKey: string;
+    provider: string;
+    baseURL?: string;
+}
+
 /**
- * Find an OpenAI API key for the workspace (needed for embeddings).
- * Falls back to OpenRouter if no direct OpenAI key exists.
+ * Find an API key capable of generating embeddings.
+ * Tries OpenAI first (native), then OpenRouter (via its OpenAI-compatible API).
  */
-async function getOpenAIKey(workspaceId: string): Promise<string | null> {
-    // Try OpenAI first (provider stored as 'OpenAI' in DB)
-    const { data: openaiKey } = await supabase
+async function getEmbeddingKey(workspaceId: string): Promise<EmbeddingKeyResult | null> {
+    console.log(`[TeamMemory] Looking up embedding key for workspace ${workspaceId}`);
+
+    // Try OpenAI first — best for embeddings
+    const openaiResult = await supabase
         .from('api_keys')
         .select('*')
         .eq('workspace_id', workspaceId)
         .ilike('provider', 'openai')
-        .single();
+        .maybeSingle();
 
-    if (openaiKey) {
-        return decryptApiKey((openaiKey as ApiKey).encrypted_key);
+    if (openaiResult.error) {
+        console.error(`[TeamMemory] OpenAI key lookup error:`, openaiResult.error.message);
     }
 
-    // Fallback: try OpenRouter (it supports embeddings too)
-    const { data: routerKey } = await supabase
+    if (openaiResult.data) {
+        console.log(`[TeamMemory] Found OpenAI key`);
+        return {
+            apiKey: decryptApiKey((openaiResult.data as ApiKey).encrypted_key),
+            provider: 'OpenAI',
+        };
+    }
+
+    // Fallback: OpenRouter (supports embeddings via OpenAI-compatible endpoint)
+    const routerResult = await supabase
         .from('api_keys')
         .select('*')
         .eq('workspace_id', workspaceId)
         .ilike('provider', 'openrouter')
-        .single();
+        .maybeSingle();
 
-    if (routerKey) {
-        return decryptApiKey((routerKey as ApiKey).encrypted_key);
+    if (routerResult.error) {
+        console.error(`[TeamMemory] OpenRouter key lookup error:`, routerResult.error.message);
     }
 
+    if (routerResult.data) {
+        console.log(`[TeamMemory] Found OpenRouter key (fallback)`);
+        return {
+            apiKey: decryptApiKey((routerResult.data as ApiKey).encrypted_key),
+            provider: 'OpenRouter',
+            baseURL: 'https://openrouter.ai/api/v1',
+        };
+    }
+
+    console.log(`[TeamMemory] No OpenAI or OpenRouter key found`);
     return null;
 }
