@@ -21,6 +21,7 @@ import { useWorkspace } from '@/hooks/useWorkspace'
 import { useUpdateTeam } from '@/hooks/useUpdateTeam'
 import { useDeleteTeam } from '@/hooks/useDeleteTeam'
 import { useTeamRuns } from '@/hooks/useTeamRuns'
+import { useApiKeys } from '@/hooks/useApiKeys'
 import { PipelineConfigPanel } from '@/components/teams/PipelineConfigPanel'
 import { OrchestratorConfigPanel } from '@/components/teams/OrchestratorConfig'
 import { CollaborationConfigPanel } from '@/components/teams/CollaborationConfigPanel'
@@ -71,6 +72,12 @@ export function TeamDetail() {
     const orchestratorConfig = team?.mode === 'orchestrator' ? (team.config as OrchestratorConfig) : undefined
     const collaborationConfig = team?.mode === 'collaboration' ? (team.config as CollaborationConfig) : undefined
     const stepCount = pipelineConfig?.steps.length ?? 0
+
+    // Check if embedding-capable API keys are configured
+    const { keysByProvider } = useApiKeys(workspaceId)
+    const hasEmbeddingKey = [...keysByProvider.keys()].some(
+        (p) => p.toLowerCase() === 'openai' || p.toLowerCase() === 'openrouter',
+    )
 
     // Close mode dropdown on outside click
     const modeDropdownRef = useRef<HTMLDivElement>(null)
@@ -390,10 +397,12 @@ export function TeamDetail() {
                         <TeamTriggersPanel teamId={team.id} />
                     </div>
 
-                    {/* Knowledge Base */}
-                    <div className="mt-8">
-                        <TeamMemoryPanel teamId={team.id} />
-                    </div>
+                    {/* Knowledge Base (only shown when embedding keys are available) */}
+                    {hasEmbeddingKey && (
+                        <div className="mt-8">
+                            <TeamMemoryPanel teamId={team.id} />
+                        </div>
+                    )}
 
                     {/* Recent Runs */}
                     <div className="mt-8">
