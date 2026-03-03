@@ -148,12 +148,12 @@ export function buildMemoryContext(memories: string[]): string {
  * Falls back to OpenRouter if no direct OpenAI key exists.
  */
 async function getOpenAIKey(workspaceId: string): Promise<string | null> {
-    // Try OpenAI first
+    // Try OpenAI first (provider stored as 'OpenAI' in DB)
     const { data: openaiKey } = await supabase
         .from('api_keys')
         .select('*')
         .eq('workspace_id', workspaceId)
-        .eq('provider', 'openai')
+        .ilike('provider', 'openai')
         .single();
 
     if (openaiKey) {
@@ -165,7 +165,7 @@ async function getOpenAIKey(workspaceId: string): Promise<string | null> {
         .from('api_keys')
         .select('*')
         .eq('workspace_id', workspaceId)
-        .eq('provider', 'openrouter')
+        .ilike('provider', 'openrouter')
         .single();
 
     if (routerKey) {
