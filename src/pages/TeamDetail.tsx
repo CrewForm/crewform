@@ -27,6 +27,7 @@ import { CollaborationConfigPanel } from '@/components/teams/CollaborationConfig
 import { RunTeamModal } from '@/components/teams/RunTeamModal'
 import { TeamRunCard } from '@/components/teams/TeamRunCard'
 import { TeamTriggersPanel } from '@/components/teams/TeamTriggersPanel'
+import { TeamMemoryPanel } from '@/components/teams/TeamMemoryPanel'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import type { PipelineConfig, OrchestratorConfig, CollaborationConfig, TeamMode } from '@/types'
@@ -387,6 +388,11 @@ export function TeamDetail() {
                     {/* Triggers */}
                     <div className="mt-8">
                         <TeamTriggersPanel teamId={team.id} />
+                    </div>
+
+                    {/* Knowledge Base */}
+                    <div className="mt-8">
+                        <TeamMemoryPanel teamId={team.id} />
                     </div>
 
                     {/* Recent Runs */}

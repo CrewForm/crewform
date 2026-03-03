@@ -6,6 +6,7 @@ import { decryptApiKey } from './crypto';
 import { writeTeamRunUsageRecord } from './usageWriter';
 import { dispatchTeamRunWebhooks } from './webhookDispatcher';
 import { loadInputFiles, buildFileContext, extractAndSaveArtifacts } from './fileAttachments';
+import { storeTeamMemory, retrieveRelevantMemories, buildMemoryContext } from './teamMemory';
 import type { TeamRun, Agent, ApiKey, PipelineConfig, PipelineStep, TeamHandoffContext, TokenUsage } from './types';
 
 /**
@@ -66,6 +67,12 @@ export async function processPipelineRun(run: TeamRun): Promise<void> {
             console.log(`[PipelineExecutor] Loaded ${inputFiles.length} input file(s) for run ${run.id}`);
         }
 
+        // Retrieve relevant team memories for context
+        const teamMemories = await retrieveRelevantMemories(run.team_id, run.workspace_id, run.input_task);
+        if (teamMemories.length > 0) {
+            console.log(`[PipelineExecutor] Found ${teamMemories.length} relevant memories for team ${run.team_id}`);
+        }
+
         // 3. Execute each step sequentially
         const accumulatedOutputs: string[] = [];
         let previousOutput: string | null = null;
@@ -80,6 +87,7 @@ export async function processPipelineRun(run: TeamRun): Promise<void> {
                 previousOutput,
                 accumulatedOutputs,
                 fileContextBlock: i === 0 ? fileContextBlock : '',
+                teamMemories: i === 0 ? teamMemories : [],
             });
 
             if (stepOutput !== null) {
@@ -129,6 +137,9 @@ export async function processPipelineRun(run: TeamRun): Promise<void> {
 
         console.log(`[PipelineExecutor] Run ${run.id} completed (${steps.length} steps, ${totalTokens} tokens, $${totalCost.toFixed(4)})`);
 
+        // Store output as team memory (fire-and-forget)
+        void storeTeamMemory(run.team_id, run.id, run.workspace_id, finalOutput);
+
         // Extract output file artifacts (fire-and-forget)
         void extractAndSaveArtifacts(run.workspace_id, null, run.id, finalOutput);
 
@@ -173,6 +184,7 @@ interface StepInput {
     previousOutput: string | null;
     accumulatedOutputs: string[];
     fileContextBlock?: string;
+    teamMemories?: string[];
 }
 
 interface StepResult {
@@ -183,7 +195,7 @@ interface StepResult {
 }
 
 async function executeStep(input: StepInput): Promise<StepResult | null> {
-    const { run, step, stepIndex, inputTask, previousOutput, accumulatedOutputs, fileContextBlock } = input;
+    const { run, step, stepIndex, inputTask, previousOutput, accumulatedOutputs, fileContextBlock, teamMemories } = input;
     let attempts = 0;
     const maxAttempts = step.on_failure === 'retry' ? step.max_retries + 1 : 1;
 
@@ -206,6 +218,7 @@ async function executeStep(input: StepInput): Promise<StepResult | null> {
                 step_index: stepIndex,
                 step_name: step.step_name,
                 accumulated_outputs: accumulatedOutputs,
+                team_memories: teamMemories,
             };
 
             // Record handoff
@@ -403,6 +416,11 @@ function buildStepPrompt(step: PipelineStep, context: TeamHandoffContext): strin
 
     if (context.accumulated_outputs.length > 1) {
         parts.push(`## Pipeline Context\nThis is step ${context.step_index + 1} in a multi-step pipeline. ${context.accumulated_outputs.length} previous steps have completed.`);
+    }
+
+    // Inject team memory context
+    if (context.team_memories && context.team_memories.length > 0) {
+        parts.push(buildMemoryContext(context.team_memories));
     }
 
     return parts.join('\n\n');

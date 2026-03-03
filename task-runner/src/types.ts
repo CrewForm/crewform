@@ -115,6 +115,7 @@ export interface TeamHandoffContext {
     step_index: number;
     step_name: string;
     accumulated_outputs: string[];
+    team_memories?: string[];
 }
 
 // ─── Orchestrator Types ──────────────────────────────────────────────────────

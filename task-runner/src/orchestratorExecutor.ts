@@ -8,6 +8,7 @@ import { supabase } from './supabase';
 import { executeLLMCall } from './llmHelper';
 import { writeTeamRunUsageRecord } from './usageWriter';
 import { dispatchTeamRunWebhooks } from './webhookDispatcher';
+import { storeTeamMemory, retrieveRelevantMemories, buildMemoryContext } from './teamMemory';
 import type { TeamRun, Agent, OrchestratorConfig, Delegation, TokenUsage } from './types';
 
 // ─── Tool Definitions ────────────────────────────────────────────────────────
@@ -151,8 +152,17 @@ export async function processOrchestratorRun(run: TeamRun): Promise<void> {
             throw new Error('No worker agents found for this orchestrator team');
         }
 
-        // 3. Build brain system prompt
-        const brainSystemPrompt = buildBrainSystemPrompt(workers, config);
+        // 3. Retrieve relevant team memories
+        const teamMemories = await retrieveRelevantMemories(run.team_id, run.workspace_id, run.input_task);
+        if (teamMemories.length > 0) {
+            console.log(`[Orchestrator] Found ${teamMemories.length} relevant memories for team ${run.team_id}`);
+        }
+
+        // 4. Build brain system prompt with memory context
+        let brainSystemPrompt = buildBrainSystemPrompt(workers, config);
+        if (teamMemories.length > 0) {
+            brainSystemPrompt += buildMemoryContext(teamMemories);
+        }
         const userPrompt = `Task to orchestrate:\n\n${run.input_task}`;
 
         // 4. Record initial brain message
@@ -260,6 +270,13 @@ export async function processOrchestratorRun(run: TeamRun): Promise<void> {
         });
 
         console.log(`[Orchestrator] Completed run ${run.id} (${loopCount} loops, ${totalTokens} tokens)`);
+
+        // Store output as team memory (fire-and-forget)
+        const completedRun = await supabase.from('team_runs').select('output').eq('id', run.id).single();
+        const runOutput = (completedRun.data as { output: string | null } | null)?.output;
+        if (runOutput) {
+            void storeTeamMemory(run.team_id, run.id, run.workspace_id, runOutput);
+        }
 
         // Fire team_run.completed webhook (fire-and-forget)
         void dispatchTeamRunWebhooks(
