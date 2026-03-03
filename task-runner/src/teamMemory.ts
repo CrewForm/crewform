@@ -15,25 +15,34 @@ const EMBEDDING_DIMS = 1536;
 
 /**
  * Generate an embedding vector for the given text using OpenAI's API.
+ * Returns null on any failure.
  */
 async function generateEmbedding(
     text: string,
     apiKey: string,
     baseURL?: string,
-): Promise<number[]> {
-    const openai = new OpenAI({ apiKey, ...(baseURL ? { baseURL } : {}) });
-    const response = await openai.embeddings.create({
-        model: EMBEDDING_MODEL,
-        input: text.slice(0, 8000), // Avoid exceeding token limits
-        dimensions: EMBEDDING_DIMS,
-    });
-    return response.data[0].embedding;
+): Promise<number[] | null> {
+    try {
+        const openai = new OpenAI({ apiKey, ...(baseURL ? { baseURL } : {}) });
+        const response = await openai.embeddings.create({
+            model: EMBEDDING_MODEL,
+            input: text.slice(0, 8000), // Avoid exceeding token limits
+            dimensions: EMBEDDING_DIMS,
+        });
+        return response.data[0].embedding;
+    } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`[TeamMemory] Embedding generation failed: ${msg}`);
+        return null;
+    }
 }
 
 // ─── Memory Storage ─────────────────────────────────────────────────────────
 
 /**
- * Store a team run output as a memory entry with its embedding.
+ * Store a team run output as a memory entry.
+ * Always stores the content. Embedding is best-effort — if it fails,
+ * the memory is stored without an embedding (can be back-filled later).
  * Fire-and-forget: failures are logged but never throw.
  */
 export async function storeTeamMemory(
@@ -50,41 +59,53 @@ export async function storeTeamMemory(
             return;
         }
 
-        const keyResult = await getEmbeddingKey(workspaceId);
-        if (!keyResult) {
-            console.log(`[TeamMemory] No embedding-capable API key for workspace ${workspaceId}, skipping`);
-            return;
-        }
-
-        console.log(`[TeamMemory] Using ${keyResult.provider} key for embeddings`);
-
-        // Summarise long outputs to keep embeddings focused
+        // Summarise long outputs to keep memory focused
         const memoryContent = content.length > 2000
             ? `${content.slice(0, 2000)}…`
             : content;
 
-        console.log(`[TeamMemory] Generating embedding (${memoryContent.length} chars)…`);
-        const embedding = await generateEmbedding(memoryContent, keyResult.apiKey, keyResult.baseURL);
-        console.log(`[TeamMemory] Embedding generated (${embedding.length} dimensions)`);
+        // Try to get an embedding key and generate an embedding (best-effort)
+        let embeddingStr: string | null = null;
+        const keyResult = await getEmbeddingKey(workspaceId);
+        if (keyResult) {
+            console.log(`[TeamMemory] Using ${keyResult.provider} key for embeddings`);
+            const embedding = await generateEmbedding(memoryContent, keyResult.apiKey, keyResult.baseURL);
+            if (embedding) {
+                embeddingStr = `[${embedding.join(',')}]`;
+                console.log(`[TeamMemory] Embedding generated (${embedding.length} dimensions)`);
+            } else {
+                console.warn(`[TeamMemory] Embedding failed, storing memory without embedding`);
+            }
+        } else {
+            console.log(`[TeamMemory] No embedding key found, storing memory without embedding`);
+        }
 
+        // Build insert payload — always store content, embedding is optional
+        const insertPayload: Record<string, unknown> = {
+            team_id: teamId,
+            run_id: runId,
+            content: memoryContent,
+            metadata: {
+                source: 'team_run',
+                content_length: content.length,
+                has_embedding: embeddingStr !== null,
+                stored_at: new Date().toISOString(),
+            },
+        };
+
+        if (embeddingStr) {
+            insertPayload.embedding = embeddingStr;
+        }
+
+        console.log(`[TeamMemory] Inserting memory into team_memory table…`);
         const { error } = await supabase
             .from('team_memory')
-            .insert({
-                team_id: teamId,
-                run_id: runId,
-                content: memoryContent,
-                embedding: `[${embedding.join(',')}]`,
-                metadata: {
-                    source: 'team_run',
-                    content_length: content.length,
-                    stored_at: new Date().toISOString(),
-                },
-            });
+            .insert(insertPayload);
 
         if (error) {
             console.error(`[TeamMemory] Supabase insert failed:`, error.message, error.details, error.hint);
         } else {
-            console.log(`[TeamMemory] ✓ Memory stored for team ${teamId}, run ${runId}`);
+            console.log(`[TeamMemory] ✓ Memory stored for team ${teamId}, run ${runId} (embedding: ${embeddingStr ? 'yes' : 'no'})`);
         }
     } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -110,10 +131,15 @@ export async function retrieveRelevantMemories(
     try {
         const keyResult = await getEmbeddingKey(workspaceId);
         if (!keyResult) {
-            return [];
+            // No embedding key — fall back to fetching recent memories by date
+            return fetchRecentMemories(teamId, topK);
         }
 
         const embedding = await generateEmbedding(query, keyResult.apiKey, keyResult.baseURL);
+        if (!embedding) {
+            // Embedding failed — fall back to recent memories
+            return fetchRecentMemories(teamId, topK);
+        }
 
         const { data, error } = await supabase.rpc('match_team_memories', {
             p_team_id: teamId,
@@ -122,8 +148,9 @@ export async function retrieveRelevantMemories(
         });
 
         if (error) {
-            console.error(`[TeamMemory] Search failed:`, error.message);
-            return [];
+            console.error(`[TeamMemory] RPC search failed:`, error.message);
+            // Fall back to recent memories if the RPC function doesn't exist yet
+            return fetchRecentMemories(teamId, topK);
         }
 
         const rows = data as Array<{ content: string; similarity: number }> | null;
@@ -136,6 +163,26 @@ export async function retrieveRelevantMemories(
     } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         console.error(`[TeamMemory] Error retrieving memories:`, msg);
+        return [];
+    }
+}
+
+/**
+ * Simple fallback: fetch the most recent memories by creation date.
+ * Used when embeddings or the match RPC function aren't available.
+ */
+async function fetchRecentMemories(teamId: string, limit: number): Promise<string[]> {
+    try {
+        const { data, error } = await supabase
+            .from('team_memory')
+            .select('content')
+            .eq('team_id', teamId)
+            .order('created_at', { ascending: false })
+            .limit(limit);
+
+        if (error || !data) return [];
+        return (data as Array<{ content: string }>).map((r) => r.content);
+    } catch {
         return [];
     }
 }
@@ -169,8 +216,6 @@ interface EmbeddingKeyResult {
  * Tries OpenAI first (native), then OpenRouter (via its OpenAI-compatible API).
  */
 async function getEmbeddingKey(workspaceId: string): Promise<EmbeddingKeyResult | null> {
-    console.log(`[TeamMemory] Looking up embedding key for workspace ${workspaceId}`);
-
     // Try OpenAI first — best for embeddings
     const openaiResult = await supabase
         .from('api_keys')
@@ -184,14 +229,13 @@ async function getEmbeddingKey(workspaceId: string): Promise<EmbeddingKeyResult 
     }
 
     if (openaiResult.data) {
-        console.log(`[TeamMemory] Found OpenAI key`);
         return {
             apiKey: decryptApiKey((openaiResult.data as ApiKey).encrypted_key),
             provider: 'OpenAI',
         };
     }
 
-    // Fallback: OpenRouter (supports embeddings via OpenAI-compatible endpoint)
+    // Fallback: OpenRouter
     const routerResult = await supabase
         .from('api_keys')
         .select('*')
@@ -204,7 +248,6 @@ async function getEmbeddingKey(workspaceId: string): Promise<EmbeddingKeyResult 
     }
 
     if (routerResult.data) {
-        console.log(`[TeamMemory] Found OpenRouter key (fallback)`);
         return {
             apiKey: decryptApiKey((routerResult.data as ApiKey).encrypted_key),
             provider: 'OpenRouter',
@@ -212,6 +255,5 @@ async function getEmbeddingKey(workspaceId: string): Promise<EmbeddingKeyResult 
         };
     }
 
-    console.log(`[TeamMemory] No OpenAI or OpenRouter key found`);
     return null;
 }
