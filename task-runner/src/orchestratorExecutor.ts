@@ -152,10 +152,16 @@ export async function processOrchestratorRun(run: TeamRun): Promise<void> {
             throw new Error('No worker agents found for this orchestrator team');
         }
 
-        // 3. Retrieve relevant team memories
-        const teamMemories = await retrieveRelevantMemories(run.team_id, run.workspace_id, run.input_task);
-        if (teamMemories.length > 0) {
-            console.log(`[Orchestrator] Found ${teamMemories.length} relevant memories for team ${run.team_id}`);
+        // 3. Retrieve relevant team memories (non-blocking — errors never affect the run)
+        let teamMemories: string[] = [];
+        try {
+            teamMemories = await retrieveRelevantMemories(run.team_id, run.workspace_id, run.input_task);
+            if (teamMemories.length > 0) {
+                console.log(`[Orchestrator] Found ${teamMemories.length} relevant memories for team ${run.team_id}`);
+            }
+        } catch (memErr: unknown) {
+            const msg = memErr instanceof Error ? memErr.message : String(memErr);
+            console.warn(`[Orchestrator] Memory retrieval failed (non-fatal): ${msg}`);
         }
 
         // 4. Build brain system prompt with memory context
