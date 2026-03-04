@@ -34,6 +34,8 @@ Guidelines:
 - Explain your reasoning briefly before writing code
 - Suggest tests when appropriate`,
             temperature: 0.3,
+            max_tokens: null,
+            tags: [],
             tools: [],
         },
     },
@@ -56,6 +58,8 @@ Guidelines:
 - Include strong calls-to-action when appropriate
 - Proofread for grammar, spelling, and readability`,
             temperature: 0.8,
+            max_tokens: null,
+            tags: [],
             tools: [],
         },
     },
@@ -78,6 +82,8 @@ Guidelines:
 - Summarise key findings clearly at the top
 - Flag uncertainty and limitations in your analysis`,
             temperature: 0.5,
+            max_tokens: null,
+            tags: [],
             tools: [],
         },
     },
@@ -100,6 +106,8 @@ Guidelines:
 - Consider responsive design and mobile-first approaches
 - Keep user goals and personas in mind`,
             temperature: 0.7,
+            max_tokens: null,
+            tags: [],
             tools: [],
         },
     },
@@ -122,6 +130,8 @@ Guidelines:
 - Proactively suggest next steps when helpful
 - Maintain a friendly, professional tone`,
             temperature: 0.7,
+            max_tokens: null,
+            tags: [],
             tools: [],
         },
     },

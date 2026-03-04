@@ -6,12 +6,14 @@ export async function executeGoogle(
     model: string,
     systemPrompt: string,
     userPrompt: string,
-    onChunk: (text: string) => Promise<void>
+    onChunk: (text: string) => Promise<void>,
+    maxTokens?: number | null
 ): Promise<{ result: string; usage: TokenUsage }> {
     const genAI = new GoogleGenerativeAI(apiKey);
     const genModel = genAI.getGenerativeModel({
         model,
         systemInstruction: systemPrompt,
+        ...(maxTokens != null ? { generationConfig: { maxOutputTokens: maxTokens } } : {}),
     });
 
     let fullText = '';

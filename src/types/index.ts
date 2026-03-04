@@ -59,6 +59,8 @@ export interface Agent {
   provider: string | null
   system_prompt: string
   temperature: number
+  max_tokens: number | null
+  tags: string[]
   tools: string[]
   voice_profile: VoiceProfileInline | null
   voice_profile_id: string | null

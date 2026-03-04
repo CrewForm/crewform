@@ -2,7 +2,7 @@
 // Copyright (C) 2026 CrewForm
 
 import { useState, useMemo } from 'react'
-import { AlertCircle, Plus, Pencil, Trash2 } from 'lucide-react'
+import { AlertCircle, Plus, Pencil, Trash2, X } from 'lucide-react'
 import type { AgentFormData } from '@/lib/agentSchema'
 import { agentSchema, MODEL_OPTIONS, BUILT_IN_TOOLS, getActiveModelOptions, mergeModelOptions } from '@/lib/agentSchema'
 import { useOpenRouterModels } from '@/hooks/useOpenRouterModels'
@@ -57,6 +57,8 @@ export function AgentForm({ initialData, onSubmit, onBack, activeProviders, work
         ])
     }, [activeProviders, openRouterModels])
 
+    const [tagInput, setTagInput] = useState('')
+
     function updateField<K extends keyof AgentFormData>(key: K, value: AgentFormData[K]) {
         setFormData((prev) => ({ ...prev, [key]: value }))
         // Clear field error on change
@@ -67,6 +69,18 @@ export function AgentForm({ initialData, onSubmit, onBack, activeProviders, work
                 ),
             )
         }
+    }
+
+    function handleAddTag() {
+        const tag = tagInput.trim().toLowerCase()
+        if (tag && !formData.tags.includes(tag) && formData.tags.length < 20) {
+            updateField('tags', [...formData.tags, tag])
+        }
+        setTagInput('')
+    }
+
+    function handleRemoveTag(tag: string) {
+        updateField('tags', formData.tags.filter(t => t !== tag))
     }
 
     function handleSubmit() {
@@ -216,6 +230,80 @@ export function AgentForm({ initialData, onSubmit, onBack, activeProviders, work
                     <span>Precise</span>
                     <span>Creative</span>
                 </div>
+            </div>
+
+            {/* Max Tokens */}
+            <div>
+                <label htmlFor="agent-max-tokens" className="mb-1.5 block text-sm font-medium text-gray-300">
+                    Max Tokens
+                </label>
+                <input
+                    id="agent-max-tokens"
+                    type="number"
+                    min={1}
+                    value={formData.max_tokens ?? ''}
+                    onChange={(e) => {
+                        const val = e.target.value
+                        updateField('max_tokens', val === '' ? null : parseInt(val, 10))
+                    }}
+                    placeholder="Unlimited (provider default)"
+                    className="w-full rounded-lg border border-border bg-surface-card px-4 py-2.5 text-sm text-gray-200 placeholder-gray-500 outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                    Leave empty for unlimited (uses provider default).
+                </p>
+                {errors.max_tokens && <p className="mt-1 text-xs text-status-error-text">{errors.max_tokens}</p>}
+            </div>
+
+            {/* Tags */}
+            <div>
+                <label htmlFor="agent-tags" className="mb-1.5 block text-sm font-medium text-gray-300">
+                    Tags
+                </label>
+                <div className="flex gap-2">
+                    <input
+                        id="agent-tags"
+                        type="text"
+                        value={tagInput}
+                        onChange={(e) => setTagInput(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                                e.preventDefault()
+                                handleAddTag()
+                            }
+                        }}
+                        placeholder="Add a tag and press Enter"
+                        className="flex-1 rounded-lg border border-border bg-surface-card px-4 py-2.5 text-sm text-gray-200 placeholder-gray-500 outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
+                    />
+                    <button
+                        type="button"
+                        onClick={handleAddTag}
+                        disabled={!tagInput.trim()}
+                        className="rounded-lg border border-border px-3 py-2 text-sm font-medium text-gray-400 transition-colors hover:bg-surface-elevated hover:text-gray-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                        Add
+                    </button>
+                </div>
+                {formData.tags.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                        {formData.tags.map((tag) => (
+                            <span
+                                key={tag}
+                                className="inline-flex items-center gap-1 rounded-full bg-brand-muted/20 border border-brand-primary/30 px-2.5 py-0.5 text-xs font-medium text-brand-primary"
+                            >
+                                {tag}
+                                <button
+                                    type="button"
+                                    onClick={() => handleRemoveTag(tag)}
+                                    className="rounded-full p-0.5 hover:bg-brand-primary/20"
+                                >
+                                    <X className="h-2.5 w-2.5" />
+                                </button>
+                            </span>
+                        ))}
+                    </div>
+                )}
+                {errors.tags && <p className="mt-1 text-xs text-status-error-text">{errors.tags}</p>}
             </div>
 
             {/* Built-in Tools */}

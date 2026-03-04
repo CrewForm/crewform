@@ -68,6 +68,16 @@ export const agentSchema = z.object({
         .min(0, 'Temperature must be 0 or higher')
         .max(2, 'Temperature must be 2 or lower')
         .default(0.7),
+    max_tokens: z
+        .number()
+        .int('Max tokens must be a whole number')
+        .min(1, 'Max tokens must be at least 1')
+        .nullable()
+        .default(null),
+    tags: z
+        .array(z.string().max(50, 'Each tag must be 50 characters or less'))
+        .max(20, 'Maximum 20 tags')
+        .default([]),
     tools: z
         .array(z.string())
         .default([]),

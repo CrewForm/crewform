@@ -177,37 +177,38 @@ export async function processTask(task: Task) {
                     agentTools,
                     updateResultStream,
                     customToolConfigs,
+                    agent.max_tokens,
                 );
             } else if (providerLower === 'anthropic') {
-                executionResult = await executeAnthropic(rawKey, agent.model, systemPrompt, userPrompt, updateResultStream);
+                executionResult = await executeAnthropic(rawKey, agent.model, systemPrompt, userPrompt, updateResultStream, agent.max_tokens);
             } else if (providerLower === 'openai') {
-                executionResult = await executeOpenAI(rawKey, agent.model, systemPrompt, userPrompt, updateResultStream);
+                executionResult = await executeOpenAI(rawKey, agent.model, systemPrompt, userPrompt, updateResultStream, undefined, agent.max_tokens);
             } else if (providerLower === 'google') {
-                executionResult = await executeGoogle(rawKey, agent.model, systemPrompt, userPrompt, updateResultStream);
+                executionResult = await executeGoogle(rawKey, agent.model, systemPrompt, userPrompt, updateResultStream, agent.max_tokens);
             } else if (providerLower === 'openrouter') {
                 const orModel = agent.model.replace(/^openrouter\//, '');
-                executionResult = await executeOpenAI(rawKey, orModel, systemPrompt, userPrompt, updateResultStream, 'https://openrouter.ai/api/v1');
+                executionResult = await executeOpenAI(rawKey, orModel, systemPrompt, userPrompt, updateResultStream, 'https://openrouter.ai/api/v1', agent.max_tokens);
             } else if (providerLower === 'groq') {
                 const groqModel = agent.model.replace(/^groq\//, '');
-                executionResult = await executeOpenAI(rawKey, groqModel, systemPrompt, userPrompt, updateResultStream, 'https://api.groq.com/openai/v1');
+                executionResult = await executeOpenAI(rawKey, groqModel, systemPrompt, userPrompt, updateResultStream, 'https://api.groq.com/openai/v1', agent.max_tokens);
             } else if (providerLower === 'mistral') {
-                executionResult = await executeOpenAI(rawKey, agent.model, systemPrompt, userPrompt, updateResultStream, 'https://api.mistral.ai/v1');
+                executionResult = await executeOpenAI(rawKey, agent.model, systemPrompt, userPrompt, updateResultStream, 'https://api.mistral.ai/v1', agent.max_tokens);
             } else if (providerLower === 'cohere') {
-                executionResult = await executeOpenAI(rawKey, agent.model, systemPrompt, userPrompt, updateResultStream, 'https://api.cohere.com/compatibility/v1');
+                executionResult = await executeOpenAI(rawKey, agent.model, systemPrompt, userPrompt, updateResultStream, 'https://api.cohere.com/compatibility/v1', agent.max_tokens);
             } else if (providerLower === 'together') {
-                executionResult = await executeOpenAI(rawKey, agent.model, systemPrompt, userPrompt, updateResultStream, 'https://api.together.xyz/v1');
+                executionResult = await executeOpenAI(rawKey, agent.model, systemPrompt, userPrompt, updateResultStream, 'https://api.together.xyz/v1', agent.max_tokens);
             } else if (providerLower === 'nvidia') {
-                executionResult = await executeOpenAI(rawKey, agent.model, systemPrompt, userPrompt, updateResultStream, 'https://integrate.api.nvidia.com/v1');
+                executionResult = await executeOpenAI(rawKey, agent.model, systemPrompt, userPrompt, updateResultStream, 'https://integrate.api.nvidia.com/v1', agent.max_tokens);
             } else if (providerLower === 'huggingface') {
-                executionResult = await executeOpenAI(rawKey, agent.model, systemPrompt, userPrompt, updateResultStream, 'https://api-inference.huggingface.co/v1');
+                executionResult = await executeOpenAI(rawKey, agent.model, systemPrompt, userPrompt, updateResultStream, 'https://api-inference.huggingface.co/v1', agent.max_tokens);
             } else if (providerLower === 'venice') {
-                executionResult = await executeOpenAI(rawKey, agent.model, systemPrompt, userPrompt, updateResultStream, 'https://api.venice.ai/api/v1');
+                executionResult = await executeOpenAI(rawKey, agent.model, systemPrompt, userPrompt, updateResultStream, 'https://api.venice.ai/api/v1', agent.max_tokens);
             } else if (providerLower === 'minimax') {
-                executionResult = await executeOpenAI(rawKey, agent.model, systemPrompt, userPrompt, updateResultStream, 'https://api.minimaxi.chat/v1');
+                executionResult = await executeOpenAI(rawKey, agent.model, systemPrompt, userPrompt, updateResultStream, 'https://api.minimaxi.chat/v1', agent.max_tokens);
             } else if (providerLower === 'moonshot') {
-                executionResult = await executeOpenAI(rawKey, agent.model, systemPrompt, userPrompt, updateResultStream, 'https://api.moonshot.cn/v1');
+                executionResult = await executeOpenAI(rawKey, agent.model, systemPrompt, userPrompt, updateResultStream, 'https://api.moonshot.cn/v1', agent.max_tokens);
             } else if (providerLower === 'perplexity') {
-                executionResult = await executeOpenAI(rawKey, agent.model, systemPrompt, userPrompt, updateResultStream, 'https://api.perplexity.ai');
+                executionResult = await executeOpenAI(rawKey, agent.model, systemPrompt, userPrompt, updateResultStream, 'https://api.perplexity.ai', agent.max_tokens);
             } else {
                 throw new Error(`Execution for provider "${provider}" is not yet supported in the standalone runner.`);
             }
@@ -325,6 +326,7 @@ async function executeToolUseTask(
     toolNames: string[],
     onProgressUpdate: (text: string) => Promise<void>,
     customTools?: CustomToolConfig[],
+    maxTokens?: number | null,
 ): Promise<{ result: string; usage: TokenUsage }> {
     // Determine base URL for OpenAI-compatible providers
     const baseURLMap: Record<string, string> = {
@@ -387,6 +389,7 @@ async function executeToolUseTask(
                 model: effectiveModel,
                 messages: openaiMessages,
                 tools: toolDefs,
+                ...(maxTokens != null ? { max_tokens: maxTokens } : {}),
             });
 
             const choice = response.choices[0];

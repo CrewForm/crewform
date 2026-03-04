@@ -6,7 +6,8 @@ export async function executeAnthropic(
     model: string,
     systemPrompt: string,
     userPrompt: string,
-    onChunk: (text: string) => Promise<void>
+    onChunk: (text: string) => Promise<void>,
+    maxTokens?: number | null
 ): Promise<{ result: string; usage: TokenUsage }> {
     const anthropic = new Anthropic({ apiKey });
     let fullText = '';
@@ -15,7 +16,7 @@ export async function executeAnthropic(
 
     const stream = await anthropic.messages.create({
         model,
-        max_tokens: 4096,
+        max_tokens: maxTokens ?? 4096,
         system: systemPrompt,
         messages: [{ role: 'user', content: userPrompt }],
         stream: true,

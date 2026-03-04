@@ -47,6 +47,8 @@ export interface CreateAgentInput {
     provider: string
     system_prompt: string
     temperature: number
+    max_tokens: number | null
+    tags: string[]
     tools: string[]
     avatar_url?: string | null
 }
