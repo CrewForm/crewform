@@ -89,7 +89,7 @@ async function executeTeamRun(run: TeamRun): Promise<void> {
             log(`Orchestrator mode requires an Enterprise license — failing run ${run.id}`);
             await supabase.from('team_runs').update({
                 status: 'failed',
-                output: 'Orchestrator mode requires an Enterprise license. Please upgrade at crewform.tech/pricing.',
+                output: 'Orchestrator mode requires a Pro plan or above. Please upgrade at crewform.tech/pricing.',
             }).eq('id', run.id);
             return;
         }
@@ -100,7 +100,7 @@ async function executeTeamRun(run: TeamRun): Promise<void> {
             log(`Collaboration mode requires an Enterprise license — failing run ${run.id}`);
             await supabase.from('team_runs').update({
                 status: 'failed',
-                output: 'Collaboration mode requires an Enterprise license. Please upgrade at crewform.tech/pricing.',
+                output: 'Collaboration mode requires a Team plan or above. Please upgrade at crewform.tech/pricing.',
             }).eq('id', run.id);
             return;
         }

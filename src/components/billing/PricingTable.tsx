@@ -11,38 +11,50 @@ interface PlanFeature {
     free: string | boolean
     pro: string | boolean
     team: string | boolean
+    enterprise: string | boolean
 }
 
 const FEATURES: PlanFeature[] = [
-    { label: 'Agents', free: '3', pro: '25', team: 'Unlimited' },
-    { label: 'Tasks / month', free: '50', pro: '1,000', team: 'Unlimited' },
-    { label: 'Teams', free: '1', pro: '10', team: 'Unlimited' },
-    { label: 'Members', free: '1', pro: '3', team: '25' },
-    { label: 'Triggers', free: '1', pro: '10', team: 'Unlimited' },
-    { label: 'Models (BYOK)', free: true, pro: true, team: true },
-    { label: 'CSV Export', free: false, pro: true, team: true },
-    { label: 'Audit Log', free: false, pro: '7 days', team: 'Full history' },
-    { label: 'Orchestrator Mode', free: false, pro: true, team: true },
-    { label: 'Priority Support', free: false, pro: false, team: true },
+    { label: 'Agents', free: '3', pro: '25', team: 'Unlimited', enterprise: 'Unlimited' },
+    { label: 'Tasks / month', free: '50', pro: '1,000', team: 'Unlimited', enterprise: 'Unlimited' },
+    { label: 'Teams', free: '1', pro: '10', team: 'Unlimited', enterprise: 'Unlimited' },
+    { label: 'Members', free: '1', pro: '3', team: '25', enterprise: 'Unlimited' },
+    { label: 'Triggers', free: '1', pro: '10', team: 'Unlimited', enterprise: 'Unlimited' },
+    { label: 'Models (BYOK)', free: true, pro: true, team: true, enterprise: true },
+    { label: 'Orchestrator Mode', free: false, pro: true, team: true, enterprise: true },
+    { label: 'Custom Tools', free: false, pro: true, team: true, enterprise: true },
+    { label: 'Messaging Channels', free: false, pro: true, team: true, enterprise: true },
+    { label: 'Advanced Analytics', free: false, pro: true, team: true, enterprise: true },
+    { label: 'Collaboration Mode', free: false, pro: false, team: true, enterprise: true },
+    { label: 'Team Memory', free: false, pro: false, team: true, enterprise: true },
+    { label: 'RBAC', free: false, pro: false, team: true, enterprise: true },
+    { label: 'Audit Log', free: false, pro: false, team: false, enterprise: 'Full history' },
+    { label: 'Swarm', free: false, pro: false, team: false, enterprise: true },
+    { label: 'Priority Support', free: false, pro: false, team: true, enterprise: true },
 ]
 
 const PLANS = [
     { key: 'free' as const, name: 'Free', price: '$0', period: 'forever', highlight: false },
     { key: 'pro' as const, name: 'Pro', price: '$39', period: '/month', highlight: true },
-    { key: 'team' as const, name: 'Team', price: '$149', period: '/month', highlight: false },
+    { key: 'team' as const, name: 'Team', price: '$99', period: '/month', highlight: false },
+    { key: 'enterprise' as const, name: 'Enterprise', price: 'Custom', period: '', highlight: false },
 ]
 
 export function PricingTable() {
     const { workspaceId } = useWorkspace()
     const checkoutMutation = useCreateCheckout()
 
-    function handleUpgrade(plan: 'pro' | 'team') {
+    function handleUpgrade(plan: 'pro' | 'team' | 'enterprise') {
         if (!workspaceId) return
+        if (plan === 'enterprise') {
+            window.open('mailto:enterprise@crewform.tech?subject=Enterprise%20Plan%20Inquiry', '_blank')
+            return
+        }
         checkoutMutation.mutate({ workspaceId, plan })
     }
 
     return (
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid gap-4 lg:grid-cols-4">
             {PLANS.map((plan) => (
                 <div
                     key={plan.key}
