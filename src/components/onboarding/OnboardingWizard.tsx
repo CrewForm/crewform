@@ -138,6 +138,8 @@ export function OnboardingWizard() {
                 provider: hasModels ? inferProviderFromModel(resolvedModel) : providerKey,
                 system_prompt: systemPrompt,
                 temperature: 0.7,
+                max_tokens: null,
+                tags: [],
                 tools: [],
             })
             setAgentCreated(true)

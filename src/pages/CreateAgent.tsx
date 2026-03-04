@@ -61,6 +61,8 @@ export function CreateAgent() {
                 provider: inferProviderFromModel(formData.model),
                 system_prompt: formData.system_prompt,
                 temperature: formData.temperature,
+                max_tokens: formData.max_tokens,
+                tags: formData.tags,
                 tools: formData.tools,
             },
             {

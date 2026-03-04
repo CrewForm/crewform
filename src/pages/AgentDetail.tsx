@@ -80,6 +80,8 @@ export function AgentDetail() {
                 model: agent.model,
                 system_prompt: agent.system_prompt,
                 temperature: agent.temperature,
+                max_tokens: agent.max_tokens ?? null,
+                tags: Array.isArray(agent.tags) ? agent.tags : [],
                 tools: agent.tools,
             })
         }

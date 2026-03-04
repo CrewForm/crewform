@@ -28,6 +28,8 @@ export interface Agent {
     model: string;
     system_prompt: string;
     temperature: number;
+    max_tokens: number | null;
+    tags: string[];
     tools: string[];
 }
 

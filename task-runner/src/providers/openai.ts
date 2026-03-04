@@ -7,7 +7,8 @@ export async function executeOpenAI(
     systemPrompt: string,
     userPrompt: string,
     onChunk: (text: string) => Promise<void>,
-    baseURL?: string
+    baseURL?: string,
+    maxTokens?: number | null
 ): Promise<{ result: string; usage: TokenUsage }> {
     const openai = new OpenAI({ apiKey, ...(baseURL ? { baseURL } : {}) });
     let fullText = '';
@@ -20,6 +21,7 @@ export async function executeOpenAI(
         ],
         stream: true,
         stream_options: { include_usage: true },
+        ...(maxTokens != null ? { max_tokens: maxTokens } : {}),
     });
 
     let promptTokens = 0;

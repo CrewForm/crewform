@@ -41,6 +41,8 @@ export function TemplateSelector({ onSelect }: TemplateSelectorProps) {
                             model: 'claude-sonnet-4-20250514',
                             system_prompt: '',
                             temperature: 0.7,
+                            max_tokens: null,
+                            tags: [],
                             tools: [],
                         })
                     }
