@@ -12,7 +12,7 @@
 CREATE TABLE public.ee_licenses (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   workspace_id  UUID NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
-  license_key   TEXT NOT NULL,
+  license_key   TEXT NOT NULL DEFAULT 'manual-grant',
   plan          TEXT NOT NULL DEFAULT 'enterprise',
   features      TEXT[] NOT NULL DEFAULT '{}',
   seats         INT NOT NULL DEFAULT 5,

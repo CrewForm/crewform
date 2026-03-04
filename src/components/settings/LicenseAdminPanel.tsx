@@ -40,7 +40,7 @@ export function LicenseAdminPanel() {
     const generateMutation = useMutation({
         mutationFn: async () => {
             const features = featuresForPlan(plan)
-            const { data, error } = await supabase.functions.invoke('generate-license', {
+            const result = await supabase.functions.invoke('generate-license', {
                 body: {
                     workspaceId,
                     plan,
@@ -49,8 +49,8 @@ export function LicenseAdminPanel() {
                     validUntil: validUntil || null,
                 },
             })
-            if (error) throw error
-            return data as { license_key: string }
+            if (result.error) throw result.error
+            return result.data as { license_key: string }
         },
         onSuccess: (data) => {
             setGeneratedKey(data.license_key)
@@ -61,10 +61,10 @@ export function LicenseAdminPanel() {
     // Revoke license mutation
     const revokeMutation = useMutation({
         mutationFn: async (licenseId: string) => {
-            const { error } = await supabase.functions.invoke('revoke-license', {
+            const result = await supabase.functions.invoke('revoke-license', {
                 body: { licenseId },
             })
-            if (error) throw error
+            if (result.error) throw result.error
         },
         onSuccess: () => {
             setGeneratedKey('')

@@ -2,7 +2,7 @@
 // Copyright (C) 2026 CrewForm
 
 import { Sparkles } from 'lucide-react'
-import { useEEFeature, getMinPlanLabel } from '@/lib/featureFlags'
+import { useEEFeature } from '@/lib/featureFlags'
 import type { EEGateProps } from '@/lib/featureFlags'
 
 /**
@@ -68,9 +68,3 @@ export function EEGate({ workspaceId, feature, children, fallback }: EEGateProps
 
     return <>{children}</>
 }
-
-/**
- * Helper to get the plan label for a feature.
- * Re-exported for use in callsites that build custom fallbacks.
- */
-export { getMinPlanLabel }

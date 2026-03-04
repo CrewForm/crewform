@@ -23,11 +23,11 @@ export function LicenseActivation() {
 
     const activateMutation = useMutation({
         mutationFn: async (licenseKey: string) => {
-            const { data, error } = await supabase.functions.invoke('activate-license', {
+            const result = await supabase.functions.invoke('activate-license', {
                 body: { licenseKey },
             })
-            if (error) throw error
-            return data as { activated: boolean; license: { plan: string; features: string[] } }
+            if (result.error) throw result.error
+            return result.data as { activated: boolean; license: { plan: string; features: string[] } }
         },
         onSuccess: () => {
             setKey('')
