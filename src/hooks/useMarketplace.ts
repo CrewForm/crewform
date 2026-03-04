@@ -128,9 +128,9 @@ export function useAgentReviews(agentId: string | null) {
 /** Submit or update a rating for a marketplace agent */
 export function useSubmitRating() {
     const queryClient = useQueryClient()
-    return useMutation<AgentReview, Error, { agentId: string; userId: string; rating: number; reviewText?: string }>({
-        mutationFn: ({ agentId, userId, rating, reviewText }) =>
-            submitAgentRating(agentId, userId, rating, reviewText ?? ''),
+    return useMutation<AgentReview, Error, { agentId: string; userId: string; workspaceId: string; rating: number; reviewText?: string }>({
+        mutationFn: ({ agentId, userId, workspaceId, rating, reviewText }) =>
+            submitAgentRating(agentId, userId, workspaceId, rating, reviewText ?? ''),
         onSuccess: (_data, vars) => {
             void queryClient.invalidateQueries({ queryKey: ['agent-reviews', vars.agentId] })
             void queryClient.invalidateQueries({ queryKey: ['marketplace-agents'] })

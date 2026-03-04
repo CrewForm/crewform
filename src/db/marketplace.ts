@@ -495,6 +495,7 @@ export async function fetchPublishedAgents(): Promise<Array<{
 export async function submitAgentRating(
     agentId: string,
     userId: string,
+    workspaceId: string,
     rating: number,
     reviewText: string = '',
 ): Promise<AgentReview> {
@@ -502,7 +503,7 @@ export async function submitAgentRating(
     const result = await supabase
         .from('agent_reviews')
         .upsert(
-            { agent_id: agentId, user_id: userId, rating, review_text: reviewText },
+            { agent_id: agentId, user_id: userId, workspace_id: workspaceId, rating, review_text: reviewText },
             { onConflict: 'agent_id,user_id' },
         )
         .select()

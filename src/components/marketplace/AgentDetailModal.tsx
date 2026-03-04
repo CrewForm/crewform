@@ -4,6 +4,7 @@
 import { useState } from 'react'
 import { X, Star, Download, Bot, Cpu, Tag, Lock, Loader2 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
+import { useWorkspace } from '@/hooks/useWorkspace'
 import { useAgentReviews, useSubmitRating } from '@/hooks/useMarketplace'
 import type { Agent } from '@/types'
 import { cn } from '@/lib/utils'
@@ -17,6 +18,7 @@ interface AgentDetailModalProps {
 
 export function AgentDetailModal({ agent, onClose, onInstall, isInstalling }: AgentDetailModalProps) {
     const { user } = useAuth()
+    const { workspaceId } = useWorkspace()
     const { data: reviews = [] } = useAgentReviews(agent?.id ?? null)
     const submitRating = useSubmitRating()
 
@@ -28,9 +30,9 @@ export function AgentDetailModal({ agent, onClose, onInstall, isInstalling }: Ag
     if (!agent) return null
 
     const handleSubmitRating = () => {
-        if (!user || selectedStar === 0) return
+        if (!user || !workspaceId || selectedStar === 0) return
         submitRating.mutate(
-            { agentId: agent.id, userId: user.id, rating: selectedStar, reviewText },
+            { agentId: agent.id, userId: user.id, workspaceId, rating: selectedStar, reviewText },
             {
                 onSuccess: () => {
                     setShowReviewForm(false)
