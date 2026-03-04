@@ -85,6 +85,12 @@ export async function processTask(task: Task) {
             throw new Error(`Failed to load agent: ${agentError?.message}`);
         }
 
+        // 1b. Mark agent as busy
+        await supabase
+            .from('agents')
+            .update({ status: 'busy' })
+            .eq('id', agent.id);
+
         // Derive provider from model name first (authoritative), fall back to stored value
         const provider = inferProvider(agent.model) ?? agent.provider;
         if (!provider) {
@@ -259,6 +265,12 @@ export async function processTask(task: Task) {
 
         console.log(`[TaskRunner] Completed task ${task.id} successfully.`);
 
+        // 7a. Mark agent as idle
+        await supabase
+            .from('agents')
+            .update({ status: 'idle' })
+            .eq('id', agent.id);
+
         // 7b. Extract output file artifacts (fire-and-forget)
         void extractAndSaveArtifacts(task.workspace_id, task.id, null, executionResult.result);
 
@@ -295,6 +307,14 @@ export async function processTask(task: Task) {
                     completed_at: new Date().toISOString(),
                 })
                 .eq('id', agentTaskId);
+        }
+
+        // Mark agent as idle after failure
+        if (agent) {
+            await supabase
+                .from('agents')
+                .update({ status: 'idle' })
+                .eq('id', agent.id);
         }
 
         // Fire webhooks for failure (fire-and-forget)
