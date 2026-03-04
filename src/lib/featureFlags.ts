@@ -7,7 +7,41 @@ import type { ReactNode } from 'react'
 import { useEELicense } from '@/hooks/useEELicense'
 
 /**
- * Check if the current environment is running the Enterprise Edition.
+ * Minimum plan required for each EE feature.
+ * Used to show the correct badge label (Pro / Team / Enterprise).
+ */
+export const FEATURE_MIN_PLAN: Record<string, string> = {
+    // Pro tier
+    prompt_history: 'Pro',
+    advanced_analytics: 'Pro',
+    file_attachments: 'Pro',
+    advanced_webhooks: 'Pro',
+    team_triggers: 'Pro',
+    billing: 'Pro',
+    // Team tier
+    orchestrator_mode: 'Team',
+    collaboration_mode: 'Team',
+    team_memory: 'Team',
+    rbac: 'Team',
+    custom_tools: 'Team',
+    messaging_channels: 'Team',
+    // Enterprise tier
+    audit_logs: 'Enterprise',
+    swarm: 'Enterprise',
+    marketplace_publish: 'Enterprise',
+    admin_panel: 'Enterprise',
+}
+
+/**
+ * Get the minimum plan label for a feature.
+ * Falls back to 'Pro' if the feature isn't mapped.
+ */
+export function getMinPlanLabel(feature: string): string {
+    return FEATURE_MIN_PLAN[feature] ?? 'Pro'
+}
+
+/**
+ * Check if the current environment is running the Community Edition.
  * Uses the VITE_CREWFORM_EDITION env variable set at build time.
  * When 'ce', all EE features are disabled regardless of license.
  */

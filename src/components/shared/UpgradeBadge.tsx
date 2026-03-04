@@ -5,30 +5,31 @@ import { Sparkles } from 'lucide-react'
 import { useEEFeature } from '@/lib/featureFlags'
 import type { EEGateProps } from '@/lib/featureFlags'
 
-
 /**
  * UpgradeBadge — shown inline when an EE feature is not available.
- * Small, non-intrusive badge encouraging upgrade.
+ * Shows the minimum plan required (Pro / Team / Enterprise).
  */
-export function UpgradeBadge({ label = 'Enterprise' }: { label?: string }) {
+export function UpgradeBadge({ label }: { label?: string }) {
     return (
         <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-violet-500/20 to-indigo-500/20 border border-violet-500/30 px-2.5 py-0.5 text-xs font-medium text-violet-300">
             <Sparkles className="h-3 w-3" />
-            {label}
+            {label ?? 'Pro'}
         </span>
     )
 }
 
 /**
  * UpgradeCard — larger card shown in place of a locked feature section.
- * Explains the feature and prompts upgrade.
+ * Shows the feature name, description, and minimum plan required.
  */
 export function UpgradeCard({
     title,
     description,
+    planLabel = 'Pro',
 }: {
     title: string
     description: string
+    planLabel?: string
 }) {
     return (
         <div className="rounded-xl border border-dashed border-violet-500/30 bg-violet-500/5 p-6 text-center">
@@ -44,7 +45,7 @@ export function UpgradeCard({
                 className="mt-4 inline-flex items-center gap-1 rounded-lg bg-violet-600 px-4 py-2 text-xs font-medium text-white transition hover:bg-violet-500"
             >
                 <Sparkles className="h-3.5 w-3.5" />
-                Upgrade to Enterprise
+                Upgrade to {planLabel}
             </a>
         </div>
     )
@@ -54,12 +55,7 @@ export function UpgradeCard({
  * EEGate — wrapper component that conditionally renders children
  * based on whether an EE feature is enabled for the workspace.
  *
- * If the feature is not available, renders the fallback (or nothing).
- *
- * Usage:
- *   <EEGate workspaceId={wsId} feature="orchestrator_mode" fallback={<UpgradeCard ... />}>
- *     <OrchestratorConfig />
- *   </EEGate>
+ * Automatically derives the correct plan label for the fallback.
  */
 export function EEGate({ workspaceId, feature, children, fallback }: EEGateProps) {
     const { enabled, isLoading } = useEEFeature(workspaceId, feature)

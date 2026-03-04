@@ -7,6 +7,7 @@ import { X, Loader2, GitBranch, Sparkles } from 'lucide-react'
 import { useWorkspace } from '@/hooks/useWorkspace'
 import { useCreateTeam } from '@/hooks/useCreateTeam'
 import { useEELicense } from '@/hooks/useEELicense'
+import { getMinPlanLabel } from '@/lib/featureFlags'
 import type { TeamMode, PipelineConfig, OrchestratorConfig, CollaborationConfig } from '@/types'
 
 interface CreateTeamModalProps {
@@ -197,10 +198,10 @@ export function CreateTeamModal({ onClose }: CreateTeamModalProps) {
                                             <span className={`text-sm font-medium ${m.value === mode ? 'text-brand-primary' : 'text-gray-300'}`}>
                                                 {m.label}
                                             </span>
-                                            {!m.available && (
+                                            {!m.available && m.eeFeature && (
                                                 <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-violet-500/20 to-indigo-500/20 border border-violet-500/30 px-2 py-0.5 text-[10px] font-medium text-violet-300">
                                                     <Sparkles className="h-2.5 w-2.5" />
-                                                    Enterprise
+                                                    {getMinPlanLabel(m.eeFeature)}
                                                 </span>
                                             )}
                                         </div>

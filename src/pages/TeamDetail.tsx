@@ -402,7 +402,8 @@ export function TeamDetail() {
                             <div className="mt-8">
                                 <UpgradeCard
                                     title="Team Triggers"
-                                    description="Schedule teams on a CRON or trigger via webhook. Available with an Enterprise license."
+                                    description="Schedule teams on a CRON or trigger via webhook. Available on the Pro plan."
+                                    planLabel="Pro"
                                 />
                             </div>
                         }
@@ -420,7 +421,8 @@ export function TeamDetail() {
                             <div className="mt-8">
                                 <UpgradeCard
                                     title="Team Memory"
-                                    description="Store and retrieve past run outputs using vector similarity search. Available with an Enterprise license."
+                                    description="Store and retrieve past run outputs using vector similarity search. Available on the Team plan."
+                                    planLabel="Team"
                                 />
                             </div>
                         }
