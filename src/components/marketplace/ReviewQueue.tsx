@@ -4,6 +4,7 @@
 import { useState } from 'react'
 import {
     Loader2, CheckCircle2, XCircle, ShieldCheck, ShieldAlert, PackageOpen,
+    ChevronDown, ChevronUp, Bot, Cpu, Thermometer, Wrench, Tag,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { usePendingSubmissions, useApproveSubmission, useRejectSubmission } from '@/hooks/useMarketplace'
@@ -11,6 +12,7 @@ import { cn } from '@/lib/utils'
 
 /**
  * Admin review queue for marketplace agent submissions.
+ * Includes expandable agent detail view for thorough review before approving.
  */
 export function ReviewQueue() {
     const { user } = useAuth()
@@ -19,6 +21,7 @@ export function ReviewQueue() {
     const rejectMutation = useRejectSubmission()
     const [rejectingId, setRejectingId] = useState<string | null>(null)
     const [rejectNotes, setRejectNotes] = useState('')
+    const [expandedId, setExpandedId] = useState<string | null>(null)
 
     if (isLoading) {
         return (
@@ -66,6 +69,8 @@ export function ReviewQueue() {
                 const scan = sub.injection_scan_result
                 const isRejecting = rejectingId === sub.id
                 const isBusy = approveMutation.isPending || rejectMutation.isPending
+                const isExpanded = expandedId === sub.id
+                const agent = sub.agent_data
 
                 return (
                     <div key={sub.id} className="rounded-xl border border-border bg-surface-card p-4">
@@ -122,6 +127,97 @@ export function ReviewQueue() {
                                 )}
                             </div>
                         </div>
+
+                        {/* Review Details toggle */}
+                        <button
+                            type="button"
+                            onClick={() => setExpandedId(isExpanded ? null : sub.id)}
+                            className="mb-3 flex w-full items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-medium text-gray-400 transition-colors hover:bg-surface-elevated hover:text-gray-200"
+                        >
+                            {isExpanded ? (
+                                <ChevronUp className="h-3.5 w-3.5" />
+                            ) : (
+                                <ChevronDown className="h-3.5 w-3.5" />
+                            )}
+                            {isExpanded ? 'Hide Details' : 'Review Details'}
+                        </button>
+
+                        {/* Expanded agent details */}
+                        {isExpanded && agent && (
+                            <div className="mb-3 space-y-3 rounded-lg border border-border/50 bg-surface-primary p-4">
+                                {/* Model & Provider */}
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="flex items-center gap-2">
+                                        <Cpu className="h-3.5 w-3.5 text-gray-500" />
+                                        <div>
+                                            <p className="text-[10px] text-gray-500">Model</p>
+                                            <p className="text-xs font-medium text-gray-200">{agent.model}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Bot className="h-3.5 w-3.5 text-gray-500" />
+                                        <div>
+                                            <p className="text-[10px] text-gray-500">Provider</p>
+                                            <p className="text-xs font-medium text-gray-200">{agent.provider ?? 'Unknown'}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Temperature */}
+                                <div className="flex items-center gap-2">
+                                    <Thermometer className="h-3.5 w-3.5 text-gray-500" />
+                                    <p className="text-xs text-gray-300">Temperature: <span className="font-mono font-medium">{agent.temperature}</span></p>
+                                </div>
+
+                                {/* Tools */}
+                                {agent.tools.length > 0 && (
+                                    <div>
+                                        <div className="mb-1.5 flex items-center gap-1.5">
+                                            <Wrench className="h-3.5 w-3.5 text-gray-500" />
+                                            <p className="text-[10px] font-medium text-gray-500 uppercase">Tools</p>
+                                        </div>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {agent.tools.map((tool) => (
+                                                <span key={tool} className="rounded-md bg-surface-elevated px-2 py-0.5 text-[10px] font-medium text-gray-400">
+                                                    {tool}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Tags */}
+                                {agent.marketplace_tags.length > 0 && (
+                                    <div>
+                                        <div className="mb-1.5 flex items-center gap-1.5">
+                                            <Tag className="h-3.5 w-3.5 text-gray-500" />
+                                            <p className="text-[10px] font-medium text-gray-500 uppercase">Tags</p>
+                                        </div>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {agent.marketplace_tags.map((tag) => (
+                                                <span key={tag} className="rounded-md bg-brand-muted/20 border border-brand-primary/30 px-2 py-0.5 text-[10px] font-medium text-brand-primary">
+                                                    {tag}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* System Prompt (admin-only view) */}
+                                <div>
+                                    <p className="mb-1.5 text-[10px] font-medium text-gray-500 uppercase">System Prompt</p>
+                                    <div className="max-h-48 overflow-y-auto rounded-lg bg-surface-card p-3 text-xs leading-relaxed text-gray-300 font-mono">
+                                        {agent.system_prompt}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {isExpanded && !agent && (
+                            <div className="mb-3 rounded-lg border border-border/50 bg-surface-primary p-4 text-center">
+                                <p className="text-xs text-gray-500">Agent data not available.</p>
+                            </div>
+                        )}
 
                         {/* Reject notes form */}
                         {isRejecting && (

@@ -6,8 +6,9 @@ import {
     fetchMarketplaceAgents, fetchMarketplaceTags,
     submitAgentForReview, fetchMySubmissions, fetchPendingSubmissions,
     approveSubmission, rejectSubmission, fetchCreatorStats,
+    submitAgentRating, fetchAgentReviews,
 } from '@/db/marketplace'
-import type { MarketplaceQueryOptions, MarketplaceSubmission, CreatorStats } from '@/db/marketplace'
+import type { MarketplaceQueryOptions, MarketplaceSubmission, CreatorStats, AgentReview } from '@/db/marketplace'
 import type { Agent } from '@/types'
 
 const STALE_TIME = 5 * 60 * 1000 // 5 minutes — marketplace data doesn't change often
@@ -106,5 +107,33 @@ export function useCreatorStats(userId: string | null) {
         },
         enabled: !!userId,
         staleTime: 60 * 1000,
+    })
+}
+
+// ─── Ratings ────────────────────────────────────────────────────────────────
+
+/** Fetch reviews for a specific agent */
+export function useAgentReviews(agentId: string | null) {
+    return useQuery<AgentReview[]>({
+        queryKey: ['agent-reviews', agentId],
+        queryFn: () => {
+            if (!agentId) throw new Error('Missing agentId')
+            return fetchAgentReviews(agentId)
+        },
+        enabled: !!agentId,
+        staleTime: 60 * 1000,
+    })
+}
+
+/** Submit or update a rating for a marketplace agent */
+export function useSubmitRating() {
+    const queryClient = useQueryClient()
+    return useMutation<AgentReview, Error, { agentId: string; userId: string; rating: number; reviewText?: string }>({
+        mutationFn: ({ agentId, userId, rating, reviewText }) =>
+            submitAgentRating(agentId, userId, rating, reviewText ?? ''),
+        onSuccess: (_data, vars) => {
+            void queryClient.invalidateQueries({ queryKey: ['agent-reviews', vars.agentId] })
+            void queryClient.invalidateQueries({ queryKey: ['marketplace-agents'] })
+        },
     })
 }

@@ -12,13 +12,24 @@ export interface MarketplaceQueryOptions {
     sort?: MarketplaceSortOption
 }
 
-/** Fetch published marketplace agents with optional filtering and sorting */
+// Columns to fetch for public marketplace (excludes system_prompt to protect IP)
+const MARKETPLACE_AGENT_COLUMNS = [
+    'id', 'workspace_id', 'name', 'description', 'avatar_url',
+    'model', 'provider', 'temperature', 'max_tokens', 'tags', 'tools',
+    'voice_profile', 'voice_profile_id', 'output_template_id',
+    'status', 'config', 'is_published', 'marketplace_tags',
+    'install_count', 'rating_avg', 'price_cents',
+    'created_at', 'updated_at',
+].join(',')
+
+/** Fetch published marketplace agents with optional filtering and sorting.
+ *  NOTE: system_prompt is intentionally excluded to protect agent IP. */
 export async function fetchMarketplaceAgents(
     options: MarketplaceQueryOptions = {},
 ): Promise<Agent[]> {
     let query = supabase
         .from('agents')
-        .select('*')
+        .select(MARKETPLACE_AGENT_COLUMNS)
         .eq('is_published', true)
 
     // Search by name or description
@@ -49,7 +60,7 @@ export async function fetchMarketplaceAgents(
     const { data, error } = await query
 
     if (error) throw error
-    return data as Agent[]
+    return (data as unknown as Agent[]).map(a => ({ ...a, system_prompt: '' }))
 }
 
 /** Get all unique tags from published agents */
@@ -73,6 +84,18 @@ export async function fetchMarketplaceTags(): Promise<string[]> {
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
+export interface SubmissionAgentData {
+    name: string
+    description: string
+    model: string
+    provider: string | null
+    system_prompt: string
+    temperature: number
+    tools: string[]
+    tags: string[]
+    marketplace_tags: string[]
+}
+
 export interface MarketplaceSubmission {
     id: string
     agent_id: string
@@ -86,6 +109,17 @@ export interface MarketplaceSubmission {
     // Joined
     agent_name?: string
     agent_description?: string
+    agent_data?: SubmissionAgentData
+}
+
+export interface AgentReview {
+    id: string
+    agent_id: string
+    user_id: string
+    rating: number
+    review_text: string
+    created_at: string
+    updated_at: string
 }
 
 export interface InjectionScanResult {
@@ -256,7 +290,7 @@ export async function fetchMySubmissions(userId: string): Promise<MarketplaceSub
     return submissions
 }
 
-/** Fetch all pending submissions (admin) */
+/** Fetch all pending submissions (admin) — includes full agent data for review */
 export async function fetchPendingSubmissions(): Promise<MarketplaceSubmission[]> {
     const result = await supabase
         .from('marketplace_submissions')
@@ -268,22 +302,36 @@ export async function fetchPendingSubmissions(): Promise<MarketplaceSubmission[]
 
     const submissions = result.data as MarketplaceSubmission[]
 
-    // Fetch agent names
+    // Fetch full agent data for review
     const agentIds = submissions.map(s => s.agent_id)
     if (agentIds.length > 0) {
         const agentsResult = await supabase
             .from('agents')
-            .select('id, name, description')
+            .select('id, name, description, model, provider, system_prompt, temperature, tools, tags, marketplace_tags')
             .in('id', agentIds)
 
         if (!agentsResult.error) {
-            const agentMap = new Map<string, { name: string; description: string }>()
-            for (const a of agentsResult.data as Array<{ id: string; name: string; description: string }>) {
+            const agentMap = new Map<string, SubmissionAgentData & { id: string }>()
+            for (const a of agentsResult.data as Array<SubmissionAgentData & { id: string }>) {
                 agentMap.set(a.id, a)
             }
             for (const s of submissions) {
-                s.agent_name = agentMap.get(s.agent_id)?.name
-                s.agent_description = agentMap.get(s.agent_id)?.description
+                const agent = agentMap.get(s.agent_id)
+                s.agent_name = agent?.name
+                s.agent_description = agent?.description
+                if (agent) {
+                    s.agent_data = {
+                        name: agent.name,
+                        description: agent.description,
+                        model: agent.model,
+                        provider: agent.provider,
+                        system_prompt: agent.system_prompt,
+                        temperature: agent.temperature,
+                        tools: agent.tools,
+                        tags: agent.tags,
+                        marketplace_tags: agent.marketplace_tags,
+                    }
+                }
             }
         }
     }
@@ -439,4 +487,55 @@ export async function fetchPublishedAgents(): Promise<Array<{
         workspace_name: r.workspaces?.name ?? 'Unknown',
         owner_email: emailMap.get(r.workspaces?.owner_id ?? '') ?? 'Unknown',
     }))
+}
+
+// ─── Agent Ratings ──────────────────────────────────────────────────────────
+
+/** Submit or update a rating for a marketplace agent */
+export async function submitAgentRating(
+    agentId: string,
+    userId: string,
+    rating: number,
+    reviewText: string = '',
+): Promise<AgentReview> {
+    // Upsert: one review per user per agent (enforced by unique constraint)
+    const result = await supabase
+        .from('agent_reviews')
+        .upsert(
+            { agent_id: agentId, user_id: userId, rating, review_text: reviewText },
+            { onConflict: 'agent_id,user_id' },
+        )
+        .select()
+        .single()
+
+    if (result.error) throw result.error
+    return result.data as AgentReview
+}
+
+/** Fetch all reviews for an agent */
+export async function fetchAgentReviews(agentId: string): Promise<AgentReview[]> {
+    const result = await supabase
+        .from('agent_reviews')
+        .select('*')
+        .eq('agent_id', agentId)
+        .order('created_at', { ascending: false })
+
+    if (result.error) throw result.error
+    return result.data as AgentReview[]
+}
+
+/** Fetch the current user's review for a specific agent (if any) */
+export async function fetchUserReview(
+    agentId: string,
+    userId: string,
+): Promise<AgentReview | null> {
+    const result = await supabase
+        .from('agent_reviews')
+        .select('*')
+        .eq('agent_id', agentId)
+        .eq('user_id', userId)
+        .maybeSingle()
+
+    if (result.error) throw result.error
+    return result.data as AgentReview | null
 }
