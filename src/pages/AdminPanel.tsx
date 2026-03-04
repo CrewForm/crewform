@@ -4,14 +4,15 @@
 import { useState, useEffect } from 'react'
 import {
     Shield, BarChart3, Building2, Search,
-    Loader2, Users, Bot, ListTodo, PackageOpen, Store, XCircle,
+    Loader2, Users, Bot, ListTodo, PackageOpen, Store, XCircle, ShieldCheck,
 } from 'lucide-react'
 import { usePlatformStats, useAllWorkspaces, useOverridePlan, useToggleBeta } from '@/hooks/useAdmin'
 import { ReviewQueue } from '@/components/marketplace/ReviewQueue'
+import { LicenseAdminPanel } from '@/components/settings/LicenseAdminPanel'
 import { fetchPublishedAgents, unpublishAgent } from '@/db/marketplace'
 import { cn } from '@/lib/utils'
 
-type AdminTab = 'overview' | 'workspaces' | 'review-queue' | 'marketplace'
+type AdminTab = 'overview' | 'workspaces' | 'review-queue' | 'marketplace' | 'licenses'
 
 const PLAN_COLORS: Record<string, string> = {
     free: 'text-gray-400 bg-gray-500/10',
@@ -44,6 +45,7 @@ export function AdminPanel() {
                 {([
                     { key: 'overview' as const, label: 'Overview', icon: BarChart3 },
                     { key: 'workspaces' as const, label: 'Workspaces', icon: Building2 },
+                    { key: 'licenses' as const, label: 'Licenses', icon: ShieldCheck },
                     { key: 'marketplace' as const, label: 'Marketplace', icon: Store },
                     { key: 'review-queue' as const, label: 'Review Queue', icon: PackageOpen },
                 ] as const).map(({ key, label, icon: Icon }) => (
@@ -67,6 +69,7 @@ export function AdminPanel() {
             {/* Tab content */}
             {activeTab === 'overview' && <OverviewTab />}
             {activeTab === 'workspaces' && <WorkspacesTab />}
+            {activeTab === 'licenses' && <LicenseAdminPanel />}
             {activeTab === 'marketplace' && <MarketplaceTab />}
             {activeTab === 'review-queue' && <ReviewQueue />}
         </div>
