@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 CrewForm
 
-import { X, Star, Download, Bot, Cpu, Tag, FileText, Lock } from 'lucide-react'
+import { useState } from 'react'
+import { X, Star, Download, Bot, Cpu, Tag, Lock, Loader2 } from 'lucide-react'
+import { useAuth } from '@/hooks/useAuth'
+import { useAgentReviews, useSubmitRating } from '@/hooks/useMarketplace'
 import type { Agent } from '@/types'
+import { cn } from '@/lib/utils'
 
 interface AgentDetailModalProps {
     agent: Agent | null
@@ -12,7 +16,33 @@ interface AgentDetailModalProps {
 }
 
 export function AgentDetailModal({ agent, onClose, onInstall, isInstalling }: AgentDetailModalProps) {
+    const { user } = useAuth()
+    const { data: reviews = [] } = useAgentReviews(agent?.id ?? null)
+    const submitRating = useSubmitRating()
+
+    const [hoverStar, setHoverStar] = useState(0)
+    const [selectedStar, setSelectedStar] = useState(0)
+    const [reviewText, setReviewText] = useState('')
+    const [showReviewForm, setShowReviewForm] = useState(false)
+
     if (!agent) return null
+
+    const handleSubmitRating = () => {
+        if (!user || selectedStar === 0) return
+        submitRating.mutate(
+            { agentId: agent.id, userId: user.id, rating: selectedStar, reviewText },
+            {
+                onSuccess: () => {
+                    setShowReviewForm(false)
+                    setSelectedStar(0)
+                    setReviewText('')
+                },
+            },
+        )
+    }
+
+    // Check if current user already reviewed
+    const userReview = reviews.find(r => r.user_id === user?.id)
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -68,31 +98,25 @@ export function AgentDetailModal({ agent, onClose, onInstall, isInstalling }: Ag
                     {/* Description */}
                     <section>
                         <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-gray-500">
-                            <FileText className="h-4 w-4" />
                             Description
                         </h3>
                         <p className="text-sm leading-relaxed text-gray-300">{agent.description}</p>
                     </section>
 
-                    {/* System Prompt Preview */}
+                    {/* System Prompt — PROTECTED */}
                     <section>
                         <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-gray-500">
                             <Bot className="h-4 w-4" />
                             System Prompt
                         </h3>
-                        {agent.price_cents && agent.price_cents > 0 ? (
-                            <div className="rounded-lg border border-dashed border-surface-border bg-surface-overlay p-6 text-center">
-                                <Lock className="mx-auto mb-2 h-6 w-6 text-gray-500" />
-                                <p className="text-sm font-medium text-gray-300">Prompt Hidden</p>
-                                <p className="mt-1 text-xs text-gray-500">
-                                    Purchase this agent to view its system prompt
-                                </p>
-                            </div>
-                        ) : (
-                            <div className="rounded-lg bg-surface-overlay p-4 text-sm leading-relaxed text-gray-300 font-mono">
-                                {agent.system_prompt}
-                            </div>
-                        )}
+                        <div className="rounded-lg border border-dashed border-surface-border bg-surface-overlay p-6 text-center">
+                            <Lock className="mx-auto mb-2 h-6 w-6 text-gray-500" />
+                            <p className="text-sm font-medium text-gray-300">System Prompt Protected</p>
+                            <p className="mt-1 text-xs text-gray-500">
+                                System prompts are hidden to protect the creator&apos;s intellectual property.
+                                Install this agent to use it in your workspace.
+                            </p>
+                        </div>
                     </section>
 
                     {/* Tags */}
@@ -140,6 +164,130 @@ export function AgentDetailModal({ agent, onClose, onInstall, isInstalling }: Ag
                                 </p>
                             </div>
                         </div>
+                    </section>
+
+                    {/* Rating Section */}
+                    <section>
+                        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-gray-500">
+                            <Star className="h-4 w-4" />
+                            Ratings & Reviews
+                        </h3>
+
+                        {/* User's review / Rate CTA */}
+                        {user && (
+                            <div className="mb-4">
+                                {userReview && !showReviewForm ? (
+                                    <div className="rounded-lg border border-brand-primary/20 bg-brand-primary/5 p-3">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="text-xs font-medium text-gray-300">Your rating:</span>
+                                            <div className="flex gap-0.5">
+                                                {[1, 2, 3, 4, 5].map((s) => (
+                                                    <Star key={s} className={cn('h-3.5 w-3.5', s <= userReview.rating ? 'fill-amber-400 text-amber-400' : 'text-gray-600')} />
+                                                ))}
+                                            </div>
+                                        </div>
+                                        {userReview.review_text && (
+                                            <p className="text-xs text-gray-400">{userReview.review_text}</p>
+                                        )}
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setSelectedStar(userReview.rating)
+                                                setReviewText(userReview.review_text)
+                                                setShowReviewForm(true)
+                                            }}
+                                            className="mt-2 text-[10px] text-brand-primary hover:underline"
+                                        >
+                                            Update rating
+                                        </button>
+                                    </div>
+                                ) : showReviewForm ? (
+                                    <div className="rounded-lg border border-border bg-surface-overlay p-4">
+                                        {/* Star selector */}
+                                        <div className="mb-3">
+                                            <p className="mb-1.5 text-xs font-medium text-gray-300">Your rating</p>
+                                            <div className="flex gap-1">
+                                                {[1, 2, 3, 4, 5].map((s) => (
+                                                    <button
+                                                        key={s}
+                                                        type="button"
+                                                        onMouseEnter={() => setHoverStar(s)}
+                                                        onMouseLeave={() => setHoverStar(0)}
+                                                        onClick={() => setSelectedStar(s)}
+                                                        className="p-0.5 transition-transform hover:scale-110"
+                                                    >
+                                                        <Star className={cn(
+                                                            'h-6 w-6 transition-colors',
+                                                            s <= (hoverStar || selectedStar) ? 'fill-amber-400 text-amber-400' : 'text-gray-600',
+                                                        )} />
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        {/* Review text */}
+                                        <textarea
+                                            value={reviewText}
+                                            onChange={(e) => setReviewText(e.target.value)}
+                                            placeholder="Write a review (optional)..."
+                                            rows={2}
+                                            className="mb-3 w-full rounded-lg border border-border bg-surface-card px-3 py-2 text-xs text-gray-200 placeholder-gray-500 outline-none focus:border-brand-primary"
+                                        />
+                                        <div className="flex gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={handleSubmitRating}
+                                                disabled={selectedStar === 0 || submitRating.isPending}
+                                                className="flex items-center gap-1.5 rounded-lg bg-brand-primary px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-primary/90 disabled:opacity-50"
+                                            >
+                                                {submitRating.isPending && <Loader2 className="h-3 w-3 animate-spin" />}
+                                                Submit Rating
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => { setShowReviewForm(false); setSelectedStar(0); setReviewText('') }}
+                                                className="rounded-lg border border-border px-3 py-1.5 text-xs text-gray-400 hover:text-gray-200"
+                                            >
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowReviewForm(true)}
+                                        className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-medium text-gray-400 transition-colors hover:bg-surface-elevated hover:text-gray-200"
+                                    >
+                                        <Star className="h-3.5 w-3.5" />
+                                        Rate this agent
+                                    </button>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Reviews list */}
+                        {reviews.length > 0 ? (
+                            <div className="space-y-3">
+                                {reviews.filter(r => r.user_id !== user?.id).map((review) => (
+                                    <div key={review.id} className="rounded-lg bg-surface-overlay p-3">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <div className="flex gap-0.5">
+                                                {[1, 2, 3, 4, 5].map((s) => (
+                                                    <Star key={s} className={cn('h-3 w-3', s <= review.rating ? 'fill-amber-400 text-amber-400' : 'text-gray-600')} />
+                                                ))}
+                                            </div>
+                                            <span className="text-[10px] text-gray-500">
+                                                {new Date(review.created_at).toLocaleDateString()}
+                                            </span>
+                                        </div>
+                                        {review.review_text && (
+                                            <p className="text-xs text-gray-400">{review.review_text}</p>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-xs text-gray-500">No reviews yet. Be the first to rate this agent!</p>
+                        )}
                     </section>
                 </div>
 
