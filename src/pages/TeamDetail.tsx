@@ -29,6 +29,8 @@ import { RunTeamModal } from '@/components/teams/RunTeamModal'
 import { TeamRunCard } from '@/components/teams/TeamRunCard'
 import { TeamTriggersPanel } from '@/components/teams/TeamTriggersPanel'
 import { TeamMemoryPanel } from '@/components/teams/TeamMemoryPanel'
+import { EEGate } from '@/components/shared/UpgradeBadge'
+import { UpgradeCard } from '@/components/shared/UpgradeBadge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import type { PipelineConfig, OrchestratorConfig, CollaborationConfig, TeamMode } from '@/types'
@@ -392,17 +394,43 @@ export function TeamDetail() {
                         </div>
                     )}
 
-                    {/* Triggers */}
-                    <div className="mt-8">
-                        <TeamTriggersPanel teamId={team.id} />
-                    </div>
-
-                    {/* Knowledge Base (only shown when embedding keys are available) */}
-                    {hasEmbeddingKey && (
+                    {/* Triggers (EE) */}
+                    <EEGate
+                        workspaceId={workspaceId ?? undefined}
+                        feature="team_triggers"
+                        fallback={
+                            <div className="mt-8">
+                                <UpgradeCard
+                                    title="Team Triggers"
+                                    description="Schedule teams on a CRON or trigger via webhook. Available with an Enterprise license."
+                                />
+                            </div>
+                        }
+                    >
                         <div className="mt-8">
-                            <TeamMemoryPanel teamId={team.id} />
+                            <TeamTriggersPanel teamId={team.id} />
                         </div>
-                    )}
+                    </EEGate>
+
+                    {/* Knowledge Base (EE — also requires embedding keys) */}
+                    <EEGate
+                        workspaceId={workspaceId ?? undefined}
+                        feature="team_memory"
+                        fallback={
+                            <div className="mt-8">
+                                <UpgradeCard
+                                    title="Team Memory"
+                                    description="Store and retrieve past run outputs using vector similarity search. Available with an Enterprise license."
+                                />
+                            </div>
+                        }
+                    >
+                        {hasEmbeddingKey && (
+                            <div className="mt-8">
+                                <TeamMemoryPanel teamId={team.id} />
+                            </div>
+                        )}
+                    </EEGate>
 
                     {/* Recent Runs */}
                     <div className="mt-8">

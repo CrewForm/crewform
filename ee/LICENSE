@@ -1,0 +1,75 @@
+CrewForm Enterprise License Agreement
+Copyright (C) 2026 CrewForm (AntiGravity Pty Ltd)
+
+This Enterprise License Agreement ("Agreement") governs the use of the
+CrewForm Enterprise Edition software contained in this directory and its
+subdirectories ("Enterprise Software").
+
+1. GRANT OF LICENSE
+
+   Subject to the terms of this Agreement and a valid Enterprise
+   subscription, CrewForm grants you a non-exclusive, non-transferable
+   license to use, modify, and deploy the Enterprise Software solely for
+   your internal business purposes.
+
+2. RESTRICTIONS
+
+   You MAY NOT:
+   a) Redistribute, sublicense, or make the Enterprise Software available
+      to any third party, whether as a standalone product, SaaS offering,
+      or as part of another product.
+   b) Remove or modify any license headers, copyright notices, or
+      proprietary markings from the Enterprise Software.
+   c) Use the Enterprise Software without a valid Enterprise license key
+      issued by CrewForm.
+   d) Reverse engineer the license validation mechanism.
+
+3. OPEN SOURCE COMPONENTS
+
+   The Enterprise Software may depend on or interact with components
+   licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).
+   Those components are located outside this directory (ee/) and remain
+   governed by their respective licenses. This Agreement does not modify
+   the rights or obligations under those licenses.
+
+4. CONTRIBUTIONS
+
+   Any contributions submitted to the Enterprise Software (ee/ directory)
+   are subject to a Contributor License Agreement (CLA) that grants
+   CrewForm the right to include such contributions under this proprietary
+   license. By submitting a contribution, you agree to the CLA.
+
+5. LICENSE KEY
+
+   The Enterprise Software requires a valid license key to function.
+   License keys are issued per workspace and may be time-limited or
+   perpetual, depending on the subscription terms. Expired or revoked
+   keys disable Enterprise features but do not affect Community Edition
+   functionality.
+
+6. WARRANTY DISCLAIMER
+
+   THE ENTERPRISE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY
+   KIND, EXPRESS OR IMPLIED. CREWFORM DISCLAIMS ALL WARRANTIES, INCLUDING
+   BUT NOT LIMITED TO THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS
+   FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
+
+7. LIMITATION OF LIABILITY
+
+   IN NO EVENT SHALL CREWFORM BE LIABLE FOR ANY INDIRECT, INCIDENTAL,
+   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN
+   CONNECTION WITH THIS AGREEMENT OR THE USE OF THE ENTERPRISE SOFTWARE.
+
+8. TERMINATION
+
+   This Agreement terminates automatically if your license key expires,
+   is revoked, or you breach any term of this Agreement. Upon termination,
+   you must cease using the Enterprise Software, though the Community
+   Edition (AGPL-3.0 components) remains available under its own license.
+
+9. GOVERNING LAW
+
+   This Agreement shall be governed by the laws of South Africa, without
+   regard to conflict of law principles.
+
+For licensing inquiries: enterprise@crewform.tech

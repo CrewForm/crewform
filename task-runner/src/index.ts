@@ -4,6 +4,7 @@ import { processPipelineRun } from './pipelineExecutor';
 import { processOrchestratorRun } from './orchestratorExecutor';
 import { processCollaborationRun } from './collaborationExecutor';
 import { writeTeamRunAudit } from './auditWriter';
+import { isFeatureEnabled } from './license';
 import {
     registerRunner, deregisterRunner, getRunnerId, getInstanceName,
     runRecoverySweep, RECOVERY_INTERVAL_MS, MAX_CONCURRENT, decrementLoad,
@@ -81,9 +82,28 @@ async function executeTeamRun(run: TeamRun): Promise<void> {
 
     const teamMode = (teamResponse.data as { mode: string } | null)?.mode ?? 'pipeline';
 
+    // Gate EE modes behind license check
     if (teamMode === 'orchestrator') {
+        const allowed = await isFeatureEnabled(run.workspace_id, 'orchestrator_mode');
+        if (!allowed) {
+            log(`Orchestrator mode requires an Enterprise license — failing run ${run.id}`);
+            await supabase.from('team_runs').update({
+                status: 'failed',
+                output: 'Orchestrator mode requires an Enterprise license. Please upgrade at crewform.tech/pricing.',
+            }).eq('id', run.id);
+            return;
+        }
         await processOrchestratorRun(run);
     } else if (teamMode === 'collaboration') {
+        const allowed = await isFeatureEnabled(run.workspace_id, 'collaboration_mode');
+        if (!allowed) {
+            log(`Collaboration mode requires an Enterprise license — failing run ${run.id}`);
+            await supabase.from('team_runs').update({
+                status: 'failed',
+                output: 'Collaboration mode requires an Enterprise license. Please upgrade at crewform.tech/pricing.',
+            }).eq('id', run.id);
+            return;
+        }
         await processCollaborationRun(run);
     } else {
         await processPipelineRun(run);

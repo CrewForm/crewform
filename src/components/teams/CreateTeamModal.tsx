@@ -1,38 +1,46 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 CrewForm
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { X, Loader2, GitBranch, Lock } from 'lucide-react'
+import { X, Loader2, GitBranch, Sparkles } from 'lucide-react'
 import { useWorkspace } from '@/hooks/useWorkspace'
 import { useCreateTeam } from '@/hooks/useCreateTeam'
+import { useEELicense } from '@/hooks/useEELicense'
 import type { TeamMode, PipelineConfig, OrchestratorConfig, CollaborationConfig } from '@/types'
 
 interface CreateTeamModalProps {
     onClose: () => void
 }
 
-const MODES: { value: TeamMode; label: string; icon: typeof GitBranch; description: string; available: boolean }[] = [
+interface ModeOption {
+    value: TeamMode
+    label: string
+    icon: typeof GitBranch
+    description: string
+    eeFeature?: string  // if set, requires EE license
+}
+
+const MODES: ModeOption[] = [
     {
         value: 'pipeline',
         label: 'Pipeline',
         icon: GitBranch,
         description: 'Agents execute in sequence, each passing output to the next.',
-        available: true,
     },
     {
         value: 'orchestrator',
         label: 'Orchestrator',
         icon: GitBranch,
         description: 'A brain agent delegates sub-tasks to specialist agents.',
-        available: true,
+        eeFeature: 'orchestrator_mode',
     },
     {
         value: 'collaboration',
         label: 'Collaboration',
         icon: GitBranch,
         description: 'Agents discuss and converge on a consensus output.',
-        available: true,
+        eeFeature: 'collaboration_mode',
     },
 ]
 
@@ -44,11 +52,21 @@ export function CreateTeamModal({ onClose }: CreateTeamModalProps) {
     const navigate = useNavigate()
     const { workspaceId } = useWorkspace()
     const createMutation = useCreateTeam()
+    const { hasFeature } = useEELicense(workspaceId ?? undefined)
 
     const [name, setName] = useState('')
     const [description, setDescription] = useState('')
     const [mode, setMode] = useState<TeamMode>('pipeline')
     const [nameError, setNameError] = useState('')
+
+    // Check which modes are available based on the workspace license
+    const modesWithAvailability = useMemo(() =>
+        MODES.map(m => ({
+            ...m,
+            available: m.eeFeature ? hasFeature(m.eeFeature) : true,
+        })),
+        [hasFeature],
+    )
 
     function handleSubmit(e: React.FormEvent) {
         e.preventDefault()
@@ -162,7 +180,7 @@ export function CreateTeamModal({ onClose }: CreateTeamModalProps) {
                             Team Mode
                         </label>
                         <div className="grid grid-cols-1 gap-2">
-                            {MODES.map((m) => (
+                            {modesWithAvailability.map((m) => (
                                 <div
                                     key={m.value}
                                     className={`relative flex items-start gap-3 rounded-lg border p-3 transition-colors ${m.value === mode
@@ -180,9 +198,9 @@ export function CreateTeamModal({ onClose }: CreateTeamModalProps) {
                                                 {m.label}
                                             </span>
                                             {!m.available && (
-                                                <span className="flex items-center gap-1 rounded-full bg-gray-800 px-2 py-0.5 text-[10px] text-gray-500">
-                                                    <Lock className="h-2.5 w-2.5" />
-                                                    Coming soon
+                                                <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-violet-500/20 to-indigo-500/20 border border-violet-500/30 px-2 py-0.5 text-[10px] font-medium text-violet-300">
+                                                    <Sparkles className="h-2.5 w-2.5" />
+                                                    Enterprise
                                                 </span>
                                             )}
                                         </div>

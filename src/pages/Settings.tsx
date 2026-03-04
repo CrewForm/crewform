@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 CrewForm
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { KeyRound, User, Building2, Webhook, Users, ScrollText, CreditCard, MessageSquareText } from 'lucide-react'
 import { ApiKeysSettings } from '@/components/settings/ApiKeysSettings'
 import { RestApiKeysSettings } from '@/components/settings/RestApiKeysSettings'
@@ -13,23 +13,33 @@ import { AuditStreamingSettings } from '@/components/settings/AuditStreamingSett
 import { BillingSettings } from '@/components/settings/BillingSettings'
 import { ProfileSettings } from '@/components/settings/ProfileSettings'
 import { MessagingChannelsSettings } from '@/components/settings/MessagingChannelsSettings'
+import { useWorkspace } from '@/hooks/useWorkspace'
+import { useEELicense } from '@/hooks/useEELicense'
 import { cn } from '@/lib/utils'
 
 type SettingsTab = 'api-keys' | 'webhooks' | 'channels' | 'members' | 'workspace' | 'billing' | 'audit-log' | 'profile'
 
-const settingsTabs: { key: SettingsTab; label: string; icon: typeof KeyRound }[] = [
+const settingsTabs: { key: SettingsTab; label: string; icon: typeof KeyRound; eeFeature?: string }[] = [
   { key: 'api-keys', label: 'API Keys', icon: KeyRound },
   { key: 'webhooks', label: 'Webhooks', icon: Webhook },
-  { key: 'channels', label: 'Channels', icon: MessageSquareText },
-  { key: 'members', label: 'Members', icon: Users },
+  { key: 'channels', label: 'Channels', icon: MessageSquareText, eeFeature: 'messaging_channels' },
+  { key: 'members', label: 'Members', icon: Users, eeFeature: 'rbac' },
   { key: 'workspace', label: 'Workspace', icon: Building2 },
-  { key: 'billing', label: 'Billing', icon: CreditCard },
-  { key: 'audit-log', label: 'Audit Log', icon: ScrollText },
+  { key: 'billing', label: 'Billing', icon: CreditCard, eeFeature: 'billing' },
+  { key: 'audit-log', label: 'Audit Log', icon: ScrollText, eeFeature: 'audit_logs' },
   { key: 'profile', label: 'Profile', icon: User },
 ]
 
 export function Settings() {
+  const { workspaceId } = useWorkspace()
+  const { hasFeature } = useEELicense(workspaceId ?? undefined)
   const [activeTab, setActiveTab] = useState<SettingsTab>('api-keys')
+
+  // Filter tabs based on EE license
+  const visibleTabs = useMemo(() =>
+    settingsTabs.filter(t => !t.eeFeature || hasFeature(t.eeFeature)),
+    [hasFeature],
+  )
 
   return (
     <div className="p-6 lg:p-8">
@@ -37,7 +47,7 @@ export function Settings() {
 
       {/* Tabs */}
       <div className="mb-6 flex overflow-x-auto border-b border-border">
-        {settingsTabs.map(({ key, label, icon: Icon }) => (
+        {visibleTabs.map(({ key, label, icon: Icon }) => (
           <button
             key={key}
             type="button"
@@ -88,4 +98,3 @@ export function Settings() {
     </div>
   )
 }
-
