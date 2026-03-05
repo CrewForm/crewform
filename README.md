@@ -184,7 +184,7 @@ We welcome contributions from everyone! Please see [CONTRIBUTING.md](CONTRIBUTIN
 - 💬 **[Discord](https://discord.gg/NpcWr9d7)** — Chat with the team and community
 - 🗣️ **[GitHub Discussions](https://github.com/CrewForm/crewform/discussions)** — Ideas, Q&A, and show & tell
 - 🐦 **[Twitter/X](https://twitter.com/CrewForm)** — Product updates and AI ecosystem commentary
-- 📧 **Email** — support@crewform.tech
+- 📧 **Email** — team@crewform.tech
 
 ## FAQ
 
