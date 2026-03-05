@@ -10,7 +10,7 @@
     --card-foreground: 210 40% 98%;
     --popover: 230 33% 12%;
     --popover-foreground: 210 40% 98%;
-    --primary: 233 90% 66%;
+    --primary: 157 78% 67%;
     --primary-foreground: 230 47% 7%;
     --secondary: 262 83% 66%;
     --secondary-foreground: 210 40% 98%;
@@ -22,7 +22,7 @@
     --destructive-foreground: 210 40% 98%;
     --border: 229 25% 24%;
     --input: 230 28% 16%;
-    --ring: 233 90% 66%;
+    --ring: 157 78% 67%;
     --radius: 0.625rem;
   }
 
@@ -52,7 +52,7 @@
   input:focus,
   textarea:focus,
   select:focus {
-    border-color: #5B6EF5;
+    border-color: #6bedb9;
     outline: none;
   }
 }

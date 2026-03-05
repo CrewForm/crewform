@@ -8,12 +8,12 @@ export default {
   theme: {
     extend: {
       colors: {
-        // CrewForm brand tokens — aligned with crewform-brand-guidelines.md
+        // CrewForm brand tokens — aligned with crewform-landing2 color scheme
         brand: {
-          primary: '#5B6EF5',
-          secondary: '#8B5CF6',
-          hover: '#8B5CF6',
-          muted: 'rgba(91, 110, 245, 0.1)',
+          primary: '#6bedb9',
+          secondary: '#4dc89a',
+          hover: '#8af0cd',
+          muted: 'rgba(107, 237, 185, 0.1)',
         },
         surface: {
           primary: '#0D0F1A',
