@@ -64,6 +64,7 @@ export function CreateAgent() {
                 max_tokens: formData.max_tokens,
                 tags: formData.tags,
                 tools: formData.tools,
+                fallback_model: formData.fallback_model,
             },
             {
                 onSuccess: () => {

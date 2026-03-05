@@ -141,6 +141,7 @@ export function OnboardingWizard() {
                 max_tokens: null,
                 tags: [],
                 tools: [],
+                fallback_model: null,
             })
             setAgentCreated(true)
             setStep('test')

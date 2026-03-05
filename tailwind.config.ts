@@ -8,43 +8,50 @@ export default {
   theme: {
     extend: {
       colors: {
-        // CrewForm design tokens
+        // CrewForm brand tokens — aligned with crewform-brand-guidelines.md
         brand: {
-          primary: '#1F6FEB',
-          hover: '#388BFD',
-          muted: 'rgba(31, 111, 235, 0.1)',
+          primary: '#5B6EF5',
+          secondary: '#8B5CF6',
+          hover: '#8B5CF6',
+          muted: 'rgba(91, 110, 245, 0.1)',
         },
         surface: {
-          primary: '#0D1117',
-          card: '#161B22',
-          raised: '#1C2128',
-          elevated: '#1C2128',
-          overlay: '#21262D',
+          primary: '#0D0F1A',
+          card: '#141828',
+          raised: '#1C2035',
+          elevated: '#212640',
+          overlay: '#212640',
         },
         status: {
-          success: '#238636',
-          'success-text': '#3FB950',
-          warning: '#9E6A03',
-          'warning-text': '#D29922',
-          error: '#DA3633',
-          'error-text': '#F85149',
-          idle: '#484F58',
+          success: '#22C55E',
+          'success-text': '#4ADE80',
+          warning: '#EAB308',
+          'warning-text': '#FACC15',
+          error: '#EF4444',
+          'error-text': '#F87171',
+          idle: '#4B5563',
         },
         border: {
-          DEFAULT: '#30363D',
-          muted: '#21262D',
+          DEFAULT: '#2E3450',
+          muted: '#1E2235',
           emphasis: '#8B949E',
         },
         priority: {
           urgent: '#FF7B72',
           high: '#D29922',
-          medium: '#388BFD',
+          medium: '#5B6EF5',
           low: '#8B949E',
         },
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        sans: ['Inter', 'SF Pro Display', 'system-ui', '-apple-system', 'sans-serif'],
         mono: ['JetBrains Mono', 'Fira Code', 'Cascadia Code', 'monospace'],
+      },
+      borderRadius: {
+        'brand-sm': '10px',
+        'brand': '12px',
+        'brand-lg': '16px',
+        'brand-pill': '20px',
       },
       animation: {
         'pulse-slow': 'pulse 1.5s ease-in-out infinite',

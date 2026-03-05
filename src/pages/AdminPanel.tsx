@@ -2,6 +2,7 @@
 // Copyright (C) 2026 CrewForm
 
 import { useState, useEffect } from 'react'
+import { toast } from 'sonner'
 import {
     Shield, BarChart3, Building2, Search,
     Loader2, Users, Bot, ListTodo, PackageOpen, Store, XCircle, ShieldCheck,
@@ -261,16 +262,16 @@ function MarketplaceTab() {
         )
         if (reason === null) return // cancelled
         if (!reason.trim()) {
-            alert('A removal reason is required.')
+            toast.error('A removal reason is required.')
             return
         }
         setRemoving(agentId)
         try {
             await unpublishAgent(agentId)
             setAgents(prev => prev.filter(a => a.id !== agentId))
-            alert(`"${agentName}" has been removed from the marketplace.\n\nReason: ${reason.trim()}`)
+            toast.success(`"${agentName}" has been removed from the marketplace.`)
         } catch {
-            alert('Failed to remove agent.')
+            toast.error('Failed to remove agent.')
         } finally {
             setRemoving(null)
         }

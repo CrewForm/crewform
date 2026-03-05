@@ -31,6 +31,7 @@ export interface Agent {
     max_tokens: number | null;
     tags: string[];
     tools: string[];
+    fallback_model: string | null;
 }
 
 export interface ApiKey {

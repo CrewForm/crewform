@@ -47,7 +47,7 @@ export function PricingTable() {
     function handleUpgrade(plan: 'pro' | 'team' | 'enterprise') {
         if (!workspaceId) return
         if (plan === 'enterprise') {
-            window.open('mailto:enterprise@crewform.tech?subject=Enterprise%20Plan%20Inquiry', '_blank')
+            window.open('mailto:team@crewform.tech?subject=Enterprise%20Plan%20Inquiry', '_blank')
             return
         }
         checkoutMutation.mutate({ workspaceId, plan })

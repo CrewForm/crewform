@@ -56,6 +56,7 @@ export interface Agent {
   description: string
   avatar_url: string | null
   model: string
+  fallback_model: string | null
   provider: string | null
   system_prompt: string
   temperature: number

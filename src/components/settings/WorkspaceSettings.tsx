@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from 'react'
 import { Building2, Save, Loader2, AlertTriangle } from 'lucide-react'
+import { toast } from 'sonner'
 import { useWorkspace } from '@/hooks/useWorkspace'
 import { useUpdateWorkspace } from '@/hooks/useMembers'
 import { useCurrentRole } from '@/hooks/useCurrentRole'
@@ -124,7 +125,7 @@ export function WorkspaceSettings() {
                                     type="button"
                                     onClick={() => {
                                         // Full delete would need navigation + confirmation
-                                        alert('Workspace deletion requires typing the workspace name to confirm. Coming soon.')
+                                        toast.info('Workspace deletion requires typing the workspace name to confirm. Coming soon.')
                                     }}
                                     className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-red-700"
                                 >

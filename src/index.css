@@ -4,26 +4,26 @@
 
 @layer base {
   :root {
-    --background: 222.2 84% 4.9%;
+    --background: 230 47% 7%;
     --foreground: 210 40% 98%;
-    --card: 222.2 84% 7.5%;
+    --card: 230 33% 12%;
     --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 7.5%;
+    --popover: 230 33% 12%;
     --popover-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
+    --primary: 233 90% 66%;
+    --primary-foreground: 230 47% 7%;
+    --secondary: 262 83% 66%;
     --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
+    --muted: 230 28% 16%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 230 28% 16%;
     --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
-    --radius: 0.5rem;
+    --border: 229 25% 24%;
+    --input: 230 28% 16%;
+    --ring: 233 90% 66%;
+    --radius: 0.625rem;
   }
 
   * {
@@ -32,27 +32,27 @@
 
   body {
     @apply bg-surface-primary text-gray-200;
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-family: 'Inter', 'SF Pro Display', system-ui, -apple-system, sans-serif;
   }
 
-  /* Global dark theme for native form elements */
+  /* Global dark theme for native form elements — brand-aligned */
   input,
   textarea,
   select {
-    background-color: #1C2128;
+    background-color: #1C2035;
     color: #e6edf3;
-    border-color: #30363D;
+    border-color: #2E3450;
   }
 
   input::placeholder,
   textarea::placeholder {
-    color: #484f58;
+    color: #4B5563;
   }
 
   input:focus,
   textarea:focus,
   select:focus {
-    border-color: #1F6FEB;
+    border-color: #5B6EF5;
     outline: none;
   }
 }
@@ -76,21 +76,21 @@
   animation: pulse-status 1.5s ease-in-out infinite;
 }
 
-/* Scrollbar styling for dark theme */
+/* Scrollbar styling — brand-aligned */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #0d1117;
+  background: #0D0F1A;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #30363d;
+  background: #2E3450;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #484f58;
+  background: #4B5563;
 }

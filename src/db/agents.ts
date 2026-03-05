@@ -50,6 +50,7 @@ export interface CreateAgentInput {
     max_tokens: number | null
     tags: string[]
     tools: string[]
+    fallback_model?: string | null
     avatar_url?: string | null
 }
 

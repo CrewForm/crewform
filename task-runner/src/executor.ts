@@ -221,10 +221,57 @@ export async function processTask(task: Task) {
         } catch (llmError: unknown) {
             // Surface user-friendly message for invalid model IDs (400/404 from API)
             const msg = llmError instanceof Error ? llmError.message : String(llmError);
-            if (msg.includes('400') || msg.includes('404') || msg.includes('not a valid model') || msg.includes('model_not_found')) {
+            const isModelError = msg.includes('400') || msg.includes('404') || msg.includes('not a valid model') || msg.includes('model_not_found');
+
+            if (isModelError && agent.fallback_model) {
+                // ── Fallback Model Retry ──
+                console.warn(`[TaskRunner] Primary model "${agent.model}" failed, retrying with fallback "${agent.fallback_model}"...`);
+
+                const fallbackProvider = inferProvider(agent.fallback_model) ?? agent.provider;
+                if (!fallbackProvider) {
+                    throw new Error(`Cannot determine provider for fallback model "${agent.fallback_model}".`);
+                }
+
+                // Fetch API key for fallback provider (may be same or different)
+                const fbProviderLower = fallbackProvider.toLowerCase();
+                let fbRawKey = rawKey; // reuse if same provider
+                if (fbProviderLower !== providerLower) {
+                    const fbKeyResponse = await supabase
+                        .from('api_keys')
+                        .select('*')
+                        .eq('workspace_id', task.workspace_id)
+                        .eq('provider', fbProviderLower)
+                        .single();
+                    const fbKeyData = fbKeyResponse.data as ApiKey | null;
+                    if (fbKeyResponse.error || !fbKeyData) {
+                        throw new Error(`Fallback model "${agent.fallback_model}" requires a "${fallbackProvider}" API key. Please configure it in Settings.`);
+                    }
+                    fbRawKey = decryptApiKey(fbKeyData.encrypted_key);
+                }
+
+                // Execute with fallback model (non-streaming, no tool loop for simplicity)
+                if (fbProviderLower === 'anthropic') {
+                    executionResult = await executeAnthropic(fbRawKey, agent.fallback_model, systemPrompt, userPrompt, updateResultStream, agent.max_tokens);
+                } else if (fbProviderLower === 'google') {
+                    executionResult = await executeGoogle(fbRawKey, agent.fallback_model, systemPrompt, userPrompt, updateResultStream, agent.max_tokens);
+                } else {
+                    // OpenAI-compatible providers
+                    let baseUrl: string | undefined;
+                    if (fbProviderLower === 'openrouter') baseUrl = 'https://openrouter.ai/api/v1';
+                    else if (fbProviderLower === 'groq') baseUrl = 'https://api.groq.com/openai/v1';
+                    else if (fbProviderLower === 'mistral') baseUrl = 'https://api.mistral.ai/v1';
+                    else if (fbProviderLower === 'cohere') baseUrl = 'https://api.cohere.com/compatibility/v1';
+                    else if (fbProviderLower === 'together') baseUrl = 'https://api.together.xyz/v1';
+                    const fbModelId = agent.fallback_model.replace(/^(openrouter|groq)\//, '');
+                    executionResult = await executeOpenAI(fbRawKey, fbModelId, systemPrompt, userPrompt, updateResultStream, baseUrl, agent.max_tokens);
+                }
+
+                console.log(`[TaskRunner] Fallback model "${agent.fallback_model}" succeeded for task ${task.id}`);
+            } else if (isModelError) {
                 throw new Error(`Model "${agent.model}" is not available on ${provider}. Please update the agent's model in Settings → Agents.`);
+            } else {
+                throw llmError;
             }
-            throw llmError;
         }
 
         // 5. Finalize Task success

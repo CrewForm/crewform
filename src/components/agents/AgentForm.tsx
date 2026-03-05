@@ -183,6 +183,38 @@ export function AgentForm({ initialData, onSubmit, onBack, activeProviders, work
                 {errors.model && <p className="mt-1 text-xs text-status-error-text">{errors.model}</p>}
             </div>
 
+            {/* Fallback Model selector */}
+            <div>
+                <label htmlFor="agent-fallback-model" className="mb-1.5 block text-sm font-medium text-gray-300">
+                    Fallback Model <span className="text-xs text-gray-500">(optional)</span>
+                </label>
+                <p className="mb-2 text-xs text-gray-500">
+                    If the primary model fails (400/404), the agent will automatically retry with this model.
+                </p>
+                {modelOptions.length > 0 && (
+                    <select
+                        id="agent-fallback-model"
+                        value={formData.fallback_model ?? ''}
+                        onChange={(e) => updateField('fallback_model', e.target.value || null)}
+                        className="w-full rounded-lg border border-border bg-surface-card px-4 py-2.5 text-sm text-gray-200 outline-none focus:border-brand-primary"
+                    >
+                        <option value="">None — no fallback</option>
+                        {modelOptions.map((group) => {
+                            if (group.models.length === 0) return null
+                            return (
+                                <optgroup key={group.provider} label={group.provider}>
+                                    {group.models.map((m) => (
+                                        <option key={m.value} value={m.value}>
+                                            {m.label}
+                                        </option>
+                                    ))}
+                                </optgroup>
+                            )
+                        })}
+                    </select>
+                )}
+            </div>
+
             {/* System Prompt */}
             <div>
                 <label htmlFor="agent-prompt" className="mb-1.5 block text-sm font-medium text-gray-300">

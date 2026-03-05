@@ -4,6 +4,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ArrowLeft, Save, Trash2, Upload, DownloadCloud, Activity, Settings2, AlertCircle, Loader2, History, Zap, Plus, Pencil, X, CheckCircle2, XCircle, Clock, Cpu, Coins } from 'lucide-react'
+import { toast } from 'sonner'
 import { useAgent } from '@/hooks/useAgent'
 import { useUpdateAgent } from '@/hooks/useUpdateAgent'
 import { useDeleteAgent } from '@/hooks/useDeleteAgent'
@@ -83,6 +84,7 @@ export function AgentDetail() {
                 max_tokens: agent.max_tokens ?? null,
                 tags: Array.isArray(agent.tags) ? agent.tags : [],
                 tools: agent.tools,
+                fallback_model: agent.fallback_model ?? null,
             })
         }
     }, [agent, formData])
@@ -228,7 +230,7 @@ export function AgentDetail() {
                                     await unpublishAgent(agent.id)
                                     window.location.reload()
                                 } catch {
-                                    alert('Failed to unpublish agent.')
+                                    toast.error('Failed to unpublish agent.')
                                 } finally {
                                     setIsUnpublishing(false)
                                 }

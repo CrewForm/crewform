@@ -6,6 +6,7 @@ import { Routes, Route } from 'react-router-dom'
 import { RootLayout } from '@/layouts/RootLayout'
 import { AuthGuard } from '@/components/auth/AuthGuard'
 import { AdminGuard } from '@/components/auth/AdminGuard'
+import { Toaster } from '@/components/ui/sonner'
 import { Loader2 } from 'lucide-react'
 
 // ── Lazy-loaded pages ────────────────────────────────────────────────────────
@@ -36,40 +37,43 @@ function PageLoader() {
 
 export function App() {
   return (
-    <Suspense fallback={<PageLoader />}>
-      <Routes>
-        {/* Auth routes — public */}
-        <Route path="/auth" element={<Auth />} />
-        <Route path="/auth/signup" element={<Auth />} />
-        <Route path="/auth/forgot-password" element={<Auth />} />
-        <Route path="/auth/reset-password" element={<Auth />} />
-        <Route path="/auth/callback" element={<AuthCallback />} />
+    <>
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          {/* Auth routes — public */}
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/auth/signup" element={<Auth />} />
+          <Route path="/auth/forgot-password" element={<Auth />} />
+          <Route path="/auth/reset-password" element={<Auth />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
 
-        {/* App routes — protected */}
-        <Route
-          element={
-            <AuthGuard>
-              <RootLayout />
-            </AuthGuard>
-          }
-        >
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/agents" element={<Agents />} />
-          <Route path="/agents/new" element={<CreateAgent />} />
-          <Route path="/agents/:id" element={<AgentDetail />} />
-          <Route path="/teams" element={<Teams />} />
-          <Route path="/teams/:id" element={<TeamDetail />} />
-          <Route path="/teams/:teamId/runs/:runId" element={<TeamRunDetail />} />
-          <Route path="/tasks" element={<Tasks />} />
-          <Route path="/tasks/:id" element={<TaskDetail />} />
-          <Route path="/marketplace" element={<Marketplace />} />
-          <Route path="/analytics" element={<Analytics />} />
-          <Route path="/settings" element={<Settings />} />
+          {/* App routes — protected */}
+          <Route
+            element={
+              <AuthGuard>
+                <RootLayout />
+              </AuthGuard>
+            }
+          >
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/agents" element={<Agents />} />
+            <Route path="/agents/new" element={<CreateAgent />} />
+            <Route path="/agents/:id" element={<AgentDetail />} />
+            <Route path="/teams" element={<Teams />} />
+            <Route path="/teams/:id" element={<TeamDetail />} />
+            <Route path="/teams/:teamId/runs/:runId" element={<TeamRunDetail />} />
+            <Route path="/tasks" element={<Tasks />} />
+            <Route path="/tasks/:id" element={<TaskDetail />} />
+            <Route path="/marketplace" element={<Marketplace />} />
+            <Route path="/analytics" element={<Analytics />} />
+            <Route path="/settings" element={<Settings />} />
 
-          {/* Admin — super admin only */}
-          <Route path="/admin" element={<AdminGuard><AdminPanel /></AdminGuard>} />
-        </Route>
-      </Routes>
-    </Suspense>
+            {/* Admin — super admin only */}
+            <Route path="/admin" element={<AdminGuard><AdminPanel /></AdminGuard>} />
+          </Route>
+        </Routes>
+      </Suspense>
+      <Toaster />
+    </>
   )
 }

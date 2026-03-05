@@ -81,6 +81,10 @@ export const agentSchema = z.object({
     tools: z
         .array(z.string())
         .default([]),
+    fallback_model: z
+        .string()
+        .nullable()
+        .default(null),
 })
 
 export type AgentFormData = z.infer<typeof agentSchema>
