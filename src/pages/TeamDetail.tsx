@@ -29,6 +29,7 @@ import { RunTeamModal } from '@/components/teams/RunTeamModal'
 import { TeamRunCard } from '@/components/teams/TeamRunCard'
 import { TeamTriggersPanel } from '@/components/teams/TeamTriggersPanel'
 import { TeamMemoryPanel } from '@/components/teams/TeamMemoryPanel'
+import { ChannelSelector } from '@/components/shared/ChannelSelector'
 import { EEGate } from '@/components/shared/UpgradeBadge'
 import { UpgradeCard } from '@/components/shared/UpgradeBadge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -68,12 +69,20 @@ export function TeamDetail() {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
     const [showRunModal, setShowRunModal] = useState(false)
     const [showModeDropdown, setShowModeDropdown] = useState(false)
+    const [outputChannelIds, setOutputChannelIds] = useState<string[] | null>(null)
+    const [channelInitialized, setChannelInitialized] = useState(false)
 
     const { runs, isLoading: isLoadingRuns } = useTeamRuns(id ?? null)
     const pipelineConfig = team?.mode === 'pipeline' ? (team.config as PipelineConfig) : undefined
     const orchestratorConfig = team?.mode === 'orchestrator' ? (team.config as OrchestratorConfig) : undefined
     const collaborationConfig = team?.mode === 'collaboration' ? (team.config as CollaborationConfig) : undefined
     const stepCount = pipelineConfig?.steps.length ?? 0
+
+    // Initialize output_channel_ids from team once loaded
+    if (team && !channelInitialized) {
+        setOutputChannelIds(team.output_channel_ids ?? null)
+        setChannelInitialized(true)
+    }
 
     // Check if embedding-capable API keys are configured
     const { keysByProvider } = useApiKeys(workspaceId)
@@ -388,6 +397,22 @@ export function TeamDetail() {
                                     updateMutation.mutate({
                                         id: team.id,
                                         updates: { config: newConfig },
+                                    })
+                                }}
+                            />
+                        </div>
+                    )}
+
+                    {/* Output Channels (for orchestrator & collaboration — pipeline has its own) */}
+                    {team.mode !== 'pipeline' && (
+                        <div className="mt-6 rounded-xl border border-border bg-surface-card p-6">
+                            <ChannelSelector
+                                value={outputChannelIds}
+                                onChange={(ids) => {
+                                    setOutputChannelIds(ids)
+                                    updateMutation.mutate({
+                                        id: team.id,
+                                        updates: { output_channel_ids: ids },
                                     })
                                 }}
                             />
