@@ -208,7 +208,7 @@ async function handleAsk(
                 workspace_id: channel.workspace_id,
                 input_task: prompt,
                 created_by: ownerId,
-                status: 'dispatched',
+                status: 'pending',
                 source_channel: sourceChannel,
             })
             .select('id')
@@ -228,7 +228,7 @@ async function handleAsk(
                 workspace_id: channel.workspace_id,
                 assigned_agent_id: channel.default_agent_id,
                 created_by: ownerId,
-                status: 'dispatched',
+                status: 'pending',
                 priority: 'medium',
                 source_channel: sourceChannel,
                 metadata: {
