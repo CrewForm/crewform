@@ -52,6 +52,8 @@ function reply(content: string) {
 
 // ─── Ed25519 Signature Verification ──────────────────────────────────────────
 
+import nacl from 'https://esm.sh/tweetnacl@1.0.3';
+
 function hexToUint8Array(hex: string): Uint8Array {
     const bytes = new Uint8Array(hex.length / 2);
     for (let i = 0; i < hex.length; i += 2) {
@@ -60,7 +62,7 @@ function hexToUint8Array(hex: string): Uint8Array {
     return bytes;
 }
 
-async function verifyDiscordSignature(req: Request, body: string): Promise<boolean> {
+function verifyDiscordSignature(req: Request, body: string): boolean {
     const publicKeyHex = Deno.env.get('DISCORD_PUBLIC_KEY');
     if (!publicKeyHex) {
         console.error('[channel-discord] DISCORD_PUBLIC_KEY env not set');
@@ -72,19 +74,11 @@ async function verifyDiscordSignature(req: Request, body: string): Promise<boole
     if (!signature || !timestamp) return false;
 
     try {
-        const publicKeyBytes = hexToUint8Array(publicKeyHex);
-        const key = await crypto.subtle.importKey(
-            'raw',
-            publicKeyBytes,
-            { name: 'Ed25519', namedCurve: 'Ed25519' },
-            false,
-            ['verify'],
-        );
+        const publicKey = hexToUint8Array(publicKeyHex);
+        const sig = hexToUint8Array(signature);
+        const message = new TextEncoder().encode(timestamp + body);
 
-        const signatureBytes = hexToUint8Array(signature);
-        const messageBytes = new TextEncoder().encode(timestamp + body);
-
-        return await crypto.subtle.verify('Ed25519', key, signatureBytes, messageBytes);
+        return nacl.sign.detached.verify(message, sig, publicKey);
     } catch (err) {
         console.error('[channel-discord] Signature verification error:', err);
         return false;
