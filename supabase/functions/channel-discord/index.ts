@@ -50,13 +50,65 @@ function reply(content: string) {
     );
 }
 
+// ─── Ed25519 Signature Verification ──────────────────────────────────────────
+
+function hexToUint8Array(hex: string): Uint8Array {
+    const bytes = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < hex.length; i += 2) {
+        bytes[i / 2] = parseInt(hex.substring(i, i + 2), 16);
+    }
+    return bytes;
+}
+
+async function verifyDiscordSignature(req: Request, body: string): Promise<boolean> {
+    const publicKeyHex = Deno.env.get('DISCORD_PUBLIC_KEY');
+    if (!publicKeyHex) {
+        console.error('[channel-discord] DISCORD_PUBLIC_KEY env not set');
+        return false;
+    }
+
+    const signature = req.headers.get('X-Signature-Ed25519');
+    const timestamp = req.headers.get('X-Signature-Timestamp');
+    if (!signature || !timestamp) return false;
+
+    try {
+        const publicKeyBytes = hexToUint8Array(publicKeyHex);
+        const key = await crypto.subtle.importKey(
+            'raw',
+            publicKeyBytes,
+            { name: 'Ed25519', namedCurve: 'Ed25519' },
+            false,
+            ['verify'],
+        );
+
+        const signatureBytes = hexToUint8Array(signature);
+        const messageBytes = new TextEncoder().encode(timestamp + body);
+
+        return await crypto.subtle.verify('Ed25519', key, signatureBytes, messageBytes);
+    } catch (err) {
+        console.error('[channel-discord] Signature verification error:', err);
+        return false;
+    }
+}
+
+// ─── Main Handler ────────────────────────────────────────────────────────────
+
 Deno.serve(async (req: Request) => {
     if (req.method !== 'POST') {
         return new Response('OK', { status: 200 });
     }
 
     try {
-        const interaction = (await req.json()) as DiscordInteraction;
+        // Read body as text for signature verification
+        const body = await req.text();
+
+        // Verify Discord signature
+        const isValid = await verifyDiscordSignature(req, body);
+        if (!isValid) {
+            return new Response('Invalid signature', { status: 401 });
+        }
+
+        const interaction = JSON.parse(body) as DiscordInteraction;
 
         // Handle Discord's verification ping
         if (interaction.type === INTERACTION_PING) {
