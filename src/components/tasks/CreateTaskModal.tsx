@@ -217,7 +217,7 @@ export function CreateTaskModal({ onClose, initialDate }: CreateTaskModalProps) 
                                     className={cn(
                                         'flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
                                         priority === value
-                                            ? 'bg-brand-primary text-white'
+                                            ? 'bg-brand-primary text-black'
                                             : 'text-gray-500 hover:text-gray-300',
                                     )}
                                 >
@@ -262,7 +262,7 @@ export function CreateTaskModal({ onClose, initialDate }: CreateTaskModalProps) 
                             type="button"
                             onClick={() => handleSubmit(true)}
                             disabled={createMutation.isPending}
-                            className="flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-hover disabled:opacity-50"
+                            className="flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-brand-hover disabled:opacity-50"
                         >
                             {createMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
                             Create &amp; Dispatch

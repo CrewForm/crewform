@@ -97,7 +97,7 @@ export function CreateAgent() {
                             className={cn(
                                 'flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold transition-colors',
                                 i < currentStepIndex && 'bg-status-success text-white',
-                                i === currentStepIndex && 'bg-brand-primary text-white',
+                                i === currentStepIndex && 'bg-brand-primary text-black',
                                 i > currentStepIndex && 'bg-surface-elevated text-gray-500',
                             )}
                         >

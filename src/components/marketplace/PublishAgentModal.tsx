@@ -208,7 +208,7 @@ export function PublishAgentModal({ agent, onClose }: PublishAgentModalProps) {
                         type="button"
                         onClick={handleSubmit}
                         disabled={tags.length === 0 || submitMutation.isPending}
-                        className="flex items-center gap-1.5 rounded-lg bg-brand-primary px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-hover disabled:opacity-50"
+                        className="flex items-center gap-1.5 rounded-lg bg-brand-primary px-4 py-2 text-xs font-semibold text-black transition-colors hover:bg-brand-hover disabled:opacity-50"
                     >
                         {submitMutation.isPending ? (
                             <Loader2 className="h-3 w-3 animate-spin" />

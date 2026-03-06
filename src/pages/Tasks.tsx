@@ -57,7 +57,7 @@ export function Tasks() {
         <button
           type="button"
           onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-hover"
+          className="flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-brand-hover"
         >
           <Plus className="h-4 w-4" />
           New Task
@@ -73,7 +73,7 @@ export function Tasks() {
             className={cn(
               'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
               viewMode === 'list'
-                ? 'bg-brand-primary text-white'
+                ? 'bg-brand-primary text-black'
                 : 'text-gray-500 hover:text-gray-300',
             )}
           >
@@ -86,7 +86,7 @@ export function Tasks() {
             className={cn(
               'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
               viewMode === 'calendar'
-                ? 'bg-brand-primary text-white'
+                ? 'bg-brand-primary text-black'
                 : 'text-gray-500 hover:text-gray-300',
             )}
           >
@@ -173,7 +173,7 @@ export function Tasks() {
           <button
             type="button"
             onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-hover"
+            className="flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-brand-hover"
           >
             <Plus className="h-4 w-4" />
             Create First Task

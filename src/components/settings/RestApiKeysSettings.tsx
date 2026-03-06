@@ -163,7 +163,7 @@ export function RestApiKeysSettings() {
                         type="button"
                         onClick={() => void handleCreate()}
                         disabled={!newKeyName.trim() || createKey.isPending}
-                        className="flex items-center gap-1.5 rounded-md bg-brand-primary px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+                        className="flex items-center gap-1.5 rounded-md bg-brand-primary px-4 py-2 text-sm font-medium text-black hover:opacity-90 disabled:opacity-50"
                     >
                         <Plus className="h-4 w-4" />
                         {createKey.isPending ? 'Creating…' : 'Generate'}

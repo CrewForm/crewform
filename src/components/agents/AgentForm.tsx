@@ -534,7 +534,7 @@ export function AgentForm({ initialData, onSubmit, onBack, activeProviders, work
                     type="button"
                     onClick={handleSubmit}
                     disabled={activeProviders !== undefined && modelOptions.length === 0}
-                    className="rounded-lg bg-brand-primary px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
+                    className="rounded-lg bg-brand-primary px-6 py-2 text-sm font-medium text-black transition-colors hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
                 >
                     Review
                 </button>

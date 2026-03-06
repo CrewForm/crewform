@@ -245,7 +245,7 @@ export function OnboardingWizard() {
                         <div key={s.key} className="flex items-center">
                             <div className={cn(
                                 'flex h-8 w-8 items-center justify-center rounded-full transition-all',
-                                isActive ? 'bg-brand-primary text-white' :
+                                isActive ? 'bg-brand-primary text-black' :
                                     isDone ? 'bg-emerald-500/20 text-emerald-400' :
                                         'bg-gray-800 text-gray-600',
                             )}>
@@ -286,7 +286,7 @@ export function OnboardingWizard() {
                         <button
                             type="button"
                             onClick={() => setStep('provider')}
-                            className="mx-auto flex items-center gap-2 rounded-lg bg-brand-primary px-6 py-2.5 text-sm font-medium text-white hover:bg-brand-hover"
+                            className="mx-auto flex items-center gap-2 rounded-lg bg-brand-primary px-6 py-2.5 text-sm font-medium text-black hover:bg-brand-hover"
                         >
                             Get Started
                             <ChevronRight className="h-4 w-4" />
@@ -352,7 +352,7 @@ export function OnboardingWizard() {
                                     type="button"
                                     onClick={() => void handleSaveKey()}
                                     disabled={!apiKey.trim() || keySaving}
-                                    className="flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white hover:bg-brand-hover disabled:opacity-50"
+                                    className="flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-black hover:bg-brand-hover disabled:opacity-50"
                                 >
                                     {keySaving ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
                                     Save & Continue
@@ -429,7 +429,7 @@ export function OnboardingWizard() {
                                 type="button"
                                 onClick={() => void handleCreateAgent()}
                                 disabled={!agentName.trim() || !resolvedModel || saving || agentCreated}
-                                className="flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white hover:bg-brand-hover disabled:opacity-50"
+                                className="flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-black hover:bg-brand-hover disabled:opacity-50"
                             >
                                 {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
                                 {agentCreated ? 'Agent Created' : 'Create Agent'}
@@ -479,7 +479,7 @@ export function OnboardingWizard() {
                                         'flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors',
                                         testResult
                                             ? 'border border-border text-gray-400 hover:text-gray-200'
-                                            : 'bg-brand-primary text-white hover:bg-brand-hover',
+                                            : 'bg-brand-primary text-black hover:bg-brand-hover',
                                         'disabled:opacity-50',
                                     )}
                                 >
@@ -489,7 +489,7 @@ export function OnboardingWizard() {
                                 <button
                                     type="button"
                                     onClick={() => setStep('done')}
-                                    className="flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white hover:bg-brand-hover"
+                                    className="flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-black hover:bg-brand-hover"
                                 >
                                     {testResult ? 'Continue' : 'Skip & Finish'}
                                     <ChevronRight className="h-4 w-4" />
@@ -513,7 +513,7 @@ export function OnboardingWizard() {
                         <button
                             type="button"
                             onClick={() => void handleComplete()}
-                            className="mx-auto flex items-center gap-2 rounded-lg bg-brand-primary px-6 py-2.5 text-sm font-medium text-white hover:bg-brand-hover"
+                            className="mx-auto flex items-center gap-2 rounded-lg bg-brand-primary px-6 py-2.5 text-sm font-medium text-black hover:bg-brand-hover"
                         >
                             Go to Agents
                             <ChevronRight className="h-4 w-4" />

@@ -181,7 +181,7 @@ export function PipelineConfigPanel({ team, agents }: PipelineConfigPanelProps) 
                             type="button"
                             onClick={handleSave}
                             disabled={updateMutation.isPending}
-                            className="flex items-center gap-1.5 rounded-lg bg-brand-primary px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-brand-hover disabled:opacity-50"
+                            className="flex items-center gap-1.5 rounded-lg bg-brand-primary px-3 py-1.5 text-xs font-medium text-black transition-colors hover:bg-brand-hover disabled:opacity-50"
                         >
                             {updateMutation.isPending ? (
                                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -240,7 +240,7 @@ export function PipelineConfigPanel({ team, agents }: PipelineConfigPanelProps) 
                     <button
                         type="button"
                         onClick={addStep}
-                        className="flex items-center gap-2 rounded-lg bg-brand-muted px-4 py-2 text-sm font-medium text-brand-primary transition-colors hover:bg-brand-primary hover:text-white"
+                        className="flex items-center gap-2 rounded-lg bg-brand-muted px-4 py-2 text-sm font-medium text-brand-primary transition-colors hover:bg-brand-primary hover:text-black"
                     >
                         <Plus className="h-4 w-4" />
                         Add First Step
