@@ -79,7 +79,9 @@ npm start
 ## What's Next?
 
 - [Agents Guide](./agents.md) — Deep dive into agent configuration
-- [Pipeline Teams Guide](./pipeline-teams.md) — Multi-agent workflows
+- [Pipeline Teams](./pipeline-teams.md) — Sequential multi-agent workflows
+- [Orchestration Teams](./orchestration-teams.md) — Brain agent delegates to workers dynamically
+- [Collaboration Teams](./collaboration-teams.md) — Agents discuss and reach consensus
 - [Discord Integration](./discord-integration.md) — Connect Discord with `/ask` and `/connect`
 - [API Reference](./api-reference.md) — REST API documentation
 - [Self-Hosting Guide](./self-hosting.md) — Docker production deployment

@@ -1,5 +1,13 @@
 # Pipeline Teams Guide
 
+> **CrewForm has three team modes.** Choose the right one for your workflow:
+>
+> | Mode | How it works | Best for |
+> |------|-------------|----------|
+> | **Pipeline** ← you are here | Fixed sequential steps — each agent's output feeds the next | Structured multi-step workflows |
+> | [Orchestration](./orchestration-teams.md) | A brain agent dynamically delegates to workers | Autonomous, adaptive task execution |
+> | [Collaboration](./collaboration-teams.md) | Agents take turns in a shared discussion | Brainstorming, reviews, consensus-building |
+
 Pipeline teams let you chain multiple agents together, where each agent's output feeds into the next. This is ideal for multi-step workflows like research → analysis → report generation.
 
 ## How Pipelines Work
@@ -124,3 +132,8 @@ View pipeline metrics on the **Analytics** page:
 - Average execution time
 - Token usage breakdown by step
 - Cost per pipeline run
+
+## Related
+
+- [Orchestration Teams](./orchestration-teams.md) — Brain agent dynamically delegates to workers
+- [Collaboration Teams](./collaboration-teams.md) — Agents discuss and reach consensus
