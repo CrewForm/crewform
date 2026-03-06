@@ -157,3 +157,10 @@ The `DISCORD_PUBLIC_KEY` environment variable is missing or incorrect. Verify it
 CrewForm uses deferred responses — Discord shows "thinking…" while the task runs. If no followup arrives:
 - Check task-runner logs: `docker compose logs -f task-runner`
 - Ensure the task-runner has a valid LLM API key for the assigned agent's provider
+
+---
+
+## Related
+
+- [Channels](./channels.md) — Overview of all inbound channels (Telegram, Slack, Email)
+- [Output Routes](./output-routes.md) — Push agent results outbound to Discord and other destinations

@@ -95,7 +95,7 @@ Created → Idle → Running (task assigned) → Idle
 
 ## Output Routes
 
-By default, when an agent completes a task, the result is broadcast to **all** active output routes (webhooks, Discord, Slack, Telegram, etc.) in your workspace.
+By default, when an agent completes a task, the result is broadcast to **all** active output routes (HTTP webhooks, Slack, Discord, Telegram, Teams, Asana) in your workspace. See the [Output Routes guide](./output-routes.md) for how to configure destinations.
 
 You can restrict an agent to deliver results to specific channels only:
 
