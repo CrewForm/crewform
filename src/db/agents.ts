@@ -52,7 +52,7 @@ export interface CreateAgentInput {
     tools: string[]
     fallback_model?: string | null
     avatar_url?: string | null
-    output_channel_ids?: string[] | null
+    output_route_ids?: string[] | null
 }
 
 export async function createAgent(input: CreateAgentInput): Promise<Agent> {

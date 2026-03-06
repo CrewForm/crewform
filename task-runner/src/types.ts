@@ -32,7 +32,7 @@ export interface Agent {
     tags: string[];
     tools: string[];
     fallback_model: string | null;
-    output_channel_ids: string[] | null;
+    output_route_ids: string[] | null;
 }
 
 export interface ApiKey {

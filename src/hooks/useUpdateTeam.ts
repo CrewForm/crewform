@@ -7,7 +7,7 @@ import type { Team } from '@/types'
 
 interface UpdateTeamInput {
     id: string
-    updates: Partial<Pick<Team, 'name' | 'description' | 'config' | 'mode' | 'output_channel_ids'>>
+    updates: Partial<Pick<Team, 'name' | 'description' | 'config' | 'mode' | 'output_route_ids'>>
 }
 
 /**

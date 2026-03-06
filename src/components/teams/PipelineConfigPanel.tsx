@@ -69,7 +69,7 @@ export function PipelineConfigPanel({ team, agents }: PipelineConfigPanelProps) 
     const [steps, setSteps] = useState<StepWithId[]>(() => hydrate(config.steps))
     const [hasChanges, setHasChanges] = useState(false)
     const [validationError, setValidationError] = useState('')
-    const [outputChannelIds, setOutputChannelIds] = useState<string[] | null>(team.output_channel_ids ?? null)
+    const [outputRouteIds, setOutputRouteIds] = useState<string[] | null>(team.output_route_ids ?? null)
 
     const updateMutation = useUpdateTeam()
 
@@ -149,7 +149,7 @@ export function PipelineConfigPanel({ team, agents }: PipelineConfigPanelProps) 
         }
 
         updateMutation.mutate(
-            { id: team.id, updates: { config: updatedConfig, output_channel_ids: outputChannelIds } },
+            { id: team.id, updates: { config: updatedConfig, output_route_ids: outputRouteIds } },
             {
                 onSuccess: () => {
                     setHasChanges(false)
@@ -253,8 +253,8 @@ export function PipelineConfigPanel({ team, agents }: PipelineConfigPanelProps) 
             {/* Output Channels */}
             <div className="mt-6">
                 <ChannelSelector
-                    value={outputChannelIds}
-                    onChange={(ids) => { setOutputChannelIds(ids); setHasChanges(true) }}
+                    value={outputRouteIds}
+                    onChange={(ids) => { setOutputRouteIds(ids); setHasChanges(true) }}
                 />
             </div>
         </div>

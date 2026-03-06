@@ -4,7 +4,7 @@ import { executeOpenAI } from './providers/openai';
 import { executeGoogle } from './providers/google';
 import { decryptApiKey } from './crypto';
 import { writeTeamRunUsageRecord } from './usageWriter';
-import { dispatchTeamRunWebhooks, broadcastToChannels } from './webhookDispatcher';
+import { dispatchTeamRunWebhooks } from './webhookDispatcher';
 import { loadInputFiles, buildFileContext, extractAndSaveArtifacts } from './fileAttachments';
 import { storeTeamMemory, retrieveRelevantMemories, buildMemoryContext } from './teamMemory';
 import type { TeamRun, Agent, ApiKey, PipelineConfig, PipelineStep, TeamHandoffContext, TokenUsage } from './types';
@@ -23,7 +23,7 @@ import type { TeamRun, Agent, ApiKey, PipelineConfig, PipelineStep, TeamHandoffC
 export async function processPipelineRun(run: TeamRun): Promise<void> {
     let totalTokens = 0;
     let totalCost = 0;
-    let teamData: { name: string; mode: string; config: PipelineConfig; output_channel_ids: string[] | null } | null = null;
+    let teamData: { name: string; mode: string; config: PipelineConfig; output_route_ids: string[] | null } | null = null;
 
     try {
         console.log(`[PipelineExecutor] Starting run ${run.id} for team ${run.team_id}`);
@@ -31,7 +31,7 @@ export async function processPipelineRun(run: TeamRun): Promise<void> {
         // 1. Fetch team config
         const teamResponse = await supabase
             .from('teams')
-            .select('name, mode, config, output_channel_ids')
+            .select('name, mode, config, output_route_ids')
             .eq('id', run.team_id)
             .single();
 
@@ -39,7 +39,7 @@ export async function processPipelineRun(run: TeamRun): Promise<void> {
             throw new Error(`Failed to load team: ${teamResponse.error.message}`);
         }
 
-        teamData = teamResponse.data as { name: string; mode: string; config: PipelineConfig; output_channel_ids: string[] | null };
+        teamData = teamResponse.data as { name: string; mode: string; config: PipelineConfig; output_route_ids: string[] | null };
 
         if (teamData.mode !== 'pipeline') {
             throw new Error(`Team mode "${teamData.mode}" is not yet supported. Only "pipeline" is available.`);
@@ -155,19 +155,7 @@ export async function processPipelineRun(run: TeamRun): Promise<void> {
             { id: run.id, team_id: run.team_id, workspace_id: run.workspace_id, status: 'completed', input_task: run.input_task, output: finalOutput },
             teamData.name,
             'team_run.completed',
-        );
-
-        // Broadcast to selected messaging channels (fire-and-forget)
-        void broadcastToChannels(
-            run.workspace_id,
-            null,
-            run.id,
-            run.input_task,
-            teamData.name,
-            'completed',
-            finalOutput,
-            null,
-            teamData.output_channel_ids,
+            teamData.output_route_ids,
         );
 
     } catch (error: unknown) {
@@ -190,19 +178,7 @@ export async function processPipelineRun(run: TeamRun): Promise<void> {
             { id: run.id, team_id: run.team_id, workspace_id: run.workspace_id, status: 'failed', input_task: run.input_task, error_message: errMsg },
             teamData?.name ?? `Team ${run.team_id}`,
             'team_run.failed',
-        );
-
-        // Broadcast failure to selected messaging channels (fire-and-forget)
-        void broadcastToChannels(
-            run.workspace_id,
-            null,
-            run.id,
-            run.input_task,
-            teamData?.name ?? `Team ${run.team_id}`,
-            'failed',
-            null,
-            errMsg,
-            teamData?.output_channel_ids ?? null,
+            teamData?.output_route_ids ?? null,
         );
     }
 }

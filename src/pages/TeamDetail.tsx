@@ -69,7 +69,7 @@ export function TeamDetail() {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
     const [showRunModal, setShowRunModal] = useState(false)
     const [showModeDropdown, setShowModeDropdown] = useState(false)
-    const [outputChannelIds, setOutputChannelIds] = useState<string[] | null>(null)
+    const [outputRouteIds, setOutputRouteIds] = useState<string[] | null>(null)
     const [channelInitialized, setChannelInitialized] = useState(false)
 
     const { runs, isLoading: isLoadingRuns } = useTeamRuns(id ?? null)
@@ -78,9 +78,9 @@ export function TeamDetail() {
     const collaborationConfig = team?.mode === 'collaboration' ? (team.config as CollaborationConfig) : undefined
     const stepCount = pipelineConfig?.steps.length ?? 0
 
-    // Initialize output_channel_ids from team once loaded
+    // Initialize output_route_ids from team once loaded
     if (team && !channelInitialized) {
-        setOutputChannelIds(team.output_channel_ids ?? null)
+        setOutputRouteIds(team.output_route_ids ?? null)
         setChannelInitialized(true)
     }
 
@@ -407,12 +407,12 @@ export function TeamDetail() {
                     {team.mode !== 'pipeline' && (
                         <div className="mt-6 rounded-xl border border-border bg-surface-card p-6">
                             <ChannelSelector
-                                value={outputChannelIds}
+                                value={outputRouteIds}
                                 onChange={(ids) => {
-                                    setOutputChannelIds(ids)
+                                    setOutputRouteIds(ids)
                                     updateMutation.mutate({
                                         id: team.id,
-                                        updates: { output_channel_ids: ids },
+                                        updates: { output_route_ids: ids },
                                     })
                                 }}
                             />

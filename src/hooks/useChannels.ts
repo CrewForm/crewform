@@ -2,22 +2,22 @@
 // Copyright (C) 2026 CrewForm
 
 import { useEffect, useState } from 'react'
-import { fetchChannels, type MessagingChannel } from '@/db/messagingChannels'
+import { fetchRoutes, type OutputRoute } from '@/db/webhooks'
 import { useWorkspace } from '@/hooks/useWorkspace'
 
-export function useChannels() {
+export function useOutputRoutes() {
     const { workspace } = useWorkspace()
-    const [channels, setChannels] = useState<MessagingChannel[]>([])
+    const [routes, setRoutes] = useState<OutputRoute[]>([])
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
         if (!workspace?.id) return
         setLoading(true)
-        fetchChannels(workspace.id)
-            .then((data) => setChannels(data.filter((c) => c.is_active)))
+        fetchRoutes(workspace.id)
+            .then((data) => setRoutes(data.filter((r) => r.is_active)))
             .catch(console.error)
             .finally(() => setLoading(false))
     }, [workspace?.id])
 
-    return { channels, loading }
+    return { routes, loading }
 }

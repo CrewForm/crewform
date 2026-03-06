@@ -1,60 +1,61 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 CrewForm
 
-import { Send, MessageSquare, Hash, Mail, Radio } from 'lucide-react'
-import { useChannels } from '@/hooks/useChannels'
-import type { ChannelPlatform } from '@/db/messagingChannels'
+import { Globe, MessageSquare, Hash, Send, Users, CheckSquare, Radio } from 'lucide-react'
+import { useOutputRoutes } from '@/hooks/useChannels'
 import { cn } from '@/lib/utils'
 
-const PLATFORM_ICONS: Record<ChannelPlatform, typeof Send> = {
-    telegram: Send,
+const DESTINATION_ICONS: Record<string, typeof Globe> = {
+    http: Globe,
     discord: MessageSquare,
     slack: Hash,
-    email: Mail,
+    telegram: Send,
+    teams: Users,
+    asana: CheckSquare,
 }
 
-const PLATFORM_COLORS: Record<ChannelPlatform, { text: string; bg: string }> = {
-    telegram: { text: 'text-sky-400', bg: 'bg-sky-500/10' },
+const DESTINATION_COLORS: Record<string, { text: string; bg: string }> = {
+    http: { text: 'text-emerald-400', bg: 'bg-emerald-500/10' },
     discord: { text: 'text-indigo-400', bg: 'bg-indigo-500/10' },
     slack: { text: 'text-purple-400', bg: 'bg-purple-500/10' },
-    email: { text: 'text-amber-400', bg: 'bg-amber-500/10' },
+    telegram: { text: 'text-sky-400', bg: 'bg-sky-500/10' },
+    teams: { text: 'text-blue-400', bg: 'bg-blue-500/10' },
+    asana: { text: 'text-rose-400', bg: 'bg-rose-500/10' },
 }
 
-interface ChannelSelectorProps {
-    /** null = all channels, string[] = specific channel IDs */
+interface OutputRouteSelectorProps {
+    /** null = all routes, string[] = specific route IDs */
     value: string[] | null
     onChange: (value: string[] | null) => void
 }
 
-export function ChannelSelector({ value, onChange }: ChannelSelectorProps) {
-    const { channels, loading } = useChannels()
+export function ChannelSelector({ value, onChange }: OutputRouteSelectorProps) {
+    const { routes, loading } = useOutputRoutes()
 
     if (loading) return null
 
-    // Don't render if no channels are configured
-    if (channels.length === 0) return null
+    // Don't render if no routes are configured
+    if (routes.length === 0) return null
 
     const isAll = value === null
 
     const toggleAll = () => {
         if (isAll) {
-            // Switch from "all" to explicitly selected (all currently active)
-            onChange(channels.map((c) => c.id))
+            onChange(routes.map((r) => r.id))
         } else {
             onChange(null)
         }
     }
 
-    const toggleChannel = (channelId: string) => {
+    const toggleRoute = (routeId: string) => {
         if (isAll) {
-            // Switch from "all" to all-except-this-one
-            onChange(channels.filter((c) => c.id !== channelId).map((c) => c.id))
+            onChange(routes.filter((r) => r.id !== routeId).map((r) => r.id))
         } else {
-            const isSelected = value.includes(channelId)
+            const isSelected = value.includes(routeId)
             if (isSelected) {
-                onChange(value.filter((id) => id !== channelId))
+                onChange(value.filter((id) => id !== routeId))
             } else {
-                onChange([...value, channelId])
+                onChange([...value, routeId])
             }
         }
     }
@@ -62,7 +63,7 @@ export function ChannelSelector({ value, onChange }: ChannelSelectorProps) {
     return (
         <div className="space-y-3">
             <div className="flex items-center justify-between">
-                <label className="text-sm font-medium text-gray-300">Output Channels</label>
+                <label className="text-sm font-medium text-gray-300">Output Routes</label>
                 <button
                     type="button"
                     onClick={toggleAll}
@@ -74,23 +75,23 @@ export function ChannelSelector({ value, onChange }: ChannelSelectorProps) {
                     )}
                 >
                     <Radio className="h-3 w-3" />
-                    {isAll ? 'All channels' : 'Select channels'}
+                    {isAll ? 'All routes' : 'Select routes'}
                 </button>
             </div>
             <p className="text-xs text-gray-500">
-                Choose which messaging channels receive results when this {value === null ? 'agent' : 'agent'} completes a task.
+                Choose which output routes (webhooks) receive results on completion.
             </p>
             <div className="grid gap-2">
-                {channels.map((channel) => {
-                    const Icon = PLATFORM_ICONS[channel.platform]
-                    const colors = PLATFORM_COLORS[channel.platform]
-                    const isSelected = isAll || value.includes(channel.id)
+                {routes.map((route) => {
+                    const Icon = DESTINATION_ICONS[route.destination_type] ?? Globe
+                    const colors = DESTINATION_COLORS[route.destination_type] ?? DESTINATION_COLORS.http
+                    const isSelected = isAll || value.includes(route.id)
 
                     return (
                         <button
-                            key={channel.id}
+                            key={route.id}
                             type="button"
-                            onClick={() => toggleChannel(channel.id)}
+                            onClick={() => toggleRoute(route.id)}
                             className={cn(
                                 'flex items-center gap-3 rounded-lg border p-3 text-left transition-colors',
                                 isSelected
@@ -102,8 +103,8 @@ export function ChannelSelector({ value, onChange }: ChannelSelectorProps) {
                                 <Icon className={cn('h-4 w-4', colors.text)} />
                             </div>
                             <div className="min-w-0 flex-1">
-                                <span className="block text-sm font-medium text-gray-200 truncate">{channel.name}</span>
-                                <span className="block text-xs text-gray-500 capitalize">{channel.platform}</span>
+                                <span className="block text-sm font-medium text-gray-200 truncate">{route.name}</span>
+                                <span className="block text-xs text-gray-500 capitalize">{route.destination_type}</span>
                             </div>
                             <div
                                 className={cn(
