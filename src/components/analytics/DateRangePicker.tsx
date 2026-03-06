@@ -51,7 +51,7 @@ export function DateRangePicker({ activeLabel, onChange }: DateRangePickerProps)
                     className={cn(
                         'rounded-md px-3 py-1.5 text-xs font-medium transition-all',
                         activeLabel === preset.label
-                            ? 'bg-brand-primary text-white shadow-sm'
+                            ? 'bg-brand-primary text-black shadow-sm'
                             : 'text-gray-400 hover:text-gray-200 hover:bg-surface-elevated',
                     )}
                 >

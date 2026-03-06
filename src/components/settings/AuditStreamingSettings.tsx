@@ -135,8 +135,8 @@ export function AuditStreamingSettings() {
                                     type="button"
                                     onClick={() => { setService(p.value); setIsDirty(true) }}
                                     className={`flex flex-col items-center gap-1.5 rounded-lg border p-3 text-center transition-all ${service === p.value
-                                            ? 'border-brand-primary bg-brand-primary/10 text-brand-primary'
-                                            : 'border-border bg-surface-raised text-gray-400 hover:border-border-hover hover:text-gray-300'
+                                        ? 'border-brand-primary bg-brand-primary/10 text-brand-primary'
+                                        : 'border-border bg-surface-raised text-gray-400 hover:border-border-hover hover:text-gray-300'
                                         }`}
                                 >
                                     <Radio className="h-4 w-4" />
@@ -189,7 +189,7 @@ export function AuditStreamingSettings() {
                             type="button"
                             onClick={handleSave}
                             disabled={!isDirty || updateMutation.isPending}
-                            className="ml-auto flex items-center gap-1.5 rounded-lg bg-brand-primary px-4 py-1.5 text-xs font-medium text-white transition-colors hover:bg-brand-primary/90 disabled:opacity-50"
+                            className="ml-auto flex items-center gap-1.5 rounded-lg bg-brand-primary px-4 py-1.5 text-xs font-medium text-black transition-colors hover:bg-brand-primary/90 disabled:opacity-50"
                         >
                             {updateMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                             Save

@@ -239,7 +239,7 @@ export function AgentDetailModal({ agent, onClose, onInstall, isInstalling }: Ag
                                                 type="button"
                                                 onClick={handleSubmitRating}
                                                 disabled={selectedStar === 0 || submitRating.isPending}
-                                                className="flex items-center gap-1.5 rounded-lg bg-brand-primary px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-primary/90 disabled:opacity-50"
+                                                className="flex items-center gap-1.5 rounded-lg bg-brand-primary px-3 py-1.5 text-xs font-semibold text-black transition-colors hover:bg-brand-primary/90 disabled:opacity-50"
                                             >
                                                 {submitRating.isPending && <Loader2 className="h-3 w-3 animate-spin" />}
                                                 Submit Rating
@@ -299,7 +299,7 @@ export function AgentDetailModal({ agent, onClose, onInstall, isInstalling }: Ag
                         type="button"
                         onClick={() => onInstall?.(agent)}
                         disabled={isInstalling}
-                        className="w-full rounded-lg bg-brand-primary px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full rounded-lg bg-brand-primary px-4 py-3 text-sm font-semibold text-black transition-colors hover:bg-brand-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <Download className="mr-2 inline h-4 w-4" />
                         {isInstalling ? 'Installing...' : 'Install Agent'}

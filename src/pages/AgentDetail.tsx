@@ -206,7 +206,7 @@ export function AgentDetail() {
                             saveSuccess
                                 ? 'bg-status-success text-white'
                                 : hasChanges
-                                    ? 'bg-brand-primary text-white hover:bg-brand-hover'
+                                    ? 'bg-brand-primary text-black hover:bg-brand-hover'
                                     : 'bg-surface-elevated text-gray-500 cursor-not-allowed',
                         )}
                     >

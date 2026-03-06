@@ -55,7 +55,7 @@ export function TriggersPanel({ agentId }: { agentId: string }) {
                 <button
                     type="button"
                     onClick={() => setShowCreateForm(true)}
-                    className="flex items-center gap-1.5 rounded-lg bg-brand-primary px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-brand-hover"
+                    className="flex items-center gap-1.5 rounded-lg bg-brand-primary px-3 py-1.5 text-xs font-medium text-black transition-colors hover:bg-brand-hover"
                 >
                     <Plus className="h-3.5 w-3.5" />
                     Add Trigger
@@ -147,7 +147,7 @@ function CreateTriggerForm({
                         className={cn(
                             'flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
                             triggerType === type
-                                ? 'bg-brand-primary text-white'
+                                ? 'bg-brand-primary text-black'
                                 : 'text-gray-500 hover:text-gray-300',
                         )}
                     >
@@ -237,7 +237,7 @@ function CreateTriggerForm({
                     type="button"
                     onClick={handleSubmit}
                     disabled={!taskTitle.trim() || createMutation.isPending}
-                    className="flex items-center gap-1.5 rounded-lg bg-brand-primary px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-brand-hover disabled:opacity-50"
+                    className="flex items-center gap-1.5 rounded-lg bg-brand-primary px-3 py-1.5 text-xs font-medium text-black transition-colors hover:bg-brand-hover disabled:opacity-50"
                 >
                     {createMutation.isPending && <Loader2 className="h-3 w-3 animate-spin" />}
                     Create Trigger

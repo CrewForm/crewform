@@ -10,7 +10,7 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 }
 
 const buttonVariants = {
-  default: 'bg-brand-primary text-white hover:bg-brand-hover',
+  default: 'bg-brand-primary text-black hover:bg-brand-hover',
   destructive: 'bg-status-error text-white hover:bg-red-600',
   outline: 'border border-border bg-transparent text-gray-200 hover:bg-surface-overlay',
   secondary: 'bg-surface-elevated text-gray-200 hover:bg-surface-overlay',

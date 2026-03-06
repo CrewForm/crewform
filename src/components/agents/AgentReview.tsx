@@ -84,7 +84,7 @@ export function AgentReview({ data, onBack, onCreate, isCreating, error }: Agent
                     type="button"
                     onClick={onCreate}
                     disabled={isCreating}
-                    className="rounded-lg bg-brand-primary px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
+                    className="rounded-lg bg-brand-primary px-6 py-2.5 text-sm font-medium text-black transition-colors hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
                 >
                     {isCreating ? 'Creating...' : 'Create Agent'}
                 </button>

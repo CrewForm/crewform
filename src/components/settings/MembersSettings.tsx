@@ -127,7 +127,7 @@ function InviteForm({ workspaceId }: { workspaceId: string }) {
                     type="button"
                     onClick={() => void handleInvite()}
                     disabled={!email.trim() || createMutation.isPending}
-                    className="flex items-center gap-1.5 rounded-lg bg-brand-primary px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-brand-hover disabled:opacity-50"
+                    className="flex items-center gap-1.5 rounded-lg bg-brand-primary px-4 py-2 text-xs font-medium text-black transition-colors hover:bg-brand-hover disabled:opacity-50"
                 >
                     {createMutation.isPending && <Loader2 className="h-3 w-3 animate-spin" />}
                     Invite
