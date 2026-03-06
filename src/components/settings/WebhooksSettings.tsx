@@ -205,17 +205,21 @@ function CreateWebhookForm({
             {/* Events */}
             <div>
                 <label className="mb-2 block text-sm font-medium text-gray-400">Events</label>
-                <div className="flex gap-3">
+                <div className="flex flex-wrap gap-2">
                     {EVENT_OPTIONS.map((opt) => (
-                        <label key={opt.value} className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
-                            <input
-                                type="checkbox"
-                                checked={events.includes(opt.value)}
-                                onChange={() => toggleEvent(opt.value)}
-                                className="rounded border-border bg-surface-raised accent-brand-primary"
-                            />
+                        <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => toggleEvent(opt.value)}
+                            className={cn(
+                                'rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors',
+                                events.includes(opt.value)
+                                    ? 'border-brand-primary bg-brand-primary/10 text-brand-primary'
+                                    : 'border-border bg-surface-raised text-gray-500 hover:text-gray-300',
+                            )}
+                        >
                             {opt.label}
-                        </label>
+                        </button>
                     ))}
                 </div>
             </div>
