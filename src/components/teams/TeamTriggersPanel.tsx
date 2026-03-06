@@ -43,7 +43,7 @@ export function TeamTriggersPanel({ teamId }: { teamId: string }) {
                 <button
                     type="button"
                     onClick={() => setShowCreateForm(true)}
-                    className="flex items-center gap-1.5 rounded-lg bg-brand-primary px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-brand-hover"
+                    className="flex items-center gap-1.5 rounded-lg bg-brand-primary px-3 py-1.5 text-xs font-medium text-black transition-colors hover:bg-brand-hover"
                 >
                     <Plus className="h-3.5 w-3.5" />
                     Add Trigger
@@ -202,7 +202,7 @@ function CreateTeamTriggerForm({
                 <button
                     type="submit"
                     disabled={createMutation.isPending || !titleTemplate.trim()}
-                    className="rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white hover:bg-brand-hover disabled:opacity-50"
+                    className="rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-black hover:bg-brand-hover disabled:opacity-50"
                 >
                     {createMutation.isPending ? 'Creating…' : 'Create Trigger'}
                 </button>

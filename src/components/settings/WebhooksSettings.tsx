@@ -62,7 +62,7 @@ export function WebhooksSettings() {
                 <button
                     type="button"
                     onClick={() => setShowCreateForm(true)}
-                    className="flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-primary/80"
+                    className="flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-brand-primary/80"
                 >
                     <Plus className="h-4 w-4" />
                     Add Webhook
@@ -232,7 +232,7 @@ function CreateWebhookForm({
                 <button
                     type="submit"
                     disabled={createMutation.isPending || !name.trim() || events.length === 0}
-                    className="flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-primary/80 disabled:opacity-50"
+                    className="flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-brand-primary/80 disabled:opacity-50"
                 >
                     {createMutation.isPending ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -628,7 +628,7 @@ function WebhookCard({
                         <button
                             type="submit"
                             disabled={updateMutation.isPending || !editName.trim() || editEvents.length === 0}
-                            className="rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white hover:bg-brand-primary/90 disabled:opacity-50"
+                            className="rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-black hover:bg-brand-primary/90 disabled:opacity-50"
                         >
                             {updateMutation.isPending ? 'Saving…' : 'Save Changes'}
                         </button>

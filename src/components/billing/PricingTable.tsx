@@ -66,7 +66,7 @@ export function PricingTable() {
                     )}
                 >
                     {plan.highlight && (
-                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-brand-primary px-3 py-0.5 text-[10px] font-bold uppercase text-white">
+                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-brand-primary px-3 py-0.5 text-[10px] font-bold uppercase text-black">
                             Most Popular
                         </div>
                     )}
@@ -89,7 +89,7 @@ export function PricingTable() {
                             className={cn(
                                 'mb-5 w-full rounded-lg px-3 py-2 text-xs font-semibold transition-colors disabled:opacity-50',
                                 plan.highlight
-                                    ? 'bg-brand-primary text-white hover:bg-brand-hover'
+                                    ? 'bg-brand-primary text-black hover:bg-brand-hover'
                                     : 'border border-border bg-surface-raised text-gray-200 hover:bg-surface-elevated',
                             )}
                         >

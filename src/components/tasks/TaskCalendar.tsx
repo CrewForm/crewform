@@ -205,7 +205,7 @@ export function TaskCalendar({ onSelectDate, onSelectTask }: TaskCalendarProps) 
                                 className={cn(
                                     'mb-1 inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium',
                                     isToday
-                                        ? 'bg-brand-primary text-white'
+                                        ? 'bg-brand-primary text-black'
                                         : isCurrentMonth
                                             ? 'text-gray-300'
                                             : 'text-gray-600',

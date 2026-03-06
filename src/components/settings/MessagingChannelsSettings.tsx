@@ -120,7 +120,7 @@ export function MessagingChannelsSettings() {
                 <button
                     type="button"
                     onClick={() => setShowCreateForm(true)}
-                    className="flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white hover:bg-brand-primary/90"
+                    className="flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-black hover:bg-brand-primary/90"
                 >
                     <Plus className="h-4 w-4" />
                     Add Channel
@@ -370,7 +370,7 @@ function CreateChannelForm({ workspaceId, onClose }: { workspaceId: string; onCl
                 <button
                     type="submit"
                     disabled={createChannel.isPending}
-                    className="flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-1.5 text-sm font-medium text-white hover:bg-brand-primary/90 disabled:opacity-50"
+                    className="flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-1.5 text-sm font-medium text-black hover:bg-brand-primary/90 disabled:opacity-50"
                 >
                     {createChannel.isPending && <Loader2 className="h-3 w-3 animate-spin" />}
                     Create Channel

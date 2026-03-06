@@ -71,8 +71,8 @@ export function MarketplaceFilters({
                                 type="button"
                                 onClick={() => onTagToggle(tag)}
                                 className={`rounded-full px-3 py-1 text-xs font-medium transition-all ${isActive
-                                        ? 'bg-brand-primary text-white shadow-sm'
-                                        : 'bg-surface-overlay text-gray-400 hover:bg-surface-overlay/80 hover:text-gray-300'
+                                    ? 'bg-brand-primary text-black shadow-sm'
+                                    : 'bg-surface-overlay text-gray-400 hover:bg-surface-overlay/80 hover:text-gray-300'
                                     }`}
                             >
                                 {tag}
