@@ -28,6 +28,7 @@ const PLATFORM_META: Record<ChannelPlatform, {
     color: string
     bgColor: string
     setupGuide: string
+    inviteUrl?: string
     connectCommand: string
     configFields: { key: string; label: string; type: 'text' | 'password'; placeholder: string; required: boolean }[]
 }> = {
@@ -49,6 +50,7 @@ const PLATFORM_META: Record<ChannelPlatform, {
         color: 'text-indigo-400',
         bgColor: 'bg-indigo-500/10',
         setupGuide: 'https://discord.com/developers/applications',
+        inviteUrl: 'https://discord.com/api/oauth2/authorize?client_id=1477979971967385673&permissions=2048&scope=bot%20applications.commands',
         connectCommand: '/connect code:',
         configFields: [
             { key: 'bot_token', label: 'Bot Token', type: 'password', placeholder: 'MTIz...', required: true },
@@ -306,8 +308,22 @@ function CreateChannelForm({ workspaceId, onClose }: { workspaceId: string; onCl
 
             {/* Managed mode info */}
             {isManaged && !isEmail && (
-                <div className="rounded-lg border border-gray-700 bg-gray-900/50 p-3">
+                <div className="rounded-lg border border-gray-700 bg-gray-900/50 p-3 space-y-2">
+                    {meta.inviteUrl && (
+                        <p className="text-xs text-gray-400">
+                            <strong className="text-gray-300">Step 1:</strong>{' '}
+                            <a
+                                href={meta.inviteUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-brand-primary underline hover:text-brand-primary/80"
+                            >
+                                Invite the CrewForm bot to your server
+                            </a>
+                        </p>
+                    )}
                     <p className="text-xs text-gray-400">
+                        {meta.inviteUrl && <><strong className="text-gray-300">Step 2:</strong>{' '}</>}
                         After creating this channel, you&apos;ll get a <strong className="text-gray-300">connect code</strong>.
                         Send <code className="rounded bg-gray-800 px-1 text-brand-primary">{meta.connectCommand} &lt;code&gt;</code> in your
                         {' '}{meta.label} chat to link it to this agent.
@@ -485,7 +501,22 @@ function ChannelCard({
             {/* Connect Code Banner (managed + not yet linked) */}
             {channel.is_managed && channel.connect_code && !isLinked && (
                 <div className="border-t border-gray-700 bg-amber-500/5 p-3">
+                    {meta.inviteUrl && (
+                        <p className="mb-2 text-xs text-gray-400">
+                            <strong className="text-gray-300">Step 1:</strong>{' '}
+                            <a
+                                href={meta.inviteUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-brand-primary underline hover:text-brand-primary/80"
+                            >
+                                Invite the CrewForm bot to your server
+                            </a>
+                            {' '}(if you haven&apos;t already)
+                        </p>
+                    )}
                     <p className="mb-2 text-xs text-amber-400">
+                        {meta.inviteUrl && <><strong>Step 2:</strong>{' '}</>}
                         Send this command in your {meta.label} chat to connect:
                     </p>
                     <div className="flex items-center gap-2">
