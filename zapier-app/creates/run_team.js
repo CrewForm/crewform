@@ -35,10 +35,11 @@ module.exports = {
         inputFields: [
             {
                 key: 'team_id',
-                label: 'Team ID',
+                label: 'Team',
                 type: 'string',
                 required: true,
-                helpText: 'The UUID of the team to run. Find this in the Teams page.',
+                dynamic: 'list_teams.id.name',
+                helpText: 'Select the team to run.',
             },
             {
                 key: 'input_task',

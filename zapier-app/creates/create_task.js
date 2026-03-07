@@ -3,6 +3,12 @@
  *
  * Allows Zapier users to create a new task in CrewForm,
  * optionally assigning it to a specific agent or team.
+ *
+ * When an agent or team is assigned, the task is auto-dispatched
+ * so the task-runner picks it up immediately.
+ *
+ * Agent and Team fields use dynamic dropdowns powered by the
+ * /api-agents and /api-teams endpoints.
  */
 
 const { getBaseUrl } = require('../lib/helpers');
@@ -37,7 +43,7 @@ module.exports = {
 
     display: {
         label: 'Create Task',
-        description: 'Creates a new task in CrewForm and dispatches it to an agent.',
+        description: 'Creates a new task in CrewForm and dispatches it to an agent or team.',
     },
 
     operation: {
@@ -69,17 +75,19 @@ module.exports = {
             },
             {
                 key: 'assigned_agent_id',
-                label: 'Agent ID',
+                label: 'Agent',
                 type: 'string',
                 required: false,
-                helpText: 'UUID of the agent to assign this task to. Leave blank to assign manually.',
+                dynamic: 'list_agents.id.name',
+                helpText: 'Select the agent to run this task. If set, the task is dispatched automatically.',
             },
             {
                 key: 'assigned_team_id',
-                label: 'Team ID',
+                label: 'Team',
                 type: 'string',
                 required: false,
-                helpText: 'UUID of the team to assign this task to (for pipeline/orchestrator runs).',
+                dynamic: 'list_teams.id.name',
+                helpText: 'Select the team to run this task (pipeline or orchestrator). If set, the task is dispatched automatically.',
             },
         ],
 
@@ -88,7 +96,7 @@ module.exports = {
             title: 'Sample Task',
             description: 'Analyze the latest quarterly report',
             priority: 'medium',
-            status: 'pending',
+            status: 'dispatched',
             created_at: new Date().toISOString(),
         },
 

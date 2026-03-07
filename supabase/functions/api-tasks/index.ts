@@ -69,12 +69,16 @@ Deno.serve(async (req: Request) => {
                 const result = await validateBody(req, CreateTaskSchema);
                 if ('error' in result) return result.error;
 
+                // Auto-dispatch if an agent or team is assigned
+                const shouldDispatch = !!(result.data.assigned_agent_id || result.data.assigned_team_id);
+
                 const { data, error } = await auth.supabaseClient
                     .from('tasks')
                     .insert({
                         ...result.data,
                         workspace_id: auth.workspaceId,
                         created_by: auth.userId,
+                        ...(shouldDispatch ? { status: 'dispatched' } : {}),
                     })
                     .select()
                     .single();

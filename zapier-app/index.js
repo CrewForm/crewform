@@ -15,6 +15,8 @@ const taskCompletedTrigger = require('./triggers/task_completed');
 const taskFailedTrigger = require('./triggers/task_failed');
 const teamRunCompletedTrigger = require('./triggers/team_run_completed');
 const teamRunFailedTrigger = require('./triggers/team_run_failed');
+const listAgentsTrigger = require('./triggers/list_agents');
+const listTeamsTrigger = require('./triggers/list_teams');
 
 const createTaskAction = require('./creates/create_task');
 const runTeamAction = require('./creates/run_team');
@@ -35,6 +37,8 @@ module.exports = {
         [taskFailedTrigger.key]: taskFailedTrigger,
         [teamRunCompletedTrigger.key]: teamRunCompletedTrigger,
         [teamRunFailedTrigger.key]: teamRunFailedTrigger,
+        [listAgentsTrigger.key]: listAgentsTrigger,
+        [listTeamsTrigger.key]: listTeamsTrigger,
     },
 
     creates: {
