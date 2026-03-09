@@ -8,7 +8,10 @@
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![CI](https://github.com/CrewForm/crewform/actions/workflows/ci.yml/badge.svg)](https://github.com/CrewForm/crewform/actions/workflows/ci.yml)
+[![Docs](https://img.shields.io/badge/Docs-Mintlify-0D9373?logo=mintlify&logoColor=white)](https://docs.crewform.tech)
 [![Discord](https://img.shields.io/discord/1476188192100323488?color=5865F2&label=Discord&logo=discord&logoColor=white)](https://discord.gg/TAFasJCTWs)
+[![Zapier](https://img.shields.io/badge/Zapier-Integrated-FF4A00?logo=zapier&logoColor=white)](https://zapier.com)
+[![Website](https://img.shields.io/badge/Website-crewform.tech-6bedb9)](https://crewform.tech)
 
 [Website](https://crewform.tech) · [Docs](https://docs.crewform.tech) · [Discord](https://discord.gg/TAFasJCTWs) · [Twitter](https://twitter.com/CrewForm)
 
@@ -47,10 +50,11 @@ CrewForm is built for developers and teams who want production-ready AI agent or
 
 ### Community Edition (Free & Open Source)
 
-- 🤖 **Agent Management** — Create, configure, and monitor AI agents from a visual UI
-- 👥 **Pipeline Teams** — Chain agents together in sequential workflows
 - 🔑 **BYOK (Bring Your Own Key)** — Pay your LLM provider directly. Zero markup, zero middleman
+- 🤖 **Agent Management** — Create, configure, and monitor AI agents from a visual UI
 - 🏪 **Marketplace** — Browse and install agent templates built by the community
+- 👥 **Pipeline Mode** — Chain agents together in sequential workflows
+- ✅ **Single Tasks** — Send a prompt to any agent and get results in real-time
 - 🏠 **Self-Hostable** — Run on your own infrastructure with Docker Compose
 - 🔒 **Secure by Default** — AES-256-GCM key encryption, Row-Level Security, GDPR-ready
 - ⚡ **Real-Time** — Watch your agents work in real-time with live task execution updates
@@ -60,11 +64,16 @@ CrewForm is built for developers and teams who want production-ready AI agent or
 
 - 🔗 **Orchestrator Mode** — Brain agent coordinates sub-agents via delegation trees *(Pro)*
 - 🛠️ **Custom Tools** — Extend agents with custom tool integrations *(Pro)*
-- 📡 **Messaging Channels** — Telegram, Discord, Slack bots *(Pro)*
-- 📈 **Advanced Analytics** — Charts, CSV export, prompt history with diffs *(Pro)*
-- 🤝 **Collaboration Mode** — Multi-agent real-time discussion *(Team)*
+- 💬 **Collaboration Mode** — Agents discuss and debate tasks in real-time threads *(Team)*
 - 🧠 **Team Memory** — Shared pgvector semantic search across agents *(Team)*
 - 👤 **RBAC** — Role-based access control and workspace member invitations *(Team)*
+
+### Integrations
+
+- ⚡ **Zapier** — Connect CrewForm to 7,000+ apps. Trigger agents from Gmail, Slack, forms, or schedules
+- 📡 **Messaging Channels** — Trigger agents from Discord, Slack, Telegram, and Email
+- 📤 **Output Routes** — Deliver results to Discord channels, Slack, webhooks, MS Teams, and more
+- 📈 **Advanced Analytics** — Charts, CSV export, prompt history with diffs *(Pro)*
 - 📋 **Audit Logs** — Full audit trail with Datadog/Splunk streaming *(Enterprise)*
 - 🐝 **Swarm** — Multi-runner concurrency pool *(Enterprise)*
 
@@ -107,17 +116,22 @@ cp .env.example .env.local
 npm run dev
 ```
 
-> **Self-hosting?** See the [Docker deployment guide](docs/self-hosting.md) for production setup.
+> **Self-hosting?** See the [Docker deployment guide](https://docs.crewform.tech/self-hosting) for production setup.
 
 ## Documentation
 
 | Guide | Description |
 |-------|-------------|
-| [Quick Start](docs/quickstart.md) | Get running in under 5 minutes |
-| [Agents Guide](docs/agents.md) | Models, system prompts, and agent lifecycle |
-| [Pipeline Teams](docs/pipeline-teams.md) | Multi-agent workflows and handoffs |
-| [API Reference](docs/api-reference.md) | REST API endpoints and authentication |
-| [Self-Hosting](docs/self-hosting.md) | Docker Compose production deployment |
+| [Quick Start](https://docs.crewform.tech/quickstart) | Get running in under 5 minutes |
+| [Agents Guide](https://docs.crewform.tech/agents) | Models, system prompts, and agent lifecycle |
+| [Pipeline Teams](https://docs.crewform.tech/pipeline-teams) | Multi-agent sequential workflows |
+| [Orchestration Teams](https://docs.crewform.tech/orchestration-teams) | Brain agent with delegation trees |
+| [Collaboration Teams](https://docs.crewform.tech/collaboration-teams) | Multi-agent real-time discussion |
+| [Channels](https://docs.crewform.tech/channels) | Discord, Slack, Telegram, Email triggers |
+| [Discord Integration](https://docs.crewform.tech/discord-integration) | Slash commands and bot setup |
+| [Output Routes](https://docs.crewform.tech/output-routes) | Deliver results to external destinations |
+| [API Reference](https://docs.crewform.tech/api-reference) | REST API endpoints and authentication |
+| [Self-Hosting](https://docs.crewform.tech/self-hosting) | Docker Compose production deployment |
 
 ## Architecture
 
@@ -137,6 +151,9 @@ npm run dev
 │      Node.js · Multi-Provider LLM Support        │
 │     (Anthropic · Google · OpenAI · More)         │
 ├─────────────────────────────────────────────────┤
+│                  Integrations                    │
+│   Channels · Output Routes · Zapier · Webhooks   │
+├─────────────────────────────────────────────────┤
 │              Your LLM Providers                  │
 │           (BYOK — Your Keys, Your Cost)          │
 └─────────────────────────────────────────────────┘
@@ -145,11 +162,12 @@ npm run dev
 ## Tech Stack
 
 | Layer | Technology |
-|-------|-----------|
+|-------|-----------| 
 | **Frontend** | React 18 · TypeScript · Vite · Tailwind CSS · ShadCN UI |
 | **State** | TanStack Query · Zustand |
 | **Backend** | Supabase (Auth, Database, Realtime, Edge Functions) |
 | **Task Runner** | Node.js · Multi-provider LLM integration |
+| **Integrations** | Zapier · Discord · Slack · Telegram · Email · Webhooks |
 | **Validation** | Zod |
 | **Deployment** | Vercel · Docker |
 
@@ -157,18 +175,23 @@ npm run dev
 
 CrewForm occupies a unique position: a **UI-first, self-hostable, open-source** multi-agent orchestration platform with zero LLM cost markup.
 
-| Feature | CrewForm | crewAI | AutoGen | LangGraph |
-|---------|----------|--------|---------|-----------|
-| Open Source | ✅ AGPL v3 | ✅ MIT | ✅ CC-BY-4.0 | ✅ MIT |
-| Visual UI | ✅ Built-in | ❌ CLI/code only | ❌ Code only | ❌ Code only |
-| Self-Hostable | ✅ Docker | N/A (library) | N/A (library) | N/A (library) |
-| BYOK (No Markup) | ✅ | ✅ | ✅ | ✅ |
-| Agent Marketplace | ✅ | ❌ | ❌ | ❌ |
-| Team Collaboration | ✅ | ❌ | ❌ | ❌ |
-| Multi-Provider | ✅ | ✅ | ✅ | ✅ |
-| Language | TypeScript | Python | Python | Python |
+| Feature | CrewForm | CrewAI | AutoGen | LangGraph | Agency Swarm | Relevance AI | Flowise | n8n AI |
+|---------|----------|--------|---------|-----------|--------------|--------------|---------|--------|
+| **Open Source** | ✅ AGPL v3 | ✅ MIT | ✅ MIT | ✅ MIT | ✅ MIT | ❌ Proprietary | ✅ Apache | ✅ Sustainable Use |
+| **Visual UI** | ✅ Built-in | ✅ Studio | ⚠️ Basic | ❌ Code only | ❌ Code only | ✅ No-code | ✅ Drag-and-drop | ✅ Node-based |
+| **Self-Hostable** | ✅ Docker | ⚠️ Enterprise only | ✅ DIY | ⚠️ Via LangSmith | ✅ DIY | ❌ Cloud only | ✅ Docker | ✅ Docker |
+| **BYOK (No Markup)** | ✅ | ⚠️ OSS only | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ |
+| **Agent Marketplace** | ✅ | ❌ | ❌ | ❌ | ❌ | ⚠️ Pre-built only | ❌ | ❌ |
+| **Multi-Agent Orchestration** | ✅ 3 modes | ✅ | ✅ | ✅ | ✅ | ⚠️ Basic | ⚠️ Basic | ❌ |
+| **Messaging Channels** | ✅ 4 platforms | ❌ | ❌ | ❌ | ❌ | ⚠️ Slack only | ❌ | ✅ 400+ |
+| **Zapier Integration** | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ (built-in) |
+| **Output Routes** | ✅ Webhooks + Channels | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| **Performance Tracking** | ✅ | ✅ | ⚠️ Basic | ✅ LangSmith | ❌ | ✅ | ⚠️ Basic | ⚠️ Basic |
+| **Team Collaboration** | ✅ RBAC + Memory | ❌ | ❌ | ❌ | ❌ | ✅ SSO/RBAC | ❌ | ✅ SSO/RBAC |
+| **Pricing Transparency** | ✅ Public | ❌ Enterprise | ✅ Free | ⚠️ LangSmith paid | ✅ Free | ❌ Sales call | ✅ Public | ✅ Public |
+| **Language** | TypeScript | Python | Python | Python | Python | N/A | TypeScript | TypeScript |
 
-> **Note:** crewAI, AutoGen, and LangGraph are excellent Python libraries for building agent systems in code. CrewForm is a full-stack platform that wraps similar orchestration capabilities in a deployable application with a UI, team features, and marketplace. They're complementary, not competitors — you could even use crewAI agents inside a CrewForm workflow.
+> **Note:** CrewAI, AutoGen, LangGraph, and Agency Swarm are excellent Python libraries/frameworks for building agent systems in code. Relevance AI is GTM-focused. Flowise and n8n are general automation tools. CrewForm is a full-stack platform that wraps orchestration capabilities in a deployable application with a UI, team features, integrations, and marketplace. They're complementary — you could even use crewAI agents inside a CrewForm workflow.
 
 ## Contributing
 
@@ -227,7 +250,13 @@ Yes! CrewForm supports Docker-based self-hosting. See our [self-hosting guide](h
 <details>
 <summary><strong>What LLM providers are supported?</strong></summary>
 
-CrewForm currently supports **Anthropic (Claude)**, **Google (Gemini)**, and **OpenAI (GPT)**. More providers are on the roadmap.
+CrewForm supports **14 providers**: OpenAI, Anthropic, Google Gemini, Groq, Mistral, Cohere, NVIDIA NIM, Perplexity, Together, OpenRouter, HuggingFace, MiniMax, Moonshot, and Venice. More providers can be added via the modular provider architecture.
+</details>
+
+<details>
+<summary><strong>What integrations are available?</strong></summary>
+
+CrewForm integrates with **Zapier** (7,000+ apps), messaging channels (**Discord**, **Slack**, **Telegram**, **Email**), and output routes (**webhooks**, **MS Teams**, **Asana**, and more). You can trigger agents from external events and deliver results anywhere.
 </details>
 
 ## License

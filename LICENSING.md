@@ -56,7 +56,7 @@ To use Enterprise features, you need a license key:
    - **Pro** — $39/month (Orchestrator, channels, custom tools, analytics)
    - **Team** — $99/month (Collaboration mode, memory, RBAC)
    - **Enterprise** — Custom pricing (Audit logs, swarm, SSO)
-2. **Self-hosted** — Contact [enterprise@crewform.tech](mailto:enterprise@crewform.tech) for a self-hosted license key
+2. **Self-hosted** — Contact [team@crewform.tech](mailto:team@crewform.tech) for a self-hosted license key
 
 ## Contributing
 
@@ -66,4 +66,4 @@ To use Enterprise features, you need a license key:
 
 ## Questions?
 
-If you're unsure about licensing, reach out at [enterprise@crewform.tech](mailto:enterprise@crewform.tech).
+If you're unsure about licensing, reach out at [team@crewform.tech](mailto:team@crewform.tech).

@@ -88,4 +88,4 @@ If you're unsure whether your change touches EE code, just open an issue or PR a
 
 By contributing to Community Edition code (outside `ee/`), you agree that your contributions will be licensed under the project's [GNU Affero General Public License v3.0 (AGPL v3)](LICENSE).
 
-Contributions to Enterprise Edition code (inside `ee/`) require a signed Contributor License Agreement. Contact enterprise@crewform.tech for details.
+Contributions to Enterprise Edition code (inside `ee/`) require a signed Contributor License Agreement. Contact team@crewform.tech for details.

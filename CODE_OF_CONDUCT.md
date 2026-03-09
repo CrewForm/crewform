@@ -47,7 +47,7 @@ spaces.
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behaviour may be
-reported to the project team at **conduct@crewform.tech**.
+reported to the project team at **team@crewform.tech**.
 
 All complaints will be reviewed and investigated promptly and fairly. The
 project team is obligated to maintain confidentiality with regard to the
