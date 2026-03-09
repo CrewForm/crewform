@@ -48,3 +48,6 @@ crewform-docs/
 crewform-landing/
 zapier-app/node_modules/
 zapier-app/.env
+
+# Zapier build artifacts
+zapier-app/build/
