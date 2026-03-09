@@ -18,12 +18,12 @@
     "topbarLinks": [
         {
             "name": "Dashboard",
-            "url": "https://crewform.vercel.app"
+            "url": "https://app.crewform.tech"
         }
     ],
     "topbarCtaButton": {
         "name": "Get Started Free",
-        "url": "https://crewform.vercel.app"
+        "url": "https://app.crewform.tech"
     },
     "tabs": [
         {
@@ -66,6 +66,12 @@
                 "channels",
                 "discord-integration",
                 "output-routes"
+            ]
+        },
+        {
+            "group": "Resources",
+            "pages": [
+                "changelog"
             ]
         },
         {

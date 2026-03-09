@@ -132,6 +132,7 @@ npm run dev
 | [Output Routes](https://docs.crewform.tech/output-routes) | Deliver results to external destinations |
 | [API Reference](https://docs.crewform.tech/api-reference) | REST API endpoints and authentication |
 | [Self-Hosting](https://docs.crewform.tech/self-hosting) | Docker Compose production deployment |
+| [Changelog](https://docs.crewform.tech/changelog) | Release notes and version history |
 
 ## Architecture
 
