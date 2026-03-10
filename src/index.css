@@ -94,3 +94,10 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #4B5563;
 }
+
+/* Widen default max-w-2xl to give settings panels more space */
+@layer utilities {
+  .max-w-2xl {
+    max-width: 50rem;
+  }
+}
