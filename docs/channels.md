@@ -10,6 +10,7 @@ Supported platforms:
 | [Slack](#slack) | Any message in the connected channel | Thread reply |
 | [Discord](./discord-integration.md) | `/ask` slash command | Follow-up message (deferred) |
 | [Email](#email) | Email to a dedicated inbound address | Reply email via Resend |
+| [Trello](#trello) | Card created or moved to trigger list | Comment on the original card |
 
 ---
 
@@ -39,7 +40,7 @@ Channels are separate from [Output Routes](./output-routes.md). Output routes pu
 
 ## Managed Bot vs Bring Your Own Bot (BYOB)
 
-All channel platforms (except Email) support two modes:
+All channel platforms (except Email and Trello) support two modes:
 
 ### Managed Bot
 CrewForm hosts and operates the bot. You connect your chat to it using a **connect code** generated in Settings. Fast to set up — no bot registration needed.
@@ -262,6 +263,101 @@ You can create multiple email channels with different inbound addresses to route
 |----------|-------------|
 | `RESEND_API_KEY` | Resend API key (fetching bodies + sending replies) |
 | `RESEND_FROM_ADDRESS` | Sender address for reply emails |
+
+---
+
+## Trello
+
+Trello channels trigger agents when cards are created or moved to a specific list on a Trello board. Agent results are posted back as **comments** on the original card, and the card is optionally moved to a review list.
+
+Trello channels are always **BYOB** — you provide your own API Key and Token (similar to Email).
+
+### Setup
+
+#### 1. Get Trello API Credentials
+
+1. Go to [trello.com/power-ups/admin](https://trello.com/power-ups/admin)
+2. Create or select a Power-Up to get your **API Key**
+3. From the API key page, click the **Token** link to generate a token with read/write access
+
+#### 2. Find Your Board and List IDs
+
+1. **Board ID** — open the board in Trello; the short ID is in the URL: `https://trello.com/b/<BOARD_ID>/...`
+2. **List IDs** — use the Trello API:
+   ```bash
+   curl "https://api.trello.com/1/boards/<BOARD_ID>/lists?key=<KEY>&token=<TOKEN>"
+   ```
+   You'll need:
+   - **Trigger List ID** — cards created or moved here start agent tasks
+   - **Review List ID** *(optional)* — completed cards are moved here after results are posted
+
+#### 3. Create the Channel in CrewForm
+
+1. Go to **Settings → Channels → New Channel → Trello**
+2. Enter your **API Key**, **Token**, **Board ID**, **Trigger List ID**, and optionally a **Review List ID**
+3. Set a **Default Agent** or **Default Team**
+4. Save — CrewForm registers a webhook on the board automatically via the `trello-webhook-register` Edge Function
+
+### How Cards Are Handled
+
+| Card event | Behaviour |
+|------------|----------|
+| Card created in the trigger list | Task created with card name as title, card description as prompt |
+| Card moved to the trigger list | Task created with card name as title, card description as prompt |
+| Card created in other lists | Ignored |
+| Card moved between other lists | Ignored |
+
+When the agent completes the task:
+
+1. The result is posted as a **comment** on the original Trello card
+2. If a **Review List** is configured, the card is moved there
+3. A `trello_card_mappings` record links the Trello card to the CrewForm task
+
+### Bidirectional Flow with Output Routes
+
+Trello channels work with [Trello Output Routes](./output-routes.md#trello) for a full round-trip:
+
+```
+Card moved to "AI Work" list
+       │
+       ▼
+CrewForm creates task + card mapping
+       │
+       ▼
+Agent processes the prompt
+       │
+       ▼
+Result posted as comment on card
+       │
+       ▼
+Card moved to "Review" list
+```
+
+> **Tip:** Create two lists on your board — "AI Work" (trigger) and "Review" (review) — for a clean Kanban workflow with your AI agents.
+
+### Webhook Management
+
+When you create a Trello channel, CrewForm automatically registers a webhook on your board via the Trello API. When you delete the channel, the webhook is unregistered.
+
+If you need to manually manage webhooks, use the `trello-webhook-register` Edge Function:
+
+```bash
+# Register
+curl -X POST "https://<your-project>.supabase.co/functions/v1/trello-webhook-register" \
+  -H "Authorization: Bearer <supabase-anon-key>" \
+  -H "Content-Type: application/json" \
+  -d '{"action": "register", "channelId": "<channel-uuid>"}'
+
+# Unregister
+curl -X POST "https://<your-project>.supabase.co/functions/v1/trello-webhook-register" \
+  -H "Authorization: Bearer <supabase-anon-key>" \
+  -H "Content-Type: application/json" \
+  -d '{"action": "unregister", "channelId": "<channel-uuid>"}'
+```
+
+### Required Environment Variables (Self-Hosted)
+
+No additional environment variables are needed — all Trello credentials (API Key, Token) are stored per-channel in the database.
 
 ---
 
