@@ -12,6 +12,27 @@ const getBaseUrl = (bundle) => {
 };
 
 /**
+ * Transform raw task/run data from the API into the standard webhook
+ * payload shape so that Zapier field mappings are consistent whether
+ * the data comes from a live webhook or from the polling fallback.
+ */
+const normaliseTaskPayload = (raw, event) => ({
+    id: raw.id,
+    event: event,
+    task_id: raw.id || null,
+    team_run_id: raw.team_id ? raw.id : null,
+    task_title: raw.title || raw.input_task || '',
+    agent_name: raw.agent_name || raw.team_name || '',
+    status: raw.status || '',
+    result_preview: raw.result
+        ? raw.result.substring(0, 500)
+        : (raw.output ? raw.output.substring(0, 500) : ''),
+    result_full: raw.result || raw.output || '',
+    error: raw.error || raw.error_message || null,
+    timestamp: raw.updated_at || raw.created_at || new Date().toISOString(),
+});
+
+/**
  * Create a REST Hook trigger definition for a given event.
  *
  * @param {string} key       - Zapier trigger key (e.g. 'task_completed')
@@ -72,13 +93,15 @@ const makeRestHookTrigger = ({ key, event, noun, label, desc, listUrl, outputFie
                     method: 'GET',
                 });
 
-                // Return array — Zapier expects a list
+                // Transform raw API data to match the webhook payload schema
                 const data = response.data;
-                return Array.isArray(data) ? data.slice(0, 3) : [data];
+                const items = Array.isArray(data) ? data.slice(0, 3) : [data];
+                return items.map((item) => normaliseTaskPayload(item, event));
             },
 
             // Describe the shape of data Zapier receives
             sample: {
+                id: '00000000-0000-0000-0000-000000000000',
                 event: event,
                 task_id: '00000000-0000-0000-0000-000000000000',
                 team_run_id: null,
@@ -86,18 +109,21 @@ const makeRestHookTrigger = ({ key, event, noun, label, desc, listUrl, outputFie
                 agent_name: 'Sample Agent',
                 status: 'completed',
                 result_preview: 'This is a sample result preview...',
+                result_full: 'This is the full result output from the agent. It contains the complete response text that can be used in downstream Zap actions like sending a Slack message.',
                 error: null,
                 timestamp: new Date().toISOString(),
             },
 
             outputFields: outputFields || [
+                { key: 'id', label: 'ID' },
                 { key: 'event', label: 'Event Type' },
                 { key: 'task_id', label: 'Task ID' },
                 { key: 'team_run_id', label: 'Team Run ID' },
                 { key: 'task_title', label: 'Title' },
                 { key: 'agent_name', label: 'Agent / Team Name' },
                 { key: 'status', label: 'Status' },
-                { key: 'result_preview', label: 'Result Preview' },
+                { key: 'result_preview', label: 'Result Preview (first 500 chars)' },
+                { key: 'result_full', label: 'Result Full Text', type: 'string' },
                 { key: 'error', label: 'Error Message' },
                 { key: 'timestamp', label: 'Timestamp' },
             ],
@@ -106,3 +132,4 @@ const makeRestHookTrigger = ({ key, event, noun, label, desc, listUrl, outputFie
 };
 
 module.exports = { makeRestHookTrigger, getBaseUrl };
+

@@ -25,8 +25,8 @@ module.exports = {
     noun: 'Team Run',
 
     display: {
-        label: 'Run Team',
-        description: 'Starts a team run (pipeline or orchestrator) in CrewForm.',
+        label: 'Run AI Agent Team',
+        description: 'Kicks off a multi-agent pipeline or orchestrator team with a prompt.',
     },
 
     operation: {
@@ -46,7 +46,7 @@ module.exports = {
                 label: 'Input Task',
                 type: 'text',
                 required: true,
-                helpText: 'The task/prompt to send to the team pipeline or orchestrator.',
+                helpText: 'The prompt or instructions to send to the AI agent team.',
             },
         ],
 

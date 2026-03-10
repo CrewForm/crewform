@@ -1,7 +1,7 @@
 {
     "name": "crewform-zapier",
     "version": "1.0.0",
-    "description": "CrewForm integration for Zapier — connect your AI agents and teams to 5,000+ apps.",
+    "description": "CrewForm is an AI agent orchestration platform. Connect your AI agents and multi-agent teams to 7,000+ apps via Zapier.",
     "main": "index.js",
     "scripts": {
         "test": "jest --testTimeout 10000",

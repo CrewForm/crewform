@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-export type ChannelPlatform = 'telegram' | 'discord' | 'slack' | 'email'
+export type ChannelPlatform = 'telegram' | 'discord' | 'slack' | 'email' | 'trello'
 
 export interface MessagingChannel {
     id: string

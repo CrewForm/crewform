@@ -42,8 +42,8 @@ module.exports = {
     noun: 'Task',
 
     display: {
-        label: 'Create Task',
-        description: 'Creates a new task in CrewForm and dispatches it to an agent or team.',
+        label: 'Send Task to AI Agent',
+        description: 'Sends a prompt to a CrewForm AI agent and dispatches it for execution.',
     },
 
     operation: {
@@ -62,7 +62,7 @@ module.exports = {
                 label: 'Description',
                 type: 'text',
                 required: true,
-                helpText: 'The full task description / prompt for the AI agent.',
+                helpText: 'The full prompt or instructions for the AI agent.',
             },
             {
                 key: 'priority',

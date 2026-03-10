@@ -5,7 +5,7 @@ import { useState } from 'react'
 import {
     Send, MessageSquare, Hash, Mail, Plus, Trash2, Power, PowerOff,
     Loader2, ChevronDown, ChevronUp, ExternalLink, ArrowDownLeft, ArrowUpRight,
-    Copy, Check, Link2,
+    Copy, Check, Link2, Columns3,
 } from 'lucide-react'
 import { useWorkspace } from '@/hooks/useWorkspace'
 import {
@@ -82,6 +82,21 @@ const PLATFORM_META: Record<ChannelPlatform, {
             { key: 'inbound_address', label: 'Inbound Email Address', type: 'text', placeholder: 'agent@inbound.crewform.tech', required: true },
         ],
     },
+    trello: {
+        label: 'Trello',
+        icon: Columns3,
+        color: 'text-teal-400',
+        bgColor: 'bg-teal-500/10',
+        setupGuide: 'https://trello.com/power-ups/admin',
+        connectCommand: '',
+        configFields: [
+            { key: 'api_key', label: 'API Key', type: 'password', placeholder: 'abc123def456...', required: true },
+            { key: 'token', label: 'Token', type: 'password', placeholder: 'ATTA...', required: true },
+            { key: 'board_id', label: 'Board ID', type: 'text', placeholder: '5f4e3d2c1b0a9...', required: true },
+            { key: 'trigger_list_id', label: 'Trigger List ID (cards moved here trigger agents)', type: 'text', placeholder: '5f4e3d2c1b...', required: true },
+            { key: 'review_list_id', label: 'Review List ID (completed cards move here)', type: 'text', placeholder: '5f4e3d2c1b...', required: false },
+        ],
+    },
 }
 
 function generateConnectCode(): string {
@@ -116,7 +131,7 @@ export function MessagingChannelsSettings() {
                 <div>
                     <h2 className="text-lg font-medium text-gray-100">Messaging Channels</h2>
                     <p className="mt-1 text-sm text-gray-500">
-                        Send messages from Telegram, Discord, Slack, or Email to trigger your agents.
+                        Send messages from Telegram, Discord, Slack, Email, or Trello to trigger your agents.
                     </p>
                 </div>
                 <button
@@ -179,6 +194,8 @@ function CreateChannelForm({ workspaceId, onClose }: { workspaceId: string; onCl
 
     const meta = PLATFORM_META[platform]
     const isEmail = platform === 'email'
+    const isTrello = platform === 'trello'
+    const skipManaged = isEmail || isTrello
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
@@ -187,9 +204,9 @@ function CreateChannelForm({ workspaceId, onClose }: { workspaceId: string; onCl
             workspace_id: workspaceId,
             platform,
             name: name || `${meta.label} Channel`,
-            config: isManaged ? {} : config,
-            is_managed: isManaged,
-            connect_code: isManaged && !isEmail ? generateConnectCode() : undefined,
+            config: isManaged && !skipManaged ? {} : config,
+            is_managed: isManaged && !skipManaged,
+            connect_code: isManaged && !skipManaged ? generateConnectCode() : undefined,
             default_agent_id: routeType === 'agent' ? selectedId : undefined,
             default_team_id: routeType === 'team' ? selectedId : undefined,
         }
@@ -206,7 +223,7 @@ function CreateChannelForm({ workspaceId, onClose }: { workspaceId: string; onCl
             <h3 className="text-sm font-medium text-gray-200">New Messaging Channel</h3>
 
             {/* Platform selector */}
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-5 gap-2">
                 {(Object.keys(PLATFORM_META) as ChannelPlatform[]).map(p => {
                     const m = PLATFORM_META[p]
                     const Icon = m.icon
@@ -280,8 +297,8 @@ function CreateChannelForm({ workspaceId, onClose }: { workspaceId: string; onCl
                 </select>
             </div>
 
-            {/* Managed vs BYOB toggle (not for email) */}
-            {!isEmail && (
+            {/* Managed vs BYOB toggle (not for email or trello) */}
+            {!skipManaged && (
                 <div className="flex items-center gap-3 rounded-lg border border-gray-700 p-3">
                     <button
                         type="button"
@@ -307,7 +324,7 @@ function CreateChannelForm({ workspaceId, onClose }: { workspaceId: string; onCl
             )}
 
             {/* Managed mode info */}
-            {isManaged && !isEmail && (
+            {isManaged && !skipManaged && (
                 <div className="rounded-lg border border-gray-700 bg-gray-900/50 p-3 space-y-2">
                     {meta.inviteUrl && (
                         <p className="text-xs text-gray-400">
@@ -332,7 +349,7 @@ function CreateChannelForm({ workspaceId, onClose }: { workspaceId: string; onCl
             )}
 
             {/* BYOB config fields */}
-            {!isManaged && meta.configFields.map(field => (
+            {!isManaged && !skipManaged && meta.configFields.map(field => (
                 <div key={field.key}>
                     <label className="mb-1 block text-xs text-gray-400">{field.label}</label>
                     <input
@@ -346,8 +363,8 @@ function CreateChannelForm({ workspaceId, onClose }: { workspaceId: string; onCl
                 </div>
             ))}
 
-            {/* Email always shows config */}
-            {isEmail && meta.configFields.map(field => (
+            {/* Platforms that always show config (email, trello) */}
+            {skipManaged && meta.configFields.map(field => (
                 <div key={field.key}>
                     <label className="mb-1 block text-xs text-gray-400">{field.label}</label>
                     <input
@@ -362,7 +379,7 @@ function CreateChannelForm({ workspaceId, onClose }: { workspaceId: string; onCl
             ))}
 
             {/* Setup guide link (BYOB only) */}
-            {!isManaged && (
+            {!isManaged && !skipManaged && (
                 <a
                     href={meta.setupGuide}
                     target="_blank"

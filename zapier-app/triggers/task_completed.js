@@ -4,7 +4,7 @@ module.exports = makeRestHookTrigger({
     key: 'task_completed',
     event: 'task.completed',
     noun: 'Task',
-    label: 'Task Completed',
-    desc: 'Triggers when a task finishes successfully.',
+    label: 'AI Agent Completed Task',
+    desc: 'Triggers when an AI agent finishes a task and returns its result.',
     listUrl: '/api-tasks?status=completed',
 });

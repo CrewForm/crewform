@@ -27,6 +27,11 @@ module.exports = {
 
     authentication: authentication,
 
+    // Disable automatic input data cleaning for predictability (D028)
+    flags: {
+        cleanInputData: false,
+    },
+
     // Middleware — inject API key header into every outgoing request
     beforeRequest: [addApiKeyHeader],
 

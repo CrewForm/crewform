@@ -4,7 +4,7 @@
 import { useState } from 'react'
 import {
     Globe, MessageSquare, Send, Hash, Plus, Trash2, Power, PowerOff,
-    CheckCircle2, XCircle, ChevronDown, ChevronUp, Loader2, Zap, CheckSquare, Pencil,
+    CheckCircle2, XCircle, ChevronDown, ChevronUp, Loader2, Zap, CheckSquare, Pencil, Columns3,
 } from 'lucide-react'
 import { useWorkspace } from '@/hooks/useWorkspace'
 import { useWebhooks, useCreateWebhook, useUpdateWebhook, useDeleteWebhook, useWebhookLogs } from '@/hooks/useWebhooks'
@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils'
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-type DestinationType = 'http' | 'slack' | 'discord' | 'telegram' | 'teams' | 'asana'
+type DestinationType = 'http' | 'slack' | 'discord' | 'telegram' | 'teams' | 'asana' | 'trello'
 
 const DESTINATION_META: Record<DestinationType, { label: string; icon: typeof Globe; color: string; bgColor: string }> = {
     http: { label: 'HTTP Webhook', icon: Globe, color: 'text-blue-400', bgColor: 'bg-blue-500/10' },
@@ -23,6 +23,7 @@ const DESTINATION_META: Record<DestinationType, { label: string; icon: typeof Gl
     telegram: { label: 'Telegram', icon: Send, color: 'text-sky-400', bgColor: 'bg-sky-500/10' },
     teams: { label: 'Teams', icon: MessageSquare, color: 'text-violet-400', bgColor: 'bg-violet-500/10' },
     asana: { label: 'Asana', icon: CheckSquare, color: 'text-rose-400', bgColor: 'bg-rose-500/10' },
+    trello: { label: 'Trello', icon: Columns3, color: 'text-teal-400', bgColor: 'bg-teal-500/10' },
 }
 
 const EVENT_OPTIONS = [
@@ -404,6 +405,82 @@ function DestinationConfigFields({
                         />
                         <p className="mt-1 text-xs text-gray-600">
                             Find it in the URL when viewing a project: app.asana.com/0/<strong>PROJECT_GID</strong>/...
+                        </p>
+                    </div>
+                </div>
+            )
+
+        case 'trello':
+            return (
+                <div className="space-y-3">
+                    <div>
+                        <label className="mb-1 block text-sm font-medium text-gray-400">API Key</label>
+                        <input
+                            type="password"
+                            value={config.api_key ?? ''}
+                            onChange={(e) => updateField('api_key', e.target.value)}
+                            placeholder="abc123def456..."
+                            className={inputClass}
+                        />
+                        <p className="mt-1 text-xs text-gray-600">
+                            Get your key from{' '}
+                            <a href="https://trello.com/power-ups/admin" target="_blank" rel="noopener noreferrer" className="text-teal-400 hover:underline">
+                                Trello Power-Up Admin
+                            </a>
+                        </p>
+                    </div>
+                    <div>
+                        <label className="mb-1 block text-sm font-medium text-gray-400">Token</label>
+                        <input
+                            type="password"
+                            value={config.token ?? ''}
+                            onChange={(e) => updateField('token', e.target.value)}
+                            placeholder="ATTA..."
+                            className={inputClass}
+                        />
+                        <p className="mt-1 text-xs text-gray-600">
+                            Generate a token from the API key page above.
+                        </p>
+                    </div>
+                    <div>
+                        <label className="mb-1 block text-sm font-medium text-gray-400">Board ID</label>
+                        <input
+                            type="text"
+                            value={config.board_id ?? ''}
+                            onChange={(e) => updateField('board_id', e.target.value)}
+                            placeholder="5f4e3d2c1b0a9..."
+                            className={inputClass}
+                        />
+                        <p className="mt-1 text-xs text-gray-600">
+                            Find it in the board URL: trello.com/b/<strong>BOARD_ID</strong>/...
+                        </p>
+                    </div>
+                    <div>
+                        <label className="mb-1 block text-sm font-medium text-gray-400">Default List ID</label>
+                        <input
+                            type="text"
+                            value={config.list_id ?? ''}
+                            onChange={(e) => updateField('list_id', e.target.value)}
+                            placeholder="5f4e3d2c1b..."
+                            className={inputClass}
+                        />
+                        <p className="mt-1 text-xs text-gray-600">
+                            The list where new result cards are created. Get it from the Trello API or a browser extension.
+                        </p>
+                    </div>
+                    <div>
+                        <label className="mb-1 block text-sm font-medium text-gray-400">
+                            Review List ID <span className="text-gray-600">(optional)</span>
+                        </label>
+                        <input
+                            type="text"
+                            value={config.review_list_id ?? ''}
+                            onChange={(e) => updateField('review_list_id', e.target.value)}
+                            placeholder="5f4e3d2c1b..."
+                            className={inputClass}
+                        />
+                        <p className="mt-1 text-xs text-gray-600">
+                            If set, completed cards are automatically moved to this list for review.
                         </p>
                     </div>
                 </div>

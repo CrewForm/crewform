@@ -10,13 +10,14 @@ interface OutputRoute {
     id: string;
     workspace_id: string;
     name: string;
-    destination_type: 'http' | 'slack' | 'discord' | 'telegram' | 'teams' | 'asana';
+    destination_type: 'http' | 'slack' | 'discord' | 'telegram' | 'teams' | 'asana' | 'trello';
     config: Record<string, unknown>;
     events: string[];
     is_active: boolean;
 }
 
 interface WebhookPayload {
+    id: string;
     event: string;
     task_id: string | null;
     team_run_id: string | null;
@@ -154,6 +155,7 @@ export async function dispatchWebhooks(
         // 2. Build payload
         const attachments = await loadAttachmentsForPayload(task.id, null);
         const payload: WebhookPayload = {
+            id: task.id,
             event,
             task_id: task.id,
             team_run_id: null,
@@ -211,6 +213,7 @@ export async function dispatchTeamRunWebhooks(
 
         const attachments = await loadAttachmentsForPayload(null, teamRun.id);
         const payload: WebhookPayload = {
+            id: teamRun.id,
             event,
             task_id: null,
             team_run_id: teamRun.id,
@@ -337,6 +340,8 @@ async function deliver(
             return deliverTeams(route, payload);
         case 'asana':
             return deliverAsana(route, payload);
+        case 'trello':
+            return deliverTrello(route, payload);
         default:
             throw new Error(`Unknown destination type: ${route.destination_type}`);
     }
@@ -652,6 +657,92 @@ async function deliverAsana(
     return { ok: resp.ok, statusCode: resp.status };
 }
 
+// ── Trello ──────────────────────────────────────────────────────────────────
+
+async function deliverTrello(
+    route: OutputRoute,
+    payload: WebhookPayload,
+): Promise<{ ok: boolean; statusCode: number }> {
+    const apiKey = route.config.api_key as string;
+    const token = route.config.token as string;
+    const listId = route.config.list_id as string;
+    const reviewListId = route.config.review_list_id as string | undefined;
+
+    const emoji = payload.status === 'completed' ? '✅' : '❌';
+    const auth = `key=${apiKey}&token=${token}`;
+
+    // Check if there's an existing card mapping (bidirectional flow)
+    const taskOrRunId = payload.task_id ?? payload.team_run_id;
+    let existingCardId: string | null = null;
+
+    if (taskOrRunId) {
+        const { data: mapping } = await supabase
+            .from('trello_card_mappings')
+            .select('trello_card_id')
+            .or(`task_id.eq.${taskOrRunId},team_run_id.eq.${taskOrRunId}`)
+            .limit(1)
+            .maybeSingle();
+
+        existingCardId = (mapping as { trello_card_id: string } | null)?.trello_card_id ?? null;
+    }
+
+    if (existingCardId) {
+        // Update existing card: add comment with result
+        const commentText = `${emoji} **${payload.status}**\n\n${payload.result_full || payload.error || 'No output'}`;
+        const commentResp = await fetch(
+            `https://api.trello.com/1/cards/${existingCardId}/actions/comments?${auth}`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: commentText }),
+                signal: AbortSignal.timeout(10000),
+            },
+        );
+
+        // Move to review list if configured and task completed
+        if (reviewListId && payload.status === 'completed') {
+            await fetch(
+                `https://api.trello.com/1/cards/${existingCardId}?${auth}`,
+                {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ idList: reviewListId }),
+                    signal: AbortSignal.timeout(10000),
+                },
+            );
+        }
+
+        return { ok: commentResp.ok, statusCode: commentResp.status };
+    } else {
+        // Create new card on the configured list
+        const description = [
+            `**${payload.team_run_id ? 'Team' : 'Agent'}:** ${payload.agent_name}`,
+            `**Status:** ${payload.status}`,
+            `**Event:** ${payload.event}`,
+            '',
+            '---',
+            '',
+            payload.result_full || payload.error || 'No output',
+        ].join('\n');
+
+        const resp = await fetch(
+            `https://api.trello.com/1/cards?${auth}`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    idList: listId,
+                    name: `${emoji} ${payload.task_title}`,
+                    desc: description.length > 16384 ? description.substring(0, 16384) : description,
+                }),
+                signal: AbortSignal.timeout(10000),
+            },
+        );
+
+        return { ok: resp.ok, statusCode: resp.status };
+    }
+}
+
 // ─── Logging ────────────────────────────────────────────────────────────────
 
 async function logDelivery(
@@ -687,7 +778,7 @@ function sleep(ms: number): Promise<void> {
 // ─── Source Channel Reply ───────────────────────────────────────────────────
 
 interface SourceChannel {
-    platform: 'telegram' | 'discord' | 'slack' | 'email';
+    platform: 'telegram' | 'discord' | 'slack' | 'email' | 'trello';
     bot_token?: string;
     chat_id?: string;
     message_id?: string;
@@ -697,6 +788,11 @@ interface SourceChannel {
     from_email?: string;
     subject?: string;
     channel_db_id?: string;
+    // Trello-specific
+    trello_card_id?: string;
+    trello_api_key?: string;
+    trello_token?: string;
+    trello_review_list_id?: string;
 }
 
 /**
@@ -745,6 +841,9 @@ export async function replyToSourceChannel(
                     break;
                 case 'email':
                     delivered = await replyEmail(sc, emoji, row.title, content);
+                    break;
+                case 'trello':
+                    delivered = await replyTrello(sc, emoji, row.title, content);
                     break;
                 default:
                     return;
@@ -904,6 +1003,43 @@ ${escapeHtml(truncated)}
     }
 
     return true;
+}
+
+async function replyTrello(sc: SourceChannel, emoji: string, title: string, content: string): Promise<boolean> {
+    if (!sc.trello_api_key || !sc.trello_token || !sc.trello_card_id) return false;
+
+    const auth = `key=${sc.trello_api_key}&token=${sc.trello_token}`;
+
+    const truncated = content.length > 16000
+        ? `${content.substring(0, 16000)}\n\n... truncated (${content.length} chars)`
+        : content;
+
+    const commentText = `${emoji} **${title}**\n\n${truncated}`;
+
+    const resp = await fetch(
+        `https://api.trello.com/1/cards/${sc.trello_card_id}/actions/comments?${auth}`,
+        {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: commentText }),
+            signal: AbortSignal.timeout(10000),
+        },
+    );
+
+    // Move card to review list if configured
+    if (sc.trello_review_list_id && resp.ok) {
+        await fetch(
+            `https://api.trello.com/1/cards/${sc.trello_card_id}?${auth}`,
+            {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ idList: sc.trello_review_list_id }),
+                signal: AbortSignal.timeout(10000),
+            },
+        );
+    }
+
+    return resp.ok;
 }
 
 function escapeHtml(text: string): string {
