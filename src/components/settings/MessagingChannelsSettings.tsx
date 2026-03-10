@@ -223,7 +223,7 @@ function CreateChannelForm({ workspaceId, onClose }: { workspaceId: string; onCl
             <h3 className="text-sm font-medium text-gray-200">New Messaging Channel</h3>
 
             {/* Platform selector */}
-            <div className="grid grid-cols-5 gap-2">
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
                 {(Object.keys(PLATFORM_META) as ChannelPlatform[]).map(p => {
                     const m = PLATFORM_META[p]
                     const Icon = m.icon
@@ -233,13 +233,13 @@ function CreateChannelForm({ workspaceId, onClose }: { workspaceId: string; onCl
                             type="button"
                             onClick={() => { setPlatform(p); setConfig({}); setIsManaged(true) }}
                             className={cn(
-                                'flex flex-col items-center gap-1.5 rounded-lg border p-3 text-xs font-medium transition-colors',
+                                'flex items-center justify-center gap-1.5 rounded-lg border px-2 py-2.5 text-xs font-medium transition-colors',
                                 platform === p
                                     ? `border-gray-500 ${m.bgColor} ${m.color}`
                                     : 'border-gray-700 text-gray-500 hover:border-gray-600 hover:text-gray-400',
                             )}
                         >
-                            <Icon className="h-5 w-5" />
+                            <Icon className="h-4 w-4 shrink-0" />
                             {m.label}
                         </button>
                     )
