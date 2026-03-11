@@ -11,6 +11,10 @@ export interface DashboardStats {
     tasksRunning: number
     tasksCompleted: number
     tasksFailed: number
+    teamRunsThisMonth: number
+    teamRunsRunning: number
+    teamRunsCompleted: number
+    teamRunsFailed: number
     estimatedCostUsd: number
 }
 
@@ -21,39 +25,46 @@ export async function fetchDashboardStats(workspaceId: string): Promise<Dashboar
     startOfMonth.setHours(0, 0, 0, 0)
     const monthStart = startOfMonth.toISOString()
 
-    // Fetch all tasks this month in one query, then compute counts client-side
-    const { data: tasks, error } = await supabase
-        .from('tasks')
-        .select('status')
-        .eq('workspace_id', workspaceId)
-        .gte('created_at', monthStart)
+    // Fetch tasks, team runs, and cost in parallel
+    const [taskResult, runResult, costResult] = await Promise.all([
+        supabase
+            .from('tasks')
+            .select('status')
+            .eq('workspace_id', workspaceId)
+            .gte('created_at', monthStart),
+        supabase
+            .from('team_runs')
+            .select('status')
+            .eq('workspace_id', workspaceId)
+            .gte('created_at', monthStart),
+        supabase
+            .from('agent_tasks')
+            .select('cost_estimate_usd')
+            .eq('workspace_id', workspaceId)
+            .gte('created_at', monthStart),
+    ])
 
-    if (error) throw error
+    if (taskResult.error) throw taskResult.error
+    if (runResult.error) throw runResult.error
+    if (costResult.error) throw costResult.error
 
-    const taskList = tasks as Array<{ status: string }>
-    const running = taskList.filter((t) => t.status === 'running').length
-    const completed = taskList.filter((t) => t.status === 'completed').length
-    const failed = taskList.filter((t) => t.status === 'failed').length
+    const taskList = taskResult.data as Array<{ status: string }>
+    const runList = runResult.data as Array<{ status: string }>
 
-    // Fetch cost from agent_tasks this month
-    const { data: costData, error: costError } = await supabase
-        .from('agent_tasks')
-        .select('cost_estimate_usd')
-        .eq('workspace_id', workspaceId)
-        .gte('created_at', monthStart)
-
-    if (costError) throw costError
-
-    const totalCost = costData.reduce(
+    const totalCost = costResult.data.reduce(
         (sum, row) => sum + (row as { cost_estimate_usd: number }).cost_estimate_usd,
         0,
     )
 
     return {
         tasksThisMonth: taskList.length,
-        tasksRunning: running,
-        tasksCompleted: completed,
-        tasksFailed: failed,
+        tasksRunning: taskList.filter((t) => t.status === 'running').length,
+        tasksCompleted: taskList.filter((t) => t.status === 'completed').length,
+        tasksFailed: taskList.filter((t) => t.status === 'failed').length,
+        teamRunsThisMonth: runList.length,
+        teamRunsRunning: runList.filter((r) => r.status === 'running').length,
+        teamRunsCompleted: runList.filter((r) => r.status === 'completed').length,
+        teamRunsFailed: runList.filter((r) => r.status === 'failed').length,
         estimatedCostUsd: totalCost,
     }
 }
