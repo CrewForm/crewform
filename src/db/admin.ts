@@ -152,3 +152,34 @@ export async function toggleBeta(workspaceId: string, isBeta: boolean): Promise<
 
     if (result.error) throw result.error
 }
+
+// ─── Beta User Management ───────────────────────────────────────────────────
+
+export interface BetaUser {
+    user_id: string
+    email: string
+    full_name: string
+    is_beta: boolean
+    beta_approved: boolean
+    created_at: string
+    last_sign_in_at: string | null
+}
+
+/** Fetch all beta users (super admin only) */
+export async function fetchBetaUsers(): Promise<BetaUser[]> {
+    const result = await supabase.rpc('list_beta_users')
+    if (result.error) throw result.error
+    return result.data as BetaUser[]
+}
+
+/** Approve a beta user (super admin only) */
+export async function approveBetaUser(userId: string): Promise<void> {
+    const result = await supabase.rpc('approve_beta_user', { p_user_id: userId })
+    if (result.error) throw result.error
+}
+
+/** Revoke beta approval (super admin only) */
+export async function revokeBetaUser(userId: string): Promise<void> {
+    const result = await supabase.rpc('revoke_beta_user', { p_user_id: userId })
+    if (result.error) throw result.error
+}

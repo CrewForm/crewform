@@ -63,7 +63,11 @@ export function useAuth(): UseAuthReturn {
       email,
       password,
       options: {
-        data: fullName ? { full_name: fullName } : undefined,
+        data: {
+          ...(fullName ? { full_name: fullName } : {}),
+          is_beta: true,
+          beta_approved: false,
+        },
         emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
     })

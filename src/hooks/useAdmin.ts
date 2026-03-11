@@ -5,8 +5,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
     checkIsSuperAdmin, fetchAllWorkspaces, fetchPlatformStats,
     overrideWorkspacePlan, toggleBeta,
+    fetchBetaUsers, approveBetaUser, revokeBetaUser,
 } from '@/db/admin'
-import type { AdminWorkspace, PlatformStats } from '@/db/admin'
+import type { AdminWorkspace, PlatformStats, BetaUser } from '@/db/admin'
 
 /** Check if current user is a super admin */
 export function useSuperAdmin() {
@@ -63,6 +64,33 @@ export function useToggleBeta() {
         },
         onSuccess: () => {
             void queryClient.invalidateQueries({ queryKey: ['admin-workspaces'] })
+        },
+    })
+}
+
+/** Fetch all beta users (admin only) */
+export function useBetaUsers() {
+    return useQuery<BetaUser[]>({
+        queryKey: ['admin-beta-users'],
+        queryFn: fetchBetaUsers,
+        staleTime: 30 * 1000,
+    })
+}
+
+/** Approve or revoke a beta user */
+export function useApproveBetaUser() {
+    const queryClient = useQueryClient()
+    return useMutation<undefined, Error, { userId: string; approve: boolean }>({
+        mutationFn: async ({ userId, approve }) => {
+            if (approve) {
+                await approveBetaUser(userId)
+            } else {
+                await revokeBetaUser(userId)
+            }
+            return undefined
+        },
+        onSuccess: () => {
+            void queryClient.invalidateQueries({ queryKey: ['admin-beta-users'] })
         },
     })
 }
