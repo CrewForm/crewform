@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   XCircle,
   Coins,
+  GitBranch,
 } from 'lucide-react'
 import { useWorkspace } from '@/hooks/useWorkspace'
 import { useDashboardStats, useAgentPerformance, useRecentActivity } from '@/hooks/useDashboard'
@@ -90,6 +91,38 @@ export function Dashboard() {
           value={stats?.tasksFailed ?? 0}
           icon={XCircle}
           accentColor="border-l-red-500"
+          isLoading={isLoadingStats}
+        />
+      </div>
+
+      {/* Team run stat cards */}
+      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          label="Team Runs This Month"
+          value={stats?.teamRunsThisMonth ?? 0}
+          icon={GitBranch}
+          accentColor="border-l-violet-500"
+          isLoading={isLoadingStats}
+        />
+        <StatCard
+          label="Runs Running"
+          value={stats?.teamRunsRunning ?? 0}
+          icon={Loader2}
+          accentColor="border-l-purple-500"
+          isLoading={isLoadingStats}
+        />
+        <StatCard
+          label="Runs Completed"
+          value={stats?.teamRunsCompleted ?? 0}
+          icon={CheckCircle2}
+          accentColor="border-l-emerald-500"
+          isLoading={isLoadingStats}
+        />
+        <StatCard
+          label="Runs Failed"
+          value={stats?.teamRunsFailed ?? 0}
+          icon={XCircle}
+          accentColor="border-l-rose-500"
           isLoading={isLoadingStats}
         />
       </div>
