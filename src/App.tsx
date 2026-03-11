@@ -18,6 +18,7 @@ const Marketplace = lazy(() => import('@/pages/Marketplace').then(m => ({ defaul
 const Settings = lazy(() => import('@/pages/Settings').then(m => ({ default: m.Settings })))
 const Auth = lazy(() => import('@/pages/Auth').then(m => ({ default: m.Auth })))
 const AuthCallback = lazy(() => import('@/pages/AuthCallback').then(m => ({ default: m.AuthCallback })))
+const BetaPending = lazy(() => import('@/pages/BetaPending').then(m => ({ default: m.BetaPending })))
 const CreateAgent = lazy(() => import('@/pages/CreateAgent').then(m => ({ default: m.CreateAgent })))
 const AgentDetail = lazy(() => import('@/pages/AgentDetail').then(m => ({ default: m.AgentDetail })))
 const TaskDetail = lazy(() => import('@/pages/TaskDetail').then(m => ({ default: m.TaskDetail })))
@@ -46,6 +47,7 @@ export function App() {
           <Route path="/auth/forgot-password" element={<Auth />} />
           <Route path="/auth/reset-password" element={<Auth />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="/beta-pending" element={<BetaPending />} />
 
           {/* App routes — protected */}
           <Route

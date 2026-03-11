@@ -7,13 +7,13 @@ import {
     Shield, BarChart3, Building2, Search,
     Loader2, Users, Bot, ListTodo, PackageOpen, Store, XCircle, ShieldCheck,
 } from 'lucide-react'
-import { usePlatformStats, useAllWorkspaces, useOverridePlan, useToggleBeta } from '@/hooks/useAdmin'
+import { usePlatformStats, useAllWorkspaces, useOverridePlan, useToggleBeta, useBetaUsers, useApproveBetaUser } from '@/hooks/useAdmin'
 import { ReviewQueue } from '@/components/marketplace/ReviewQueue'
 import { LicenseAdminPanel } from '@/components/settings/LicenseAdminPanel'
 import { fetchPublishedAgents, unpublishAgent } from '@/db/marketplace'
 import { cn } from '@/lib/utils'
 
-type AdminTab = 'overview' | 'workspaces' | 'review-queue' | 'marketplace' | 'licenses'
+type AdminTab = 'overview' | 'workspaces' | 'beta-users' | 'review-queue' | 'marketplace' | 'licenses'
 
 const PLAN_COLORS: Record<string, string> = {
     free: 'text-gray-400 bg-gray-500/10',
@@ -46,6 +46,7 @@ export function AdminPanel() {
                 {([
                     { key: 'overview' as const, label: 'Overview', icon: BarChart3 },
                     { key: 'workspaces' as const, label: 'Workspaces', icon: Building2 },
+                    { key: 'beta-users' as const, label: 'Beta Users', icon: Users },
                     { key: 'licenses' as const, label: 'Licenses', icon: ShieldCheck },
                     { key: 'marketplace' as const, label: 'Marketplace', icon: Store },
                     { key: 'review-queue' as const, label: 'Review Queue', icon: PackageOpen },
@@ -70,6 +71,7 @@ export function AdminPanel() {
             {/* Tab content */}
             {activeTab === 'overview' && <OverviewTab />}
             {activeTab === 'workspaces' && <WorkspacesTab />}
+            {activeTab === 'beta-users' && <BetaUsersTab />}
             {activeTab === 'licenses' && <LicenseAdminPanel />}
             {activeTab === 'marketplace' && <MarketplaceTab />}
             {activeTab === 'review-queue' && <ReviewQueue />}
@@ -222,6 +224,107 @@ function WorkspacesTab() {
                             <span className="text-xs text-gray-600">
                                 {new Date(ws.created_at).toLocaleDateString()}
                             </span>
+                        </div>
+                    ))
+                )}
+            </div>
+        </div>
+    )
+}
+
+// ─── Beta Users Tab ─────────────────────────────────────────────────────────
+
+function BetaUsersTab() {
+    const { data: betaUsers, isLoading } = useBetaUsers()
+    const approveMutation = useApproveBetaUser()
+    const [search, setSearch] = useState('')
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center py-16">
+                <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
+            </div>
+        )
+    }
+
+    const users = betaUsers ?? []
+    const approved = users.filter(u => u.beta_approved)
+    const pending = users.filter(u => !u.beta_approved)
+
+    const filtered = users.filter(u =>
+        u.email.toLowerCase().includes(search.toLowerCase()) ||
+        u.full_name.toLowerCase().includes(search.toLowerCase()),
+    )
+
+    return (
+        <div className="space-y-4">
+            {/* Summary */}
+            <div className="flex items-center gap-4">
+                <p className="text-sm text-gray-400">
+                    {users.length} beta user{users.length !== 1 ? 's' : ''}
+                    <span className="mx-2 text-gray-600">·</span>
+                    <span className="text-emerald-400">{approved.length} approved</span>
+                    <span className="mx-2 text-gray-600">·</span>
+                    <span className="text-amber-400">{pending.length} pending</span>
+                </p>
+            </div>
+
+            {/* Search */}
+            <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+                <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search beta users..."
+                    className="w-full rounded-lg border border-border bg-surface-card py-2.5 pl-10 pr-4 text-sm text-gray-200 outline-none focus:border-brand-primary"
+                />
+            </div>
+
+            {/* User list */}
+            <div className="rounded-xl border border-border bg-surface-card divide-y divide-border/50">
+                {filtered.length === 0 ? (
+                    <div className="px-4 py-8 text-center text-sm text-gray-500">
+                        {users.length === 0 ? 'No beta users yet' : 'No matching users'}
+                    </div>
+                ) : (
+                    filtered.map((user) => (
+                        <div key={user.user_id} className="flex items-center gap-4 px-4 py-3">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10">
+                                <Users className="h-4 w-4 text-blue-400" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <p className="text-sm font-medium text-gray-200">
+                                    {user.full_name || user.email}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                    {user.email} · Joined {new Date(user.created_at).toLocaleDateString()}
+                                </p>
+                            </div>
+                            <span className={cn(
+                                'rounded px-1.5 py-0.5 text-[10px] font-bold uppercase',
+                                user.beta_approved
+                                    ? 'text-emerald-400 bg-emerald-500/10'
+                                    : 'text-amber-400 bg-amber-500/10',
+                            )}>
+                                {user.beta_approved ? 'Approved' : 'Pending'}
+                            </span>
+                            <button
+                                type="button"
+                                disabled={approveMutation.isPending}
+                                onClick={() => approveMutation.mutate({
+                                    userId: user.user_id,
+                                    approve: !user.beta_approved,
+                                })}
+                                className={cn(
+                                    'rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-50',
+                                    user.beta_approved
+                                        ? 'border-red-600/30 text-red-400 hover:bg-red-600/10'
+                                        : 'border-emerald-600/30 text-emerald-400 hover:bg-emerald-600/10',
+                                )}
+                            >
+                                {user.beta_approved ? 'Revoke' : 'Approve'}
+                            </button>
                         </div>
                     ))
                 )}

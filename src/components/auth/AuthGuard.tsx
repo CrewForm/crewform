@@ -17,6 +17,15 @@ export function AuthGuard({ children }: AuthGuardProps) {
   useEffect(() => {
     if (!loading && !user) {
       navigate('/auth', { replace: true, state: { from: location.pathname } })
+      return
+    }
+
+    // Beta gate: if user is a beta signup that hasn't been approved, redirect
+    if (!loading && user) {
+      const meta = user.user_metadata as Record<string, unknown>
+      if (meta.is_beta === true && meta.beta_approved !== true) {
+        navigate('/beta-pending', { replace: true })
+      }
     }
   }, [user, loading, navigate, location.pathname])
 
@@ -32,6 +41,12 @@ export function AuthGuard({ children }: AuthGuardProps) {
   }
 
   if (!user) {
+    return null
+  }
+
+  // Block unapproved beta users from seeing the app
+  const meta = user.user_metadata as Record<string, unknown>
+  if (meta.is_beta === true && meta.beta_approved !== true) {
     return null
   }
 
