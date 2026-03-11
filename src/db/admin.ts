@@ -172,10 +172,27 @@ export async function fetchBetaUsers(): Promise<BetaUser[]> {
     return result.data as BetaUser[]
 }
 
-/** Approve a beta user (super admin only) */
+/** Approve a beta user and send notification email (super admin only) */
 export async function approveBetaUser(userId: string): Promise<void> {
+    // 1. Fetch user info before approving (need email + name for the email)
+    const listResult = await supabase.rpc('list_beta_users')
+    const users = (listResult.data ?? []) as BetaUser[]
+    const user = users.find(u => u.user_id === userId)
+
+    // 2. Approve in the DB
     const result = await supabase.rpc('approve_beta_user', { p_user_id: userId })
     if (result.error) throw result.error
+
+    // 3. Send approval notification email (fire-and-forget — don't block on failure)
+    if (user?.email) {
+        void supabase.functions.invoke('beta-approved', {
+            body: { email: user.email, full_name: user.full_name },
+        }).then(res => {
+            if (res.error) {
+                console.error('[approveBetaUser] Failed to send approval email:', res.error)
+            }
+        })
+    }
 }
 
 /** Revoke beta approval (super admin only) */
