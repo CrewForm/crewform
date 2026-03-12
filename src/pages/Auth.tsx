@@ -2,7 +2,7 @@
 // Copyright (C) 2026 CrewForm
 
 import { useState, useEffect } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { LoginForm } from '@/components/auth/LoginForm'
 import { SignupForm } from '@/components/auth/SignupForm'
@@ -100,6 +100,12 @@ export function Auth() {
           />
         )}
       </div>
+      <p className="mt-4 text-center text-xs text-gray-600">
+        By continuing, you agree to our{' '}
+        <Link to="/terms" className="text-gray-500 hover:text-gray-300">Terms of Service</Link>
+        {' '}and{' '}
+        <Link to="/privacy" className="text-gray-500 hover:text-gray-300">Privacy Policy</Link>.
+      </p>
     </div>
   )
 }

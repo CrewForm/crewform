@@ -26,6 +26,9 @@ const TeamDetail = lazy(() => import('@/pages/TeamDetail').then(m => ({ default:
 const TeamRunDetail = lazy(() => import('@/pages/TeamRunDetail').then(m => ({ default: m.TeamRunDetail })))
 const Analytics = lazy(() => import('@/pages/Analytics').then(m => ({ default: m.Analytics })))
 const AdminPanel = lazy(() => import('@/pages/AdminPanel').then(m => ({ default: m.AdminPanel })))
+const NotFound = lazy(() => import('@/pages/NotFound').then(m => ({ default: m.NotFound })))
+const Terms = lazy(() => import('@/pages/Terms').then(m => ({ default: m.Terms })))
+const Privacy = lazy(() => import('@/pages/Privacy').then(m => ({ default: m.Privacy })))
 
 // ── Suspense fallback ────────────────────────────────────────────────────────
 function PageLoader() {
@@ -48,6 +51,8 @@ export function App() {
           <Route path="/auth/reset-password" element={<Auth />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/beta-pending" element={<BetaPending />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/privacy" element={<Privacy />} />
 
           {/* App routes — protected */}
           <Route
@@ -73,6 +78,9 @@ export function App() {
             {/* Admin — super admin only */}
             <Route path="/admin" element={<AdminGuard><AdminPanel /></AdminGuard>} />
           </Route>
+
+          {/* 404 catch-all */}
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
       <Toaster />

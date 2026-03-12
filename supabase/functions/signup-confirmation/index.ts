@@ -79,6 +79,43 @@ Deno.serve(async (req: Request) => {
         }
 
         console.log(`[signup-confirmation] Welcome email sent to ${record.email}`);
+
+        // ── Notify team about new signup ────────────────────────────────
+        try {
+            const teamNotifyRes = await fetch('https://api.resend.com/emails', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${resendKey}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    from: fromAddress,
+                    to: ['team@crewform.tech'],
+                    subject: `🆕 New signup: ${record.email}`,
+                    html: `
+                        <div style="font-family: sans-serif; padding: 20px;">
+                            <h2 style="color: #10b981;">New CrewForm Signup</h2>
+                            <table style="border-collapse: collapse; margin-top: 12px;">
+                                <tr><td style="padding: 4px 12px 4px 0; color: #6b7280;"><strong>Email</strong></td><td>${record.email}</td></tr>
+                                <tr><td style="padding: 4px 12px 4px 0; color: #6b7280;"><strong>Name</strong></td><td>${userName}</td></tr>
+                                <tr><td style="padding: 4px 12px 4px 0; color: #6b7280;"><strong>User ID</strong></td><td style="font-family: monospace; font-size: 12px;">${record.id}</td></tr>
+                                <tr><td style="padding: 4px 12px 4px 0; color: #6b7280;"><strong>Signed up</strong></td><td>${new Date(record.created_at).toLocaleString('en-US', { timeZone: 'UTC' })} UTC</td></tr>
+                            </table>
+                        </div>
+                    `,
+                }),
+            });
+
+            if (!teamNotifyRes.ok) {
+                console.warn(`[signup-confirmation] Team notification failed: ${await teamNotifyRes.text()}`);
+            } else {
+                console.log(`[signup-confirmation] Team notified about ${record.email}`);
+            }
+        } catch (notifyErr) {
+            // Non-blocking — don't fail the whole function if team notification fails
+            console.warn('[signup-confirmation] Team notification error:', notifyErr);
+        }
+
         return ok({ success: true, email: record.email });
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
