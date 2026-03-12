@@ -101,3 +101,147 @@
     max-width: 50rem;
   }
 }
+
+/* ─── Markdown Prose ─────────────────────────────────────────── */
+.markdown-prose {
+  color: #d1d5db;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.markdown-prose h1,
+.markdown-prose h2,
+.markdown-prose h3,
+.markdown-prose h4 {
+  color: #f3f4f6;
+  font-weight: 600;
+  margin-top: 1.25em;
+  margin-bottom: 0.5em;
+}
+
+.markdown-prose h1 {
+  font-size: 1.5em;
+}
+
+.markdown-prose h2 {
+  font-size: 1.25em;
+}
+
+.markdown-prose h3 {
+  font-size: 1.1em;
+}
+
+.markdown-prose p {
+  margin-bottom: 0.75em;
+}
+
+.markdown-prose p:last-child {
+  margin-bottom: 0;
+}
+
+.markdown-prose ul,
+.markdown-prose ol {
+  padding-left: 1.5em;
+  margin-bottom: 0.75em;
+}
+
+.markdown-prose ul {
+  list-style-type: disc;
+}
+
+.markdown-prose ol {
+  list-style-type: decimal;
+}
+
+.markdown-prose li {
+  margin-bottom: 0.25em;
+}
+
+.markdown-prose li>ul,
+.markdown-prose li>ol {
+  margin-top: 0.25em;
+  margin-bottom: 0;
+}
+
+.markdown-prose code {
+  background: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+  font-size: 0.9em;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+.markdown-prose pre {
+  background: #111827;
+  border: 1px solid #1f2937;
+  border-radius: 8px;
+  padding: 1em;
+  overflow-x: auto;
+  margin-bottom: 0.75em;
+}
+
+.markdown-prose pre code {
+  background: none;
+  padding: 0;
+  color: #d1d5db;
+  font-size: 13px;
+}
+
+.markdown-prose blockquote {
+  border-left: 3px solid #6366f1;
+  padding-left: 1em;
+  margin: 0.75em 0;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+.markdown-prose a {
+  color: #818cf8;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.markdown-prose a:hover {
+  color: #a5b4fc;
+}
+
+.markdown-prose hr {
+  border: none;
+  border-top: 1px solid #374151;
+  margin: 1em 0;
+}
+
+.markdown-prose strong {
+  color: #f3f4f6;
+  font-weight: 600;
+}
+
+.markdown-prose em {
+  font-style: italic;
+}
+
+.markdown-prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 0.75em;
+}
+
+.markdown-prose th,
+.markdown-prose td {
+  border: 1px solid #374151;
+  padding: 0.5em 0.75em;
+  text-align: left;
+  font-size: 13px;
+}
+
+.markdown-prose th {
+  background: #1f2937;
+  font-weight: 600;
+  color: #f3f4f6;
+}
+
+.markdown-prose img {
+  max-width: 100%;
+  border-radius: 8px;
+}

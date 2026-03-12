@@ -11,6 +11,8 @@ import { useRerunTask } from '@/hooks/useRerunTask'
 import { useTaskAttachments } from '@/hooks/useAttachments'
 import { TaskStatusBadge, TaskPriorityBadge } from '@/components/tasks/TaskStatusBadge'
 import { FileAttachmentsList } from '@/components/shared/FileAttachmentsList'
+import { MarkdownContent } from '@/components/shared/MarkdownContent'
+import { extractResultText } from '@/lib/markdown'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Loader2, Ban, Terminal, Clock, User, Bot, RefreshCw } from 'lucide-react'
 
@@ -139,9 +141,7 @@ export function TaskDetail() {
                         <h3 className="mb-2 text-sm font-medium text-gray-400">Output</h3>
                         {task.status === 'completed' && task.result ? (
                             <div className="rounded-lg border border-green-500/20 bg-green-500/5 p-4">
-                                <pre className="overflow-x-auto whitespace-pre-wrap font-mono text-sm text-gray-300">
-                                    {JSON.stringify(task.result, null, 2)}
-                                </pre>
+                                <MarkdownContent content={extractResultText(task.result)} />
                             </div>
                         ) : task.status === 'failed' && task.error ? (
                             <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-4">
