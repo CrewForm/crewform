@@ -2,7 +2,7 @@
 // Copyright (C) 2026 CrewForm
 
 import { useState } from 'react'
-import { X, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { useAgents } from '@/hooks/useAgents'
 import { useWorkspace } from '@/hooks/useWorkspace'
 import { useAuth } from '@/hooks/useAuth'
@@ -11,6 +11,7 @@ import { taskSchema } from '@/lib/taskSchema'
 import { cn } from '@/lib/utils'
 import { SpeechToTextButton } from '@/components/shared/SpeechToTextButton'
 import { FileUploadZone } from '@/components/shared/FileUploadZone'
+import { SlidePanel } from '@/components/shared/SlidePanel'
 import { uploadAttachments } from '@/db/attachments'
 import type { TaskPriority } from '@/types'
 import type { ZodError } from 'zod'
@@ -111,165 +112,147 @@ export function CreateTaskModal({ onClose, initialDate }: CreateTaskModalProps) 
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-            {/* Backdrop */}
-            <div
-                className="absolute inset-0 bg-black/60"
-                onClick={onClose}
-                aria-hidden="true"
-            />
-
-            {/* Modal */}
-            <div className="relative mx-4 w-full max-w-lg rounded-lg border border-border bg-surface-card p-6 shadow-xl">
-                {/* Header */}
-                <div className="mb-5 flex items-center justify-between">
-                    <h2 className="text-lg font-semibold text-gray-100">Create Task</h2>
+        <SlidePanel
+            open
+            onClose={onClose}
+            title="Create Task"
+            footer={
+                <div className="flex justify-end gap-2">
                     <button
                         type="button"
-                        onClick={onClose}
-                        className="rounded-lg p-1 text-gray-500 transition-colors hover:bg-surface-elevated hover:text-gray-300"
+                        onClick={() => handleSubmit(false)}
+                        disabled={createMutation.isPending}
+                        className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-gray-400 transition-colors hover:bg-surface-elevated hover:text-gray-200 disabled:opacity-50"
                     >
-                        <X className="h-5 w-5" />
+                        Create &amp; Hold
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => handleSubmit(true)}
+                        disabled={createMutation.isPending}
+                        className="flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-brand-hover disabled:opacity-50"
+                    >
+                        {createMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                        Create &amp; Dispatch
                     </button>
                 </div>
+            }
+        >
+            <div className="space-y-4">
+                {/* Title */}
+                <div>
+                    <label htmlFor="task-title" className="mb-1.5 block text-sm font-medium text-gray-300">
+                        Title <span className="text-red-400">*</span>
+                    </label>
+                    <input
+                        id="task-title"
+                        type="text"
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        placeholder="What needs to be done?"
+                        className="w-full rounded-lg border border-border bg-surface-primary px-4 py-2.5 text-sm text-gray-200 placeholder-gray-500 outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
+                        autoFocus
+                    />
+                    {fieldErrors.title && <p className="mt-1 text-xs text-red-400">{fieldErrors.title}</p>}
+                </div>
 
-                <div className="space-y-4">
-                    {/* Title */}
-                    <div>
-                        <label htmlFor="task-title" className="mb-1.5 block text-sm font-medium text-gray-300">
-                            Title <span className="text-red-400">*</span>
+                {/* Description */}
+                <div>
+                    <div className="mb-1.5 flex items-center gap-1.5">
+                        <label htmlFor="task-desc" className="text-sm font-medium text-gray-300">
+                            Description
                         </label>
-                        <input
-                            id="task-title"
-                            type="text"
-                            value={title}
-                            onChange={(e) => setTitle(e.target.value)}
-                            placeholder="What needs to be done?"
-                            className="w-full rounded-lg border border-border bg-surface-primary px-4 py-2.5 text-sm text-gray-200 placeholder-gray-500 outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
-                            autoFocus
-                        />
-                        {fieldErrors.title && <p className="mt-1 text-xs text-red-400">{fieldErrors.title}</p>}
-                    </div>
-
-                    {/* Description */}
-                    <div>
-                        <div className="mb-1.5 flex items-center gap-1.5">
-                            <label htmlFor="task-desc" className="text-sm font-medium text-gray-300">
-                                Description
-                            </label>
-                            <SpeechToTextButton
-                                onTranscript={(text) => {
-                                    setDescription((prev) => prev ? `${prev} ${text}` : text)
-                                }}
-                            />
-                        </div>
-                        <textarea
-                            id="task-desc"
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            rows={4}
-                            placeholder="Provide details, context, and expectations..."
-                            className="w-full rounded-lg border border-border bg-surface-primary px-4 py-2.5 text-sm text-gray-200 placeholder-gray-500 outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
-                        />
-                        {fieldErrors.description && <p className="mt-1 text-xs text-red-400">{fieldErrors.description}</p>}
-                    </div>
-
-                    {/* File Attachments */}
-                    <div>
-                        <label className="mb-1.5 block text-sm font-medium text-gray-300">
-                            Attachments <span className="text-gray-600">(optional)</span>
-                        </label>
-                        <FileUploadZone
-                            files={files}
-                            onChange={setFiles}
-                            disabled={createMutation.isPending || isUploading}
+                        <SpeechToTextButton
+                            onTranscript={(text) => {
+                                setDescription((prev) => prev ? `${prev} ${text}` : text)
+                            }}
                         />
                     </div>
+                    <textarea
+                        id="task-desc"
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        rows={4}
+                        placeholder="Provide details, context, and expectations..."
+                        className="w-full rounded-lg border border-border bg-surface-primary px-4 py-2.5 text-sm text-gray-200 placeholder-gray-500 outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
+                    />
+                    {fieldErrors.description && <p className="mt-1 text-xs text-red-400">{fieldErrors.description}</p>}
+                </div>
 
-                    {/* Agent */}
-                    <div>
-                        <label htmlFor="task-agent" className="mb-1.5 block text-sm font-medium text-gray-300">
-                            Assign to Agent <span className="text-red-400">*</span>
-                        </label>
-                        <select
-                            id="task-agent"
-                            value={agentId}
-                            onChange={(e) => setAgentId(e.target.value)}
-                            className="w-full rounded-lg border border-border bg-surface-primary px-4 py-2.5 text-sm text-gray-200 outline-none focus:border-brand-primary"
-                        >
-                            <option value="">Select an agent...</option>
-                            {agents.map((a) => (
-                                <option key={a.id} value={a.id}>{a.name} — {a.model}</option>
-                            ))}
-                        </select>
-                        {fieldErrors.assigned_agent_id && <p className="mt-1 text-xs text-red-400">{fieldErrors.assigned_agent_id}</p>}
-                    </div>
+                {/* File Attachments */}
+                <div>
+                    <label className="mb-1.5 block text-sm font-medium text-gray-300">
+                        Attachments <span className="text-gray-600">(optional)</span>
+                    </label>
+                    <FileUploadZone
+                        files={files}
+                        onChange={setFiles}
+                        disabled={createMutation.isPending || isUploading}
+                    />
+                </div>
 
-                    {/* Priority */}
-                    <div>
-                        <label className="mb-1.5 block text-sm font-medium text-gray-300">Priority</label>
-                        <div className="flex gap-1 rounded-lg border border-border bg-surface-primary p-1">
-                            {PRIORITIES.map(({ value, label }) => (
-                                <button
-                                    key={value}
-                                    type="button"
-                                    onClick={() => setPriority(value)}
-                                    className={cn(
-                                        'flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
-                                        priority === value
-                                            ? 'bg-brand-primary text-black'
-                                            : 'text-gray-500 hover:text-gray-300',
-                                    )}
-                                >
-                                    {label}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
+                {/* Agent */}
+                <div>
+                    <label htmlFor="task-agent" className="mb-1.5 block text-sm font-medium text-gray-300">
+                        Assign to Agent <span className="text-red-400">*</span>
+                    </label>
+                    <select
+                        id="task-agent"
+                        value={agentId}
+                        onChange={(e) => setAgentId(e.target.value)}
+                        className="w-full rounded-lg border border-border bg-surface-primary px-4 py-2.5 text-sm text-gray-200 outline-none focus:border-brand-primary"
+                    >
+                        <option value="">Select an agent...</option>
+                        {agents.map((a) => (
+                            <option key={a.id} value={a.id}>{a.name} — {a.model}</option>
+                        ))}
+                    </select>
+                    {fieldErrors.assigned_agent_id && <p className="mt-1 text-xs text-red-400">{fieldErrors.assigned_agent_id}</p>}
+                </div>
 
-                    {/* Schedule Date & Time */}
-                    <div>
-                        <label htmlFor="task-schedule" className="mb-1.5 block text-sm font-medium text-gray-300">
-                            Schedule for
-                        </label>
-                        <input
-                            id="task-schedule"
-                            type="datetime-local"
-                            value={scheduledFor}
-                            onChange={(e) => setScheduledFor(e.target.value)}
-                            className="w-full rounded-lg border border-border bg-surface-primary px-4 py-2.5 text-sm text-gray-200 outline-none focus:border-brand-primary [color-scheme:dark]"
-                        />
-                    </div>
-
-                    {/* Error */}
-                    {createMutation.error && (
-                        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-400">
-                            {createMutation.error.message}
-                        </div>
-                    )}
-
-                    {/* Actions */}
-                    <div className="flex justify-end gap-2 pt-2">
-                        <button
-                            type="button"
-                            onClick={() => handleSubmit(false)}
-                            disabled={createMutation.isPending}
-                            className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-gray-400 transition-colors hover:bg-surface-elevated hover:text-gray-200 disabled:opacity-50"
-                        >
-                            Create &amp; Hold
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => handleSubmit(true)}
-                            disabled={createMutation.isPending}
-                            className="flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-brand-hover disabled:opacity-50"
-                        >
-                            {createMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-                            Create &amp; Dispatch
-                        </button>
+                {/* Priority */}
+                <div>
+                    <label className="mb-1.5 block text-sm font-medium text-gray-300">Priority</label>
+                    <div className="flex gap-1 rounded-lg border border-border bg-surface-primary p-1">
+                        {PRIORITIES.map(({ value, label }) => (
+                            <button
+                                key={value}
+                                type="button"
+                                onClick={() => setPriority(value)}
+                                className={cn(
+                                    'flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+                                    priority === value
+                                        ? 'bg-brand-primary text-black'
+                                        : 'text-gray-500 hover:text-gray-300',
+                                )}
+                            >
+                                {label}
+                            </button>
+                        ))}
                     </div>
                 </div>
+
+                {/* Schedule Date & Time */}
+                <div>
+                    <label htmlFor="task-schedule" className="mb-1.5 block text-sm font-medium text-gray-300">
+                        Schedule for
+                    </label>
+                    <input
+                        id="task-schedule"
+                        type="datetime-local"
+                        value={scheduledFor}
+                        onChange={(e) => setScheduledFor(e.target.value)}
+                        className="w-full rounded-lg border border-border bg-surface-primary px-4 py-2.5 text-sm text-gray-200 outline-none focus:border-brand-primary [color-scheme:dark]"
+                    />
+                </div>
+
+                {/* Error */}
+                {createMutation.error && (
+                    <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-400">
+                        {createMutation.error.message}
+                    </div>
+                )}
             </div>
-        </div>
+        </SlidePanel>
     )
 }

@@ -95,8 +95,12 @@
   background: #4B5563;
 }
 
-/* Widen default max-w-2xl to give settings panels more space */
+/* Widen default max-w classes to give panels more space */
 @layer utilities {
+  .max-w-xl {
+    max-width: 50rem;
+  }
+
   .max-w-2xl {
     max-width: 50rem;
   }
