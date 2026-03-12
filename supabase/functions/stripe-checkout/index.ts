@@ -16,8 +16,8 @@ const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, {
 });
 
 const PRICE_MAP: Record<string, string | undefined> = {
-    pro: Deno.env.get('STRIPE_PRO_PRICE_ID'),
-    team: Deno.env.get('STRIPE_TEAM_PRICE_ID'),
+    pro: Deno.env.get('STRIPE_PRO_PRICE_ID')?.trim(),
+    team: Deno.env.get('STRIPE_TEAM_PRICE_ID')?.trim(),
 };
 
 Deno.serve(async (req: Request) => {
@@ -83,6 +83,16 @@ Deno.serve(async (req: Request) => {
 
         let customerId = sub?.stripe_customer_id as string | null;
 
+        // Verify the stored customer still exists in Stripe (handles live→test mode switch)
+        if (customerId) {
+            try {
+                await stripe.customers.retrieve(customerId);
+            } catch {
+                console.warn(`[stripe-checkout] Stored customer ${customerId} not found in Stripe, creating new one`);
+                customerId = null;
+            }
+        }
+
         if (!customerId) {
             const customer = await stripe.customers.create({
                 email: user.email ?? undefined,
@@ -96,8 +106,12 @@ Deno.serve(async (req: Request) => {
             // Store customer ID on subscription row
             await serviceClient
                 .from('subscriptions')
-                .update({ stripe_customer_id: customerId })
-                .eq('workspace_id', workspaceId);
+                .upsert({
+                    workspace_id: workspaceId,
+                    stripe_customer_id: customerId,
+                    plan: 'free',
+                    status: 'active',
+                }, { onConflict: 'workspace_id' });
         }
 
         // ── Create Checkout Session ────────────────────────────────────
