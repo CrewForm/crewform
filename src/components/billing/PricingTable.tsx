@@ -105,7 +105,7 @@ export function PricingTable() {
                         ) : isUpgrade && plan.key !== 'enterprise' ? (
                             <button
                                 type="button"
-                                onClick={() => handleUpgrade(plan.key)}
+                                onClick={() => handleUpgrade(plan.key as 'pro' | 'team')}
                                 disabled={checkoutMutation.isPending}
                                 className={cn(
                                     'mb-5 w-full rounded-lg px-3 py-2 text-xs font-semibold transition-colors disabled:opacity-50',
