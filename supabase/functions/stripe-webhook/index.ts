@@ -5,7 +5,6 @@
 // Syncs subscription state to the subscriptions table.
 // The DB trigger (047_stripe_sync.sql) then auto-syncs to ee_licenses.
 
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 import Stripe from 'https://esm.sh/stripe@14?target=deno';
@@ -50,7 +49,7 @@ function mapStripeStatus(status: string): string {
 
 // ─── Handler ────────────────────────────────────────────────────────────────
 
-serve(async (req: Request) => {
+Deno.serve(async (req: Request) => {
     // Only accept POST
     if (req.method !== 'POST') {
         return new Response('Method Not Allowed', { status: 405 });
