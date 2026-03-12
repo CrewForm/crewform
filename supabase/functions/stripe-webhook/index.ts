@@ -23,8 +23,8 @@ const supabase = createClient(
 
 // ─── Plan resolver ──────────────────────────────────────────────────────────
 
-const PRO_PRICE = Deno.env.get('STRIPE_PRO_PRICE_ID');
-const TEAM_PRICE = Deno.env.get('STRIPE_TEAM_PRICE_ID');
+const PRO_PRICE = Deno.env.get('STRIPE_PRO_PRICE_ID')?.trim();
+const TEAM_PRICE = Deno.env.get('STRIPE_TEAM_PRICE_ID')?.trim();
 
 function resolvePlan(priceId: string): string {
     if (priceId === PRO_PRICE) return 'pro';
@@ -95,7 +95,8 @@ Deno.serve(async (req: Request) => {
 
                 await supabase
                     .from('subscriptions')
-                    .update({
+                    .upsert({
+                        workspace_id: workspaceId,
                         stripe_customer_id: session.customer as string,
                         stripe_subscription_id: subscriptionId,
                         plan,
@@ -103,8 +104,13 @@ Deno.serve(async (req: Request) => {
                         current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
                         current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
                         cancel_at_period_end: subscription.cancel_at_period_end,
-                    })
-                    .eq('workspace_id', workspaceId);
+                    }, { onConflict: 'workspace_id' });
+
+                // Keep workspaces.plan in sync (UI reads from here)
+                await supabase
+                    .from('workspaces')
+                    .update({ plan })
+                    .eq('id', workspaceId);
 
                 console.log(`[stripe-webhook] Workspace ${workspaceId} upgraded to ${plan}`);
                 break;
@@ -134,6 +140,12 @@ Deno.serve(async (req: Request) => {
                     })
                     .eq('workspace_id', workspaceId);
 
+                // Keep workspaces.plan in sync
+                await supabase
+                    .from('workspaces')
+                    .update({ plan })
+                    .eq('id', workspaceId);
+
                 console.log(`[stripe-webhook] Workspace ${workspaceId} subscription updated: ${plan} (${status})`);
                 break;
             }
@@ -159,6 +171,12 @@ Deno.serve(async (req: Request) => {
                         current_period_end: null,
                     })
                     .eq('workspace_id', workspaceId);
+
+                // Keep workspaces.plan in sync
+                await supabase
+                    .from('workspaces')
+                    .update({ plan: 'free' })
+                    .eq('id', workspaceId);
 
                 console.log(`[stripe-webhook] Workspace ${workspaceId} subscription deleted → free`);
                 break;
