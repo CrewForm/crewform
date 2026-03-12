@@ -53,16 +53,13 @@ serve(async (req: Request) => {
 
         let customerId = sub?.stripe_customer_id as string | null;
 
-        // Look up user email for Stripe customer
-        const { data: profile } = await serviceClient
-            .from('profiles')
-            .select('email')
-            .eq('id', auth.userId)
-            .maybeSingle();
+        // Look up user email from auth for Stripe customer
+        const { data: { user: authUser } } = await serviceClient.auth.admin.getUserById(auth.userId);
+        const userEmail = authUser?.email ?? undefined;
 
         if (!customerId) {
             const customer = await stripe.customers.create({
-                email: (profile?.email as string) ?? undefined,
+                email: userEmail,
                 metadata: {
                     workspace_id: auth.workspaceId,
                     user_id: auth.userId,

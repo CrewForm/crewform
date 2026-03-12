@@ -2,6 +2,7 @@
 // Copyright (C) 2026 CrewForm
 
 import { useQuery, useMutation } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import {
     fetchSubscription, fetchCurrentUsage, checkQuota,
     createCheckoutSession, createPortalSession,
@@ -56,6 +57,9 @@ export function useCreateCheckout() {
                 window.location.href = url
             }
         },
+        onError: (err) => {
+            toast.error(err.message || 'Failed to start checkout')
+        },
     })
 }
 
@@ -67,6 +71,9 @@ export function useCreatePortal() {
             if (url) {
                 window.location.href = url
             }
+        },
+        onError: (err) => {
+            toast.error(err.message || 'Failed to open billing portal')
         },
     })
 }
