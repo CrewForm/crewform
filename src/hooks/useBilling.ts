@@ -50,9 +50,9 @@ export function useQuotaCheck(workspaceId: string | null, resource: string) {
 /** Start a checkout session */
 export function useCreateCheckout() {
     return useMutation<{ url: string }, Error, { workspaceId: string; plan: 'pro' | 'team' }>({
-        mutationFn: ({ workspaceId, plan }) => Promise.resolve(createCheckoutSession(workspaceId, plan)),
+        mutationFn: ({ workspaceId, plan }) => createCheckoutSession(workspaceId, plan),
         onSuccess: ({ url }) => {
-            if (url && url !== '#checkout-stub') {
+            if (url) {
                 window.location.href = url
             }
         },
@@ -62,9 +62,9 @@ export function useCreateCheckout() {
 /** Open Stripe Customer Portal */
 export function useCreatePortal() {
     return useMutation<{ url: string }, Error, { workspaceId: string }>({
-        mutationFn: ({ workspaceId }) => Promise.resolve(createPortalSession(workspaceId)),
+        mutationFn: ({ workspaceId }) => createPortalSession(workspaceId),
         onSuccess: ({ url }) => {
-            if (url && url !== '#portal-stub') {
+            if (url) {
                 window.location.href = url
             }
         },

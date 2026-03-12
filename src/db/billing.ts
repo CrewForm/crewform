@@ -194,28 +194,28 @@ export async function checkQuota(
     }
 }
 
-// ─── Stripe Session Stubs ───────────────────────────────────────────────────
-// These will be replaced with actual Edge Function calls
+// ─── Stripe Session Calls ───────────────────────────────────────────────────
 
-/** Create a Stripe Checkout session (stub) */
-export function createCheckoutSession(
+/** Create a Stripe Checkout session via Edge Function */
+export async function createCheckoutSession(
     _workspaceId: string,
     plan: 'pro' | 'team',
-): { url: string } {
-    // TODO: Replace with actual Supabase Edge Function call
-    // const result = await supabase.functions.invoke('create-checkout', {
-    //     body: { workspaceId, plan }
-    // })
-    console.warn(`[Billing Stub] Would create checkout session for plan: ${plan}`)
-    return { url: '#checkout-stub' }
+): Promise<{ url: string }> {
+    const { data, error } = await supabase.functions.invoke('stripe-checkout', {
+        body: { plan },
+    })
+
+    if (error) throw new Error(error.message ?? 'Failed to create checkout session')
+    return data as { url: string }
 }
 
-/** Create a Stripe Customer Portal session (stub) */
-export function createPortalSession(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+/** Create a Stripe Customer Portal session via Edge Function */
+export async function createPortalSession(
     _workspaceId: string,
-): { url: string } {
-    // TODO: Replace with actual Supabase Edge Function call
-    console.warn('[Billing Stub] Would create portal session')
-    return { url: '#portal-stub' }
+): Promise<{ url: string }> {
+    const { data, error } = await supabase.functions.invoke('stripe-portal', {})
+
+    if (error) throw new Error(error.message ?? 'Failed to create portal session')
+    return data as { url: string }
 }
+
