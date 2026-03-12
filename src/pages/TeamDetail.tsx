@@ -487,6 +487,7 @@ export function TeamDetail() {
                         <RunTeamModal
                             teamId={team.id}
                             teamName={team.name}
+                            teamMode={team.mode}
                             onClose={() => setShowRunModal(false)}
                             onCreated={(runId) => navigate(`/teams/${team.id}/runs/${runId}`)}
                         />

@@ -14,15 +14,23 @@ import { uploadAttachments } from '@/db/attachments'
 interface RunTeamModalProps {
     teamId: string
     teamName: string
+    teamMode?: 'pipeline' | 'orchestrator' | 'collaboration'
     onClose: () => void
     onCreated: (runId: string) => void
+}
+
+const MODE_DESCRIPTIONS: Record<string, string> = {
+    pipeline: 'Each step will execute in sequence.',
+    orchestrator: 'The brain agent will delegate tasks to worker agents.',
+    collaboration: 'Agents will discuss and collaborate on the task.',
 }
 
 /**
  * Slide-out panel for starting a team run.
  * User enters a task/prompt, then submits to create a pending team_run.
  */
-export function RunTeamModal({ teamId, teamName, onClose, onCreated }: RunTeamModalProps) {
+export function RunTeamModal({ teamId, teamName, teamMode = 'pipeline', onClose, onCreated }: RunTeamModalProps) {
+    const modeLabel = teamMode.charAt(0).toUpperCase() + teamMode.slice(1)
     const { workspaceId } = useWorkspace()
     const { user } = useAuth()
     const createMutation = useCreateTeamRun()
@@ -101,14 +109,14 @@ export function RunTeamModal({ teamId, teamName, onClose, onCreated }: RunTeamMo
                         ) : (
                             <Play className="h-4 w-4" />
                         )}
-                        Run Pipeline
+                        Run {modeLabel}
                     </button>
                 </div>
             }
         >
             <p className="mb-5 text-sm text-gray-500">
-                Start a pipeline run for <span className="font-medium text-gray-300">{teamName}</span>.
-                Each step will execute in sequence.
+                Start a {modeLabel.toLowerCase()} run for <span className="font-medium text-gray-300">{teamName}</span>.
+                {MODE_DESCRIPTIONS[teamMode]}
             </p>
 
             <div className="space-y-4">
