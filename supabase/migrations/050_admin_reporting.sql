@@ -65,7 +65,7 @@ BEGIN
     SELECT
         au.id,
         au.email::TEXT,
-        COALESCE(up.full_name, '')::TEXT AS full_name,
+        COALESCE(au.raw_user_meta_data->>'full_name', up.display_name, '')::TEXT AS full_name,
         au.created_at,
         au.last_sign_in_at,
         COALESCE(wm.ws_count, 0) AS workspace_count

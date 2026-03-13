@@ -109,15 +109,15 @@ export async function fetchAllWorkspaces(): Promise<AdminWorkspace[]> {
         }
     }
 
-    // Fetch owner profiles
+    // Fetch owner profiles (display_name from user_profiles; email is only on auth.users)
     const ownerIds = [...new Set(workspaces.map(w => w.owner_id))]
     const profileResult = ownerIds.length > 0
-        ? await supabase.from('user_profiles').select('id, full_name, email').in('id', ownerIds)
+        ? await supabase.from('user_profiles').select('id, display_name').in('id', ownerIds)
         : { data: [], error: null }
 
-    const profileMap = new Map<string, { full_name: string; email: string }>()
+    const profileMap = new Map<string, { display_name: string }>()
     if (!profileResult.error) {
-        for (const p of profileResult.data as Array<{ id: string; full_name: string; email: string }>) {
+        for (const p of profileResult.data as Array<{ id: string; display_name: string }>) {
             profileMap.set(p.id, p)
         }
     }
@@ -127,8 +127,8 @@ export async function fetchAllWorkspaces(): Promise<AdminWorkspace[]> {
         member_count: memberCounts.get(w.id) ?? 0,
         subscription_plan: subMap.get(w.id)?.plan ?? 'free',
         subscription_status: subMap.get(w.id)?.status ?? 'active',
-        owner_name: profileMap.get(w.owner_id)?.full_name ?? '',
-        owner_email: profileMap.get(w.owner_id)?.email ?? '',
+        owner_name: profileMap.get(w.owner_id)?.display_name ?? '',
+        owner_email: '',  // email available via admin_list_users RPC (auth.users), not user_profiles
     }))
 }
 
