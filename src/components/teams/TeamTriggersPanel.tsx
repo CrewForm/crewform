@@ -8,6 +8,7 @@ import { useTeamTriggers, useCreateTeamTrigger, useToggleTrigger, useDeleteTrigg
 import type { AgentTrigger, TriggerType } from '@/db/triggers'
 import { cn } from '@/lib/utils'
 import { WebhookExample } from '@/components/triggers/WebhookExample'
+import { getApiUrl } from '@/lib/apiUrl'
 
 const TRIGGER_TYPE_META: Record<TriggerType, { label: string; icon: typeof Clock; color: string }> = {
     cron: { label: 'Schedule', icon: Clock, color: 'text-blue-400' },
@@ -246,8 +247,7 @@ function TeamTriggerCard({
 
     function copyWebhookUrl() {
         if (!trigger.webhook_token) return
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
-        const url = `${supabaseUrl}/functions/v1/webhook-trigger?token=${trigger.webhook_token}`
+        const url = `${getApiUrl()}/functions/v1/webhook-trigger?token=${trigger.webhook_token}`
         void navigator.clipboard.writeText(url)
         setCopied(true)
         setTimeout(() => setCopied(false), 2000)

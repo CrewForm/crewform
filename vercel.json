@@ -1,6 +1,21 @@
 {
     "rewrites": [
         {
+            "source": "/functions/:path*",
+            "has": [{ "type": "host", "value": "api.crewform.tech" }],
+            "destination": "https://abdyecfppehskxcxgppp.supabase.co/functions/:path*"
+        },
+        {
+            "source": "/rest/:path*",
+            "has": [{ "type": "host", "value": "api.crewform.tech" }],
+            "destination": "https://abdyecfppehskxcxgppp.supabase.co/rest/:path*"
+        },
+        {
+            "source": "/auth/:path*",
+            "has": [{ "type": "host", "value": "api.crewform.tech" }],
+            "destination": "https://abdyecfppehskxcxgppp.supabase.co/auth/:path*"
+        },
+        {
             "source": "/(.*)",
             "destination": "/index.html"
         }

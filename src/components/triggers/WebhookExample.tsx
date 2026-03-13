@@ -3,6 +3,7 @@
 
 import { useState } from 'react'
 import { Copy, Check, ChevronDown, ChevronUp, Code } from 'lucide-react'
+import { getApiUrl } from '@/lib/apiUrl'
 import { cn } from '@/lib/utils'
 
 interface WebhookExampleProps {
@@ -22,8 +23,7 @@ export function WebhookExample({ webhookToken, inputField, inputExample }: Webho
     const [copiedUrl, setCopiedUrl] = useState(false)
     const [copiedCurl, setCopiedCurl] = useState(false)
 
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
-    const webhookUrl = `${supabaseUrl}/functions/v1/webhook-trigger?token=${webhookToken}`
+    const webhookUrl = `${getApiUrl()}/functions/v1/webhook-trigger?token=${webhookToken}`
 
     const curlExample = `curl -X POST '${webhookUrl}' \\
   -H 'Content-Type: application/json' \\

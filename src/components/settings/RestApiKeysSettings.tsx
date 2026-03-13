@@ -6,6 +6,7 @@ import { Copy, Check, Key, Plus, Trash2, Clock, Shield } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useRestApiKeys, useCreateRestApiKey, useDeleteRestApiKey } from '@/hooks/useRestApiKeys'
 import { Skeleton } from '@/components/ui/skeleton'
+import { getApiUrl } from '@/lib/apiUrl'
 
 /**
  * REST API Keys management section.
@@ -24,7 +25,7 @@ export function RestApiKeysSettings() {
     const [copiedUrl, setCopiedUrl] = useState(false)
     const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
-    const apiUrl = `${import.meta.env.VITE_SUPABASE_URL as string}/functions/v1`
+    const apiUrl = `${getApiUrl()}/functions/v1`
 
     const handleCreate = async () => {
         if (!newKeyName.trim() || !user) return

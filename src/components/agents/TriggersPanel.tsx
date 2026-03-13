@@ -10,6 +10,7 @@ import { useTriggers, useCreateTrigger, useToggleTrigger, useDeleteTrigger, useT
 import { useWorkspace } from '@/hooks/useWorkspace'
 import { cn } from '@/lib/utils'
 import { WebhookExample } from '@/components/triggers/WebhookExample'
+import { getApiUrl } from '@/lib/apiUrl'
 import type { AgentTrigger, TriggerType } from '@/db/triggers'
 
 // ─── Constants ──────────────────────────────────────────────────────────────
@@ -281,8 +282,7 @@ function TriggerCard({
 
     function copyWebhookUrl() {
         if (!trigger.webhook_token) return
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
-        const url = `${supabaseUrl}/functions/v1/webhook-trigger?token=${trigger.webhook_token}`
+        const url = `${getApiUrl()}/functions/v1/webhook-trigger?token=${trigger.webhook_token}`
         void navigator.clipboard.writeText(url)
         setCopied(true)
         setTimeout(() => setCopied(false), 2000)
