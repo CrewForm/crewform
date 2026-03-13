@@ -62,7 +62,7 @@ export function Auth() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-950">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-gray-950">
       <div className="w-full max-w-md rounded-lg border border-gray-800 bg-gray-900 p-8">
         {/* Logo */}
         <div className="mb-8 flex flex-col items-center">

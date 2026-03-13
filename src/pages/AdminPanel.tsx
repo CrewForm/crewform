@@ -173,11 +173,11 @@ function WorkspacesTab() {
     const betaMutation = useToggleBeta()
     const [search, setSearch] = useState('')
 
-    // Build a map of owner_id -> user info for display
-    const userMap = new Map<string, { email: string; full_name: string; last_sign_in_at: string | null }>()
+    // Build a map of user_id -> last_sign_in_at from the admin RPC (supplementary)
+    const lastLoginMap = new Map<string, string | null>()
     if (users) {
         for (const u of users) {
-            userMap.set(u.id, { email: u.email, full_name: u.full_name, last_sign_in_at: u.last_sign_in_at })
+            lastLoginMap.set(u.id, u.last_sign_in_at)
         }
     }
 
@@ -228,7 +228,7 @@ function WorkspacesTab() {
                             </tr>
                         ) : (
                             filtered.map((ws) => {
-                                const owner = userMap.get(ws.owner_id)
+                                const lastLogin = lastLoginMap.get(ws.owner_id)
                                 return (
                                     <tr key={ws.id} className="hover:bg-surface-raised/50">
                                         <td className="px-4 py-3">
@@ -236,13 +236,13 @@ function WorkspacesTab() {
                                             <p className="text-xs text-gray-500">/{ws.slug} · {ws.member_count} members</p>
                                         </td>
                                         <td className="px-4 py-3">
-                                            <p className="text-gray-300">{owner?.full_name || '—'}</p>
-                                            <p className="text-xs text-gray-500">{owner?.email || ws.owner_id.slice(0, 8)}</p>
+                                            <p className="text-gray-300">{ws.owner_name || '—'}</p>
+                                            <p className="text-xs text-gray-500">{ws.owner_email || ws.owner_id.slice(0, 8)}</p>
                                         </td>
                                         <td className="px-4 py-3 text-xs text-gray-400">
-                                            {owner?.last_sign_in_at
-                                                ? new Date(owner.last_sign_in_at).toLocaleString()
-                                                : <span className="text-gray-600">Never</span>
+                                            {lastLogin
+                                                ? new Date(lastLogin).toLocaleString()
+                                                : <span className="text-gray-600">{users ? 'Never' : '…'}</span>
                                             }
                                         </td>
                                         <td className="px-4 py-3">

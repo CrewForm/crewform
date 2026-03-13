@@ -16,6 +16,8 @@ export interface AdminWorkspace {
     subscription_plan: string | null
     subscription_status: string | null
     is_beta: boolean
+    owner_email: string
+    owner_name: string
 }
 
 export interface AdminUser {
@@ -107,11 +109,26 @@ export async function fetchAllWorkspaces(): Promise<AdminWorkspace[]> {
         }
     }
 
+    // Fetch owner profiles
+    const ownerIds = [...new Set(workspaces.map(w => w.owner_id))]
+    const profileResult = ownerIds.length > 0
+        ? await supabase.from('user_profiles').select('id, full_name, email').in('id', ownerIds)
+        : { data: [], error: null }
+
+    const profileMap = new Map<string, { full_name: string; email: string }>()
+    if (!profileResult.error) {
+        for (const p of profileResult.data as Array<{ id: string; full_name: string; email: string }>) {
+            profileMap.set(p.id, p)
+        }
+    }
+
     return workspaces.map(w => ({
         ...w,
         member_count: memberCounts.get(w.id) ?? 0,
         subscription_plan: subMap.get(w.id)?.plan ?? 'free',
         subscription_status: subMap.get(w.id)?.status ?? 'active',
+        owner_name: profileMap.get(w.owner_id)?.full_name ?? '',
+        owner_email: profileMap.get(w.owner_id)?.email ?? '',
     }))
 }
 
