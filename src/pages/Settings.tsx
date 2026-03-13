@@ -2,7 +2,7 @@
 // Copyright (C) 2026 CrewForm
 
 import { useState, useMemo } from 'react'
-import { KeyRound, User, Building2, Webhook, Users, ScrollText, CreditCard, MessageSquareText, ShieldCheck } from 'lucide-react'
+import { KeyRound, User, Building2, Webhook, Users, ScrollText, CreditCard, MessageSquareText, ShieldCheck, Brain } from 'lucide-react'
 import { ApiKeysSettings } from '@/components/settings/ApiKeysSettings'
 import { RestApiKeysSettings } from '@/components/settings/RestApiKeysSettings'
 import { WebhooksSettings } from '@/components/settings/WebhooksSettings'
@@ -18,9 +18,10 @@ import { useWorkspace } from '@/hooks/useWorkspace'
 import { useEELicense } from '@/hooks/useEELicense'
 import { cn } from '@/lib/utils'
 
-type SettingsTab = 'api-keys' | 'webhooks' | 'channels' | 'members' | 'workspace' | 'billing' | 'audit-log' | 'profile' | 'license'
+type SettingsTab = 'llm-setup' | 'api-keys' | 'webhooks' | 'channels' | 'members' | 'workspace' | 'billing' | 'audit-log' | 'profile' | 'license'
 
 const settingsTabs: { key: SettingsTab; label: string; icon: typeof KeyRound; eeFeature?: string }[] = [
+  { key: 'llm-setup', label: 'LLM Setup', icon: Brain },
   { key: 'api-keys', label: 'API Keys', icon: KeyRound },
   { key: 'webhooks', label: 'Webhooks', icon: Webhook },
   { key: 'channels', label: 'Channels', icon: MessageSquareText, eeFeature: 'messaging_channels' },
@@ -35,7 +36,7 @@ const settingsTabs: { key: SettingsTab; label: string; icon: typeof KeyRound; ee
 export function Settings() {
   const { workspaceId } = useWorkspace()
   const { hasFeature } = useEELicense(workspaceId ?? undefined)
-  const [activeTab, setActiveTab] = useState<SettingsTab>('api-keys')
+  const [activeTab, setActiveTab] = useState<SettingsTab>('llm-setup')
 
   // Filter tabs based on EE license
   const visibleTabs = useMemo(() =>
@@ -69,13 +70,9 @@ export function Settings() {
 
       {/* Tab content */}
       <div className={cn('mx-auto', activeTab === 'billing' ? 'max-w-4xl' : 'max-w-2xl')}>
-        {activeTab === 'api-keys' && (
-          <>
-            <ApiKeysSettings />
-            <hr className="my-8 border-border" />
-            <RestApiKeysSettings />
-          </>
-        )}
+        {activeTab === 'llm-setup' && <ApiKeysSettings />}
+
+        {activeTab === 'api-keys' && <RestApiKeysSettings />}
 
         {activeTab === 'webhooks' && <WebhooksSettings />}
 
