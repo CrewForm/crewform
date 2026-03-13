@@ -13,6 +13,7 @@
 import { handleCors } from '../_shared/cors.ts';
 import { authenticateRequest } from '../_shared/auth.ts';
 import { ok, unauthorized, methodNotAllowed, serverError } from '../_shared/response.ts';
+import { checkRateLimit, tooManyRequests } from '../_shared/rateLimit.ts';
 
 Deno.serve(async (req: Request) => {
     const cors = handleCors(req);
@@ -24,6 +25,11 @@ Deno.serve(async (req: Request) => {
 
     try {
         const auth = await authenticateRequest(req);
+
+        // Rate limiting
+        const rl = await checkRateLimit(auth.workspaceId, auth.plan, auth.apiKeyRateLimit);
+        if (!rl.allowed) return tooManyRequests(rl, auth.apiVersion);
+        const resOpts = { apiVersion: auth.apiVersion, rateLimit: rl };
 
         // Fetch workspace name for display
         const { data: workspace } = await auth.supabaseClient
@@ -49,7 +55,9 @@ Deno.serve(async (req: Request) => {
             name: profileData?.full_name ?? null,
             workspace_id: auth.workspaceId,
             workspace_name: workspaceName,
-        });
+            plan: auth.plan,
+            api_version: auth.apiVersion,
+        }, resOpts);
 
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err);

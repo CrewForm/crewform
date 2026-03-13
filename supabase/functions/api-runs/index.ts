@@ -5,6 +5,7 @@ import { handleCors } from '../_shared/cors.ts';
 import { authenticateRequest } from '../_shared/auth.ts';
 import { ok, created, notFound, unauthorized, methodNotAllowed, serverError } from '../_shared/response.ts';
 import { validateBody, z } from '../_shared/validate.ts';
+import { checkRateLimit, tooManyRequests } from '../_shared/rateLimit.ts';
 
 const CreateRunSchema = z.object({
     team_id: z.string().uuid(),
@@ -17,6 +18,13 @@ Deno.serve(async (req: Request) => {
 
     try {
         const auth = await authenticateRequest(req);
+        const opts = { apiVersion: auth.apiVersion };
+
+        // Rate limiting
+        const rl = await checkRateLimit(auth.workspaceId, auth.plan, auth.apiKeyRateLimit);
+        if (!rl.allowed) return tooManyRequests(rl, auth.apiVersion);
+        const resOpts = { ...opts, rateLimit: rl };
+
         const url = new URL(req.url);
         const id = url.searchParams.get('id');
         const teamId = url.searchParams.get('team_id');
@@ -39,28 +47,44 @@ Deno.serve(async (req: Request) => {
                             .order('created_at', { ascending: true }),
                     ]);
 
-                    if (runResult.error || !runResult.data) return notFound('Team run');
+                    if (runResult.error || !runResult.data) return notFound('Team run', resOpts);
 
                     return ok({
                         ...runResult.data,
                         messages: messagesResult.data ?? [],
-                    });
+                    }, resOpts);
                 }
 
-                // List runs — optional team_id filter
+                // List runs — v2 supports cursor-based pagination
+                const limit = parseInt(url.searchParams.get('limit') ?? '50', 10);
+                const cursor = url.searchParams.get('cursor');
+
                 let query = auth.supabaseClient
                     .from('team_runs')
                     .select('*')
                     .eq('workspace_id', auth.workspaceId)
-                    .order('created_at', { ascending: false });
+                    .order('created_at', { ascending: false })
+                    .limit(limit + 1);
 
                 if (teamId) {
                     query = query.eq('team_id', teamId);
                 }
+                if (cursor) {
+                    query = query.lt('created_at', cursor);
+                }
 
                 const { data, error } = await query;
-                if (error) return serverError(error.message);
-                return ok(data);
+                if (error) return serverError(error.message, resOpts);
+
+                const items = data as Array<Record<string, unknown>>;
+                const hasMore = items.length > limit;
+                const page = hasMore ? items.slice(0, limit) : items;
+                const nextCursor = hasMore ? (page[page.length - 1].created_at as string) : null;
+
+                if (auth.apiVersion >= 2) {
+                    return ok({ items: page, next_cursor: nextCursor, has_more: hasMore }, resOpts);
+                }
+                return ok(page, resOpts);
             }
 
             case 'POST': {
@@ -75,7 +99,7 @@ Deno.serve(async (req: Request) => {
                     .eq('workspace_id', auth.workspaceId)
                     .single();
 
-                if (teamError || !team) return notFound('Team');
+                if (teamError || !team) return notFound('Team', resOpts);
 
                 // Create pending run (Task Runner will pick it up)
                 const { data, error } = await auth.supabaseClient
@@ -90,12 +114,12 @@ Deno.serve(async (req: Request) => {
                     .select()
                     .single();
 
-                if (error) return serverError(error.message);
-                return created(data);
+                if (error) return serverError(error.message, resOpts);
+                return created(data, resOpts);
             }
 
             default:
-                return methodNotAllowed();
+                return methodNotAllowed(resOpts);
         }
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err);

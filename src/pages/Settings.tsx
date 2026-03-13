@@ -89,9 +89,9 @@ export function Settings() {
 
         {activeTab === 'audit-log' && (
           <>
-            <AuditLogPanel />
-            <hr className="my-8 border-border" />
             <AuditStreamingSettings />
+            <hr className="my-8 border-border" />
+            <AuditLogPanel />
           </>
         )}
 

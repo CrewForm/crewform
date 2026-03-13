@@ -15,6 +15,7 @@ import { handleCors } from '../_shared/cors.ts';
 import { authenticateRequest } from '../_shared/auth.ts';
 import { ok, created, noContent, badRequest, notFound, unauthorized, methodNotAllowed, serverError } from '../_shared/response.ts';
 import { validateBody, z } from '../_shared/validate.ts';
+import { checkRateLimit, tooManyRequests } from '../_shared/rateLimit.ts';
 
 const SubscribeSchema = z.object({
     target_url: z.string().url(),
@@ -27,6 +28,13 @@ Deno.serve(async (req: Request) => {
 
     try {
         const auth = await authenticateRequest(req);
+        const opts = { apiVersion: auth.apiVersion };
+
+        // Rate limiting
+        const rl = await checkRateLimit(auth.workspaceId, auth.plan, auth.apiKeyRateLimit);
+        if (!rl.allowed) return tooManyRequests(rl, auth.apiVersion);
+        const resOpts = { ...opts, rateLimit: rl };
+
         const url = new URL(req.url);
 
         switch (req.method) {
@@ -38,8 +46,8 @@ Deno.serve(async (req: Request) => {
                     .eq('workspace_id', auth.workspaceId)
                     .order('created_at', { ascending: false });
 
-                if (error) return serverError(error.message);
-                return ok(data);
+                if (error) return serverError(error.message, resOpts);
+                return ok(data, resOpts);
             }
 
             case 'POST': {
@@ -84,14 +92,14 @@ Deno.serve(async (req: Request) => {
                     .select()
                     .single();
 
-                if (error) return serverError(error.message);
-                return created(data);
+                if (error) return serverError(error.message, resOpts);
+                return created(data, resOpts);
             }
 
             case 'DELETE': {
                 // Unsubscribe — Zapier sends subscription ID
                 const id = url.searchParams.get('id');
-                if (!id) return badRequest('Missing id parameter');
+                if (!id) return badRequest('Missing id parameter', undefined, resOpts);
 
                 const { error } = await auth.supabaseClient
                     .from('zapier_subscriptions')
@@ -99,12 +107,12 @@ Deno.serve(async (req: Request) => {
                     .eq('id', id)
                     .eq('workspace_id', auth.workspaceId);
 
-                if (error) return serverError(error.message);
-                return noContent();
+                if (error) return serverError(error.message, resOpts);
+                return noContent(resOpts);
             }
 
             default:
-                return methodNotAllowed();
+                return methodNotAllowed(resOpts);
         }
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
