@@ -1,14 +1,23 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 CrewForm
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
     Loader2, CheckCircle2, XCircle, ShieldCheck, ShieldAlert, PackageOpen,
     ChevronDown, ChevronUp, Bot, Cpu, Thermometer, Wrench, Tag,
+    Play, Trash2, AlertTriangle, Copy,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { useAuth } from '@/hooks/useAuth'
-import { usePendingSubmissions, useApproveSubmission, useRejectSubmission } from '@/hooks/useMarketplace'
+import { useWorkspace } from '@/hooks/useWorkspace'
+import { usePendingSubmissions, useApproveSubmission, useRejectSubmission, useMarketplaceAgents } from '@/hooks/useMarketplace'
+import { createTask } from '@/db/tasks'
+import { deleteTask } from '@/db/tasks'
+import { supabase } from '@/lib/supabase'
+import { findDuplicateAgents } from '@/lib/similarity'
 import { cn } from '@/lib/utils'
+import type { Task } from '@/types'
+import type { DuplicateMatch } from '@/lib/similarity'
 
 /**
  * Admin review queue for marketplace agent submissions.
@@ -16,7 +25,9 @@ import { cn } from '@/lib/utils'
  */
 export function ReviewQueue() {
     const { user } = useAuth()
+    const { workspaceId } = useWorkspace()
     const { data: submissions, isLoading } = usePendingSubmissions()
+    const { agents: publishedAgents } = useMarketplaceAgents({})
     const approveMutation = useApproveSubmission()
     const rejectMutation = useRejectSubmission()
     const [rejectingId, setRejectingId] = useState<string | null>(null)
@@ -210,6 +221,22 @@ export function ReviewQueue() {
                                         {agent.system_prompt}
                                     </div>
                                 </div>
+
+                                {/* ─── Duplicate Detection ──────────────────────── */}
+                                <DuplicateDetectionPanel
+                                    agentName={agent.name}
+                                    agentTags={agent.marketplace_tags}
+                                    agentId={sub.agent_id}
+                                    publishedAgents={publishedAgents}
+                                />
+
+                                {/* ─── Test Run ────────────────────────────────── */}
+                                <TestRunPanel
+                                    agentId={sub.agent_id}
+                                    agentName={agent.name}
+                                    workspaceId={workspaceId}
+                                    userId={user?.id ?? null}
+                                />
                             </div>
                         )}
 
@@ -286,6 +313,232 @@ export function ReviewQueue() {
                     </div>
                 )
             })}
+        </div>
+    )
+}
+
+// ─── Duplicate Detection Panel ──────────────────────────────────────────────
+
+interface DuplicateDetectionPanelProps {
+    agentName: string
+    agentTags: string[]
+    agentId: string
+    publishedAgents: Array<{ id: string; name: string; marketplace_tags?: string[]; tags?: string[] }>
+}
+
+function DuplicateDetectionPanel({ agentName, agentTags, agentId, publishedAgents }: DuplicateDetectionPanelProps) {
+    const duplicates: DuplicateMatch[] = findDuplicateAgents(agentName, agentTags, publishedAgents, agentId)
+
+    if (duplicates.length === 0) return null
+
+    return (
+        <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3">
+            <div className="mb-2 flex items-center gap-2">
+                <AlertTriangle className="h-3.5 w-3.5 text-amber-400" />
+                <p className="text-xs font-medium text-amber-300">
+                    Possible Duplicates ({duplicates.length} found)
+                </p>
+            </div>
+            <div className="space-y-1.5">
+                {duplicates.map((dup) => (
+                    <div key={dup.id} className="flex items-center justify-between rounded-md bg-surface-card px-2.5 py-1.5">
+                        <div className="min-w-0 flex-1">
+                            <p className="text-xs font-medium text-gray-200 truncate">{dup.name}</p>
+                            <p className="text-[10px] text-gray-500">
+                                Name: {Math.round(dup.nameSimilarity * 100)}%
+                                {' · '}Tags: {Math.round(dup.tagSimilarity * 100)}%
+                                {' · '}Score: {Math.round(dup.combinedScore * 100)}%
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            className="shrink-0 text-gray-500 hover:text-gray-300"
+                            title="Copy agent ID"
+                            onClick={() => { void navigator.clipboard.writeText(dup.id); toast.info('Agent ID copied') }}
+                        >
+                            <Copy className="h-3 w-3" />
+                        </button>
+                    </div>
+                ))}
+            </div>
+            <p className="mt-2 text-[10px] text-amber-400/70">
+                Advisory only — you can still approve this submission.
+            </p>
+        </div>
+    )
+}
+
+// ─── Test Run Panel ─────────────────────────────────────────────────────────
+
+interface TestRunPanelProps {
+    agentId: string
+    agentName: string
+    workspaceId: string | null
+    userId: string | null
+}
+
+function TestRunPanel({ agentId, agentName, workspaceId, userId }: TestRunPanelProps) {
+    const [testPrompt, setTestPrompt] = useState('Hello, introduce yourself and explain what you can do.')
+    const [testTask, setTestTask] = useState<Task | null>(null)
+    const [testResult, setTestResult] = useState<string | null>(null)
+    const [testError, setTestError] = useState<string | null>(null)
+    const [isRunning, setIsRunning] = useState(false)
+    const [cleaning, setCleaning] = useState(false)
+
+    // Subscribe to task updates via Realtime
+    useEffect(() => {
+        if (!testTask) return
+
+        const channel = supabase
+            .channel(`test-run-${testTask.id}`)
+            .on('postgres_changes', {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'tasks',
+                filter: `id=eq.${testTask.id}`,
+            }, (payload) => {
+                const updated = payload.new as Task
+                setTestTask(updated)
+
+                if (updated.status === 'completed') {
+                    const result = updated.result
+                    const output = result
+                        ? (typeof result === 'object' && 'output' in result
+                            ? String(result.output)
+                            : JSON.stringify(result, null, 2))
+                        : 'No output'
+                    setTestResult(output)
+                    setIsRunning(false)
+                } else if (updated.status === 'failed') {
+                    setTestError(updated.error ?? 'Task failed with no error message')
+                    setIsRunning(false)
+                }
+            })
+            .subscribe()
+
+        return () => { void supabase.removeChannel(channel) }
+    }, [testTask?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+    const handleTestRun = useCallback(async () => {
+        if (!workspaceId || !userId || !testPrompt.trim()) return
+
+        setIsRunning(true)
+        setTestResult(null)
+        setTestError(null)
+
+        try {
+            const task = await createTask({
+                workspace_id: workspaceId,
+                title: `[Admin Test] ${agentName}`,
+                description: testPrompt.trim(),
+                assigned_agent_id: agentId,
+                priority: 'low',
+                status: 'dispatched',
+                created_by: userId,
+            })
+            setTestTask(task)
+        } catch (err) {
+            setTestError(err instanceof Error ? err.message : 'Failed to create test task')
+            setIsRunning(false)
+        }
+    }, [workspaceId, userId, testPrompt, agentId, agentName])
+
+    const handleCleanup = useCallback(async () => {
+        if (!testTask) return
+        setCleaning(true)
+        try {
+            await deleteTask(testTask.id)
+            toast.success('Test task cleaned up')
+            setTestTask(null)
+            setTestResult(null)
+            setTestError(null)
+        } catch {
+            toast.error('Failed to delete test task')
+        } finally {
+            setCleaning(false)
+        }
+    }, [testTask])
+
+    if (!workspaceId || !userId) {
+        return (
+            <div className="rounded-lg border border-border/50 bg-surface-card p-3 text-center text-xs text-gray-500">
+                Test run requires an active workspace.
+            </div>
+        )
+    }
+
+    return (
+        <div className="rounded-lg border border-border/50 bg-surface-card p-3">
+            <p className="mb-2 text-[10px] font-medium text-gray-500 uppercase">Test Run</p>
+
+            {/* Prompt input */}
+            <div className="mb-2">
+                <textarea
+                    value={testPrompt}
+                    onChange={(e) => setTestPrompt(e.target.value)}
+                    rows={2}
+                    disabled={isRunning}
+                    placeholder="Enter a test prompt..."
+                    className="w-full rounded-lg border border-border bg-surface-primary px-3 py-2 text-xs text-gray-200 outline-none focus:border-brand-primary disabled:opacity-50"
+                />
+            </div>
+
+            {/* Run button */}
+            <div className="mb-2 flex items-center gap-2">
+                <button
+                    type="button"
+                    onClick={() => void handleTestRun()}
+                    disabled={isRunning || !testPrompt.trim()}
+                    className="flex items-center gap-1.5 rounded-lg bg-brand-primary px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-hover disabled:opacity-50"
+                >
+                    {isRunning ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                        <Play className="h-3 w-3" />
+                    )}
+                    {isRunning ? 'Running...' : 'Run Test'}
+                </button>
+
+                {testTask && !isRunning && (
+                    <button
+                        type="button"
+                        onClick={() => void handleCleanup()}
+                        disabled={cleaning}
+                        className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[10px] font-medium text-gray-400 transition-colors hover:bg-surface-elevated hover:text-gray-200 disabled:opacity-50"
+                    >
+                        <Trash2 className="h-3 w-3" />
+                        {cleaning ? 'Cleaning...' : 'Clean Up Task'}
+                    </button>
+                )}
+            </div>
+
+            {/* Status */}
+            {isRunning && testTask && (
+                <div className="flex items-center gap-2 rounded-lg border border-blue-500/20 bg-blue-500/5 px-3 py-2">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-400" />
+                    <p className="text-xs text-blue-300">
+                        Task {testTask.status}...
+                    </p>
+                </div>
+            )}
+
+            {/* Result */}
+            {testResult && (
+                <div className="rounded-lg border border-green-500/20 bg-green-500/5 p-3">
+                    <p className="mb-1 text-[10px] font-medium text-green-400 uppercase">Result</p>
+                    <div className="max-h-48 overflow-y-auto text-xs leading-relaxed text-gray-300 whitespace-pre-wrap font-mono">
+                        {testResult}
+                    </div>
+                </div>
+            )}
+
+            {/* Error */}
+            {testError && (
+                <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-3">
+                    <p className="mb-1 text-[10px] font-medium text-red-400 uppercase">Error</p>
+                    <p className="text-xs text-red-300">{testError}</p>
+                </div>
+            )}
         </div>
     )
 }
