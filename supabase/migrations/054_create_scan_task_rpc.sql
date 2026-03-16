@@ -44,3 +44,41 @@ BEGIN
     RETURN v_task_id;
 END;
 $$;
+
+-- Function to read scan task result (bypasses tasks_select RLS)
+CREATE OR REPLACE FUNCTION public.get_scan_task_result(p_task_id UUID)
+RETURNS TABLE(status TEXT, result JSONB, error TEXT)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    IF auth.uid() IS NULL THEN
+        RAISE EXCEPTION 'Not authenticated';
+    END IF;
+
+    RETURN QUERY
+    SELECT t.status::TEXT, t.result::JSONB, t.error::TEXT
+    FROM public.tasks t
+    WHERE t.id = p_task_id
+      AND t.title = '[System] Injection Scan';
+END;
+$$;
+
+-- Function to delete scan task (bypasses tasks_delete RLS)
+CREATE OR REPLACE FUNCTION public.delete_scan_task(p_task_id UUID)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    IF auth.uid() IS NULL THEN
+        RAISE EXCEPTION 'Not authenticated';
+    END IF;
+
+    DELETE FROM public.tasks
+    WHERE id = p_task_id
+      AND title = '[System] Injection Scan';
+END;
+$$;

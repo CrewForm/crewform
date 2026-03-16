@@ -230,15 +230,15 @@ async function aiScanForInjection(
     while (Date.now() - startTime < MAX_WAIT) {
         await new Promise((r) => setTimeout(r, POLL_INTERVAL))
 
-        const check = await supabase
-            .from('tasks')
-            .select('status, result, error')
-            .eq('id', taskId)
-            .single()
+        const check = await supabase.rpc('get_scan_task_result', { p_task_id: taskId })
 
-        if (check.error) break
+        if (check.error || !check.data) break
 
-        const task = check.data as { status: string; result: unknown; error: string | null }
+        // RPC returns an array of rows
+        const rows = check.data as Array<{ status: string; result: unknown; error: string | null }>
+        if (rows.length === 0) break
+
+        const task = rows[0]
 
         if (task.status === 'completed' && task.result) {
             try {
@@ -271,7 +271,7 @@ async function aiScanForInjection(
     }
 
     // 5. Clean up scan task (fire-and-forget)
-    void supabase.from('tasks').delete().eq('id', taskId)
+    void supabase.rpc('delete_scan_task', { p_task_id: taskId })
 
     return result
 }
