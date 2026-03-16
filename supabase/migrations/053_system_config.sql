@@ -10,9 +10,9 @@ CREATE TABLE IF NOT EXISTS public.system_config (
 
 ALTER TABLE public.system_config ENABLE ROW LEVEL SECURITY;
 
--- Only super admins can read
+-- All authenticated users can read (needed for AI scan during agent submission)
 CREATE POLICY "system_config_select" ON public.system_config
-    FOR SELECT USING (public.is_super_admin());
+    FOR SELECT USING (auth.role() = 'authenticated');
 
 -- Only super admins can insert
 CREATE POLICY "system_config_insert" ON public.system_config
