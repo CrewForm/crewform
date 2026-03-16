@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 CrewForm
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
     Loader2, CheckCircle2, XCircle, ShieldCheck, ShieldAlert, PackageOpen,
     ChevronDown, ChevronUp, Bot, Cpu, Thermometer, Wrench, Tag,
@@ -595,13 +595,15 @@ function AiScanLoader({ scanTaskId, submissionId }: AiScanLoaderProps) {
     const [aiResult, setAiResult] = useState<InjectionScanResult['aiScan'] | null>(null)
     const [isPolling, setIsPolling] = useState(true)
 
+    const cancelledRef = useRef(false)
+
     useEffect(() => {
-        let cancelled = false
+        cancelledRef.current = false
         const poll = async () => {
-            while (!cancelled) {
+            while (!cancelledRef.current) {
                 try {
                     const res = await fetchScanTaskResult(scanTaskId)
-                    if (cancelled) return
+                    if (cancelledRef.current) return
                     if (res.done && res.result) {
                         setAiResult(res.result)
                         setIsPolling(false)
@@ -626,7 +628,7 @@ function AiScanLoader({ scanTaskId, submissionId }: AiScanLoaderProps) {
             }
         }
         void poll()
-        return () => { cancelled = true }
+        return () => { cancelledRef.current = true }
     }, [scanTaskId, submissionId])
 
     if (isPolling) {
