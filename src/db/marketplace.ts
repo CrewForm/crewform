@@ -233,24 +233,51 @@ export async function fetchScanTaskResult(
 
     if (task.status === 'completed' && task.result) {
         try {
-            const raw: unknown = task.result
-            const rawStr: string = (typeof raw === 'object' && raw !== null && 'output' in raw)
-                ? (raw as { output: string }).output
-                : typeof raw === 'string' ? raw : JSON.stringify(raw)
+            // The result may be in various formats:
+            // 1. A direct object with { safe, reasoning, confidence }
+            // 2. A string containing JSON (possibly double-encoded in JSONB)
+            // 3. An { output: string } wrapper from the executor
+            // 4. A string with markdown code fences around JSON
+            let raw: unknown = task.result
 
-            const parsed: unknown = JSON.parse(rawStr)
-            if (
-                parsed &&
-                typeof parsed === 'object' &&
-                'safe' in parsed &&
-                'reasoning' in parsed &&
-                'confidence' in parsed
-            ) {
-                // Clean up scan task (fire-and-forget)
-                void supabase.rpc('delete_scan_task', { p_task_id: taskId })
-                return { done: true, result: parsed as { safe: boolean; reasoning: string; confidence: number } }
+            // Unwrap { output: "..." } wrapper
+            if (typeof raw === 'object' && raw !== null && 'output' in raw) {
+                raw = (raw as { output: unknown }).output
             }
-            return { done: true, result: { safe: true, reasoning: rawStr, confidence: 0.3 } }
+
+            // If it's a string, try to extract JSON from it
+            if (typeof raw === 'string') {
+                let str: string = raw
+                // Strip markdown code fences (```json ... ``` or ``` ... ```)
+                const fenceMatch = /```(?:json)?\s*\n?([\s\S]*?)```/i.exec(str)
+                if (fenceMatch) {
+                    str = fenceMatch[1].trim()
+                }
+                raw = JSON.parse(str) as unknown
+            }
+
+            // Check if it's our expected shape
+            if (
+                raw &&
+                typeof raw === 'object' &&
+                'safe' in raw &&
+                'reasoning' in raw &&
+                'confidence' in raw
+            ) {
+                void supabase.rpc('delete_scan_task', { p_task_id: taskId })
+                return { done: true, result: raw as { safe: boolean; reasoning: string; confidence: number } }
+            }
+
+            // If it's still a string after parsing (double-encoded), try again
+            if (typeof raw === 'string') {
+                const inner = JSON.parse(raw) as unknown
+                if (inner && typeof inner === 'object' && 'safe' in inner) {
+                    void supabase.rpc('delete_scan_task', { p_task_id: taskId })
+                    return { done: true, result: inner as { safe: boolean; reasoning: string; confidence: number } }
+                }
+            }
+
+            return { done: true, result: { safe: true, reasoning: String(raw), confidence: 0.3 } }
         } catch {
             return { done: true, result: { safe: true, reasoning: 'AI scan returned unparseable response.', confidence: 0 } }
         }
