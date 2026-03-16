@@ -81,7 +81,12 @@ export function AdminPanel() {
             {activeTab === 'beta-users' && <BetaUsersTab />}
             {activeTab === 'licenses' && <LicenseAdminPanel />}
             {activeTab === 'marketplace' && <MarketplaceTab />}
-            {activeTab === 'review-queue' && <ReviewQueue />}
+            {activeTab === 'review-queue' && (
+                <div className="space-y-6">
+                    <ReviewQueue />
+                    <ScannerConfigPanel />
+                </div>
+            )}
         </div>
     )
 }
@@ -782,6 +787,132 @@ function MarketplaceTab() {
                     ))
                 )}
             </div>
+        </div>
+    )
+}
+
+// ─── Scanner Config Panel ───────────────────────────────────────────────────
+
+function ScannerConfigPanel() {
+    const [agentId, setAgentId] = useState('')
+    const [agentName, setAgentName] = useState<string | null>(null)
+    const [isSaving, setIsSaving] = useState(false)
+    const [isLoading, setIsLoading] = useState(true)
+
+    // Load existing config
+    useEffect(() => {
+        void (async () => {
+            try {
+                const { supabase: sb } = await import('@/lib/supabase')
+                const { data } = await sb
+                    .from('system_config')
+                    .select('key, value')
+                    .in('key', ['scanner_agent_id'])
+
+                if (data && data.length > 0) {
+                    const row = (data as Array<{ key: string; value: string }>).find(r => r.key === 'scanner_agent_id')
+                    if (row) {
+                        setAgentId(row.value)
+                        const { data: agentData } = await sb
+                            .from('agents')
+                            .select('name')
+                            .eq('id', row.value)
+                            .single()
+                        if (agentData) setAgentName((agentData as { name: string }).name)
+                    }
+                }
+            } catch {
+                // Config table may not exist yet
+            } finally {
+                setIsLoading(false)
+            }
+        })()
+    }, [])
+
+    const handleSave = async () => {
+        if (!agentId.trim()) return
+        setIsSaving(true)
+
+        try {
+            const { supabase: sb } = await import('@/lib/supabase')
+
+            // Look up the agent to get its workspace_id
+            const { data: agentData, error: agentError } = await sb
+                .from('agents')
+                .select('id, name, workspace_id')
+                .eq('id', agentId.trim())
+                .single()
+
+            if (agentError) {
+                toast.error('Agent not found. Please check the ID.')
+                setIsSaving(false)
+                return
+            }
+
+            const agent = agentData as { id: string; name: string; workspace_id: string }
+
+            const { error: e1 } = await sb
+                .from('system_config')
+                .upsert({ key: 'scanner_agent_id', value: agent.id, updated_at: new Date().toISOString() })
+
+            const { error: e2 } = await sb
+                .from('system_config')
+                .upsert({ key: 'scanner_workspace_id', value: agent.workspace_id, updated_at: new Date().toISOString() })
+
+            if (e1 || e2) {
+                toast.error('Failed to save config.')
+            } else {
+                setAgentName(agent.name)
+                toast.success(`Scanner agent set to "${agent.name}"`)
+            }
+        } catch {
+            toast.error('Failed to save config.')
+        } finally {
+            setIsSaving(false)
+        }
+    }
+
+    return (
+        <div className="rounded-xl border border-border bg-surface-card p-4">
+            <div className="mb-3 flex items-center gap-2">
+                <Bot className="h-4 w-4 text-orange-400" />
+                <h3 className="text-sm font-medium text-gray-200">AI Injection Scanner</h3>
+            </div>
+            <p className="mb-3 text-xs text-gray-500">
+                Configure which agent performs AI-powered injection scans on marketplace submissions.
+                Create a scanner agent in your workspace, then paste its ID here.
+            </p>
+
+            {isLoading ? (
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <Loader2 className="h-3 w-3 animate-spin" /> Loading config...
+                </div>
+            ) : (
+                <div className="flex items-center gap-2">
+                    <input
+                        type="text"
+                        value={agentId}
+                        onChange={(e) => { setAgentId(e.target.value); setAgentName(null) }}
+                        placeholder="Scanner agent UUID"
+                        className="flex-1 rounded-lg border border-border bg-surface-primary px-3 py-2 text-xs text-gray-200 placeholder-gray-600 outline-none focus:border-brand-primary"
+                    />
+                    <button
+                        type="button"
+                        onClick={() => void handleSave()}
+                        disabled={isSaving || !agentId.trim()}
+                        className="flex items-center gap-1.5 rounded-lg bg-brand-primary px-3 py-2 text-xs font-semibold text-black transition-colors hover:bg-brand-hover disabled:opacity-50"
+                    >
+                        {isSaving && <Loader2 className="h-3 w-3 animate-spin" />}
+                        Save
+                    </button>
+                </div>
+            )}
+
+            {agentName && (
+                <p className="mt-2 text-xs text-green-400">
+                    ✓ Scanner: <span className="font-medium">{agentName}</span>
+                </p>
+            )}
         </div>
     )
 }
