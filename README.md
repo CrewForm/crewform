@@ -13,7 +13,7 @@
 [![Zapier](https://img.shields.io/badge/Zapier-Integrated-FF4A00?logo=zapier&logoColor=white)](https://zapier.com)
 [![Website](https://img.shields.io/badge/Website-crewform.tech-6bedb9)](https://crewform.tech)
 
-[Website](https://crewform.tech) · [Docs](https://docs.crewform.tech) · [Discord](https://discord.gg/TAFasJCTWs) · [Twitter](https://twitter.com/CrewForm)
+[Website](https://crewform.tech) · [Docs](https://docs.crewform.tech) · [Discord](https://discord.gg/TAFasJCTWs) · [Twitter](https://twitter.com/CrewFormHQ)
 
 </div>
 
@@ -217,7 +217,7 @@ We welcome contributions from everyone! Please see [CONTRIBUTING.md](CONTRIBUTIN
 
 - 💬 **[Discord](https://discord.gg/TAFasJCTWs)** — Chat with the team and community
 - 🗣️ **[GitHub Discussions](https://github.com/CrewForm/crewform/discussions)** — Ideas, Q&A, and show & tell
-- 🐦 **[Twitter/X](https://twitter.com/CrewForm)** — Product updates and AI ecosystem commentary
+- 🐦 **[Twitter/X](https://twitter.com/CrewFormHQ)** — Product updates and AI ecosystem commentary
 - 📧 **Email** — team@crewform.tech
 
 ## FAQ
@@ -281,6 +281,6 @@ You can use, modify, and distribute the Community Edition freely. Enterprise fea
 
 **CrewForm** — Form your AI crew ⚡
 
-[Website](https://crewform.tech) · [Docs](https://docs.crewform.tech) · [Discord](https://discord.gg/TAFasJCTWs) · [Twitter](https://twitter.com/CrewForm)
+[Website](https://crewform.tech) · [Docs](https://docs.crewform.tech) · [Discord](https://discord.gg/TAFasJCTWs) · [Twitter](https://twitter.com/CrewFormHQ)
 
 </div>
