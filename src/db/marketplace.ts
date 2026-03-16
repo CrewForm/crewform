@@ -183,7 +183,7 @@ async function aiScanForInjection(
         .select('key, value')
         .in('key', ['scanner_agent_id', 'scanner_workspace_id'])
 
-    if (configResult.error || !configResult.data || configResult.data.length < 2) {
+    if (configResult.error || configResult.data.length < 2) {
         console.warn('[AI Scan] Scanner agent not configured, skipping AI scan.')
         return FALLBACK
     }
@@ -254,7 +254,7 @@ async function aiScanForInjection(
                     raw = (raw as { output: string }).output
                 }
 
-                const parsed: unknown = typeof raw === 'string' ? JSON.parse(raw) : raw
+                const parsed: unknown = typeof raw === 'string' ? JSON.parse(raw as string) : raw
                 if (
                     parsed &&
                     typeof parsed === 'object' &&
@@ -264,7 +264,7 @@ async function aiScanForInjection(
                 ) {
                     result = parsed as { safe: boolean; reasoning: string; confidence: number }
                 } else {
-                    result = { safe: true, reasoning: String(raw), confidence: 0.3 }
+                    result = { safe: true, reasoning: typeof raw === 'string' ? raw : JSON.stringify(raw), confidence: 0.3 }
                 }
             } catch {
                 result = { safe: true, reasoning: 'AI scan returned unparseable response.', confidence: 0 }

@@ -843,7 +843,7 @@ function ScannerConfigPanel() {
                 .eq('id', agentId.trim())
                 .single()
 
-            if (agentError || !agentData) {
+            if (agentError) {
                 toast.error('Agent not found. Please check the ID.')
                 setIsSaving(false)
                 return
