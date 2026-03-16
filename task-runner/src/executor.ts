@@ -91,10 +91,18 @@ export async function processTask(task: Task) {
             .update({ status: 'busy' })
             .eq('id', agent.id);
 
+        // Support model override from task metadata (used by admin test runs)
+        const effectiveModel = (typeof task.metadata?.model_override === 'string' && task.metadata.model_override)
+            ? task.metadata.model_override
+            : agent.model;
+        if (effectiveModel !== agent.model) {
+            console.log(`[TaskRunner] Model override active: using "${effectiveModel}" instead of agent default "${agent.model}"`);
+        }
+
         // Derive provider from model name first (authoritative), fall back to stored value
-        const provider = inferProvider(agent.model) ?? agent.provider;
+        const provider = inferProvider(effectiveModel) ?? agent.provider;
         if (!provider) {
-            throw new Error(`Cannot determine provider for agent "${agent.name}" with model "${agent.model}". Please update the agent's provider in Settings.`);
+            throw new Error(`Cannot determine provider for agent "${agent.name}" with model "${effectiveModel}". Please update the agent's provider in Settings.`);
         }
 
         // 2. Fetch API Key for Agent's provider
@@ -121,7 +129,7 @@ export async function processTask(task: Task) {
         // Load input file attachments
         const inputFiles = await loadInputFiles(task.id, null);
         if (inputFiles.length > 0) {
-            const { textBlock } = buildFileContext(inputFiles, agent.model);
+            const { textBlock } = buildFileContext(inputFiles, effectiveModel);
             if (textBlock) userPrompt += textBlock;
             console.log(`[TaskRunner] Loaded ${inputFiles.length} input file(s) for task ${task.id}`);
         }
@@ -177,7 +185,7 @@ export async function processTask(task: Task) {
                 executionResult = await executeToolUseTask(
                     providerLower,
                     rawKey,
-                    agent.model,
+                    effectiveModel,
                     systemPrompt,
                     userPrompt,
                     agentTools,
@@ -186,35 +194,35 @@ export async function processTask(task: Task) {
                     agent.max_tokens,
                 );
             } else if (providerLower === 'anthropic') {
-                executionResult = await executeAnthropic(rawKey, agent.model, systemPrompt, userPrompt, updateResultStream, agent.max_tokens);
+                executionResult = await executeAnthropic(rawKey, effectiveModel, systemPrompt, userPrompt, updateResultStream, agent.max_tokens);
             } else if (providerLower === 'openai') {
-                executionResult = await executeOpenAI(rawKey, agent.model, systemPrompt, userPrompt, updateResultStream, undefined, agent.max_tokens);
+                executionResult = await executeOpenAI(rawKey, effectiveModel, systemPrompt, userPrompt, updateResultStream, undefined, agent.max_tokens);
             } else if (providerLower === 'google') {
-                executionResult = await executeGoogle(rawKey, agent.model, systemPrompt, userPrompt, updateResultStream, agent.max_tokens);
+                executionResult = await executeGoogle(rawKey, effectiveModel, systemPrompt, userPrompt, updateResultStream, agent.max_tokens);
             } else if (providerLower === 'openrouter') {
-                const orModel = agent.model.replace(/^openrouter\//, '');
+                const orModel = effectiveModel.replace(/^openrouter\//, '');
                 executionResult = await executeOpenAI(rawKey, orModel, systemPrompt, userPrompt, updateResultStream, 'https://openrouter.ai/api/v1', agent.max_tokens);
             } else if (providerLower === 'groq') {
-                const groqModel = agent.model.replace(/^groq\//, '');
+                const groqModel = effectiveModel.replace(/^groq\//, '');
                 executionResult = await executeOpenAI(rawKey, groqModel, systemPrompt, userPrompt, updateResultStream, 'https://api.groq.com/openai/v1', agent.max_tokens);
             } else if (providerLower === 'mistral') {
-                executionResult = await executeOpenAI(rawKey, agent.model, systemPrompt, userPrompt, updateResultStream, 'https://api.mistral.ai/v1', agent.max_tokens);
+                executionResult = await executeOpenAI(rawKey, effectiveModel, systemPrompt, userPrompt, updateResultStream, 'https://api.mistral.ai/v1', agent.max_tokens);
             } else if (providerLower === 'cohere') {
-                executionResult = await executeOpenAI(rawKey, agent.model, systemPrompt, userPrompt, updateResultStream, 'https://api.cohere.com/compatibility/v1', agent.max_tokens);
+                executionResult = await executeOpenAI(rawKey, effectiveModel, systemPrompt, userPrompt, updateResultStream, 'https://api.cohere.com/compatibility/v1', agent.max_tokens);
             } else if (providerLower === 'together') {
-                executionResult = await executeOpenAI(rawKey, agent.model, systemPrompt, userPrompt, updateResultStream, 'https://api.together.xyz/v1', agent.max_tokens);
+                executionResult = await executeOpenAI(rawKey, effectiveModel, systemPrompt, userPrompt, updateResultStream, 'https://api.together.xyz/v1', agent.max_tokens);
             } else if (providerLower === 'nvidia') {
-                executionResult = await executeOpenAI(rawKey, agent.model, systemPrompt, userPrompt, updateResultStream, 'https://integrate.api.nvidia.com/v1', agent.max_tokens);
+                executionResult = await executeOpenAI(rawKey, effectiveModel, systemPrompt, userPrompt, updateResultStream, 'https://integrate.api.nvidia.com/v1', agent.max_tokens);
             } else if (providerLower === 'huggingface') {
-                executionResult = await executeOpenAI(rawKey, agent.model, systemPrompt, userPrompt, updateResultStream, 'https://api-inference.huggingface.co/v1', agent.max_tokens);
+                executionResult = await executeOpenAI(rawKey, effectiveModel, systemPrompt, userPrompt, updateResultStream, 'https://api-inference.huggingface.co/v1', agent.max_tokens);
             } else if (providerLower === 'venice') {
-                executionResult = await executeOpenAI(rawKey, agent.model, systemPrompt, userPrompt, updateResultStream, 'https://api.venice.ai/api/v1', agent.max_tokens);
+                executionResult = await executeOpenAI(rawKey, effectiveModel, systemPrompt, userPrompt, updateResultStream, 'https://api.venice.ai/api/v1', agent.max_tokens);
             } else if (providerLower === 'minimax') {
-                executionResult = await executeOpenAI(rawKey, agent.model, systemPrompt, userPrompt, updateResultStream, 'https://api.minimaxi.chat/v1', agent.max_tokens);
+                executionResult = await executeOpenAI(rawKey, effectiveModel, systemPrompt, userPrompt, updateResultStream, 'https://api.minimaxi.chat/v1', agent.max_tokens);
             } else if (providerLower === 'moonshot') {
-                executionResult = await executeOpenAI(rawKey, agent.model, systemPrompt, userPrompt, updateResultStream, 'https://api.moonshot.cn/v1', agent.max_tokens);
+                executionResult = await executeOpenAI(rawKey, effectiveModel, systemPrompt, userPrompt, updateResultStream, 'https://api.moonshot.cn/v1', agent.max_tokens);
             } else if (providerLower === 'perplexity') {
-                executionResult = await executeOpenAI(rawKey, agent.model, systemPrompt, userPrompt, updateResultStream, 'https://api.perplexity.ai', agent.max_tokens);
+                executionResult = await executeOpenAI(rawKey, effectiveModel, systemPrompt, userPrompt, updateResultStream, 'https://api.perplexity.ai', agent.max_tokens);
             } else {
                 throw new Error(`Execution for provider "${provider}" is not yet supported in the standalone runner.`);
             }
@@ -225,7 +233,7 @@ export async function processTask(task: Task) {
 
             if (isModelError && agent.fallback_model) {
                 // ── Fallback Model Retry ──
-                console.warn(`[TaskRunner] Primary model "${agent.model}" failed, retrying with fallback "${agent.fallback_model}"...`);
+                console.warn(`[TaskRunner] Primary model "${effectiveModel}" failed, retrying with fallback "${agent.fallback_model}"...`);
 
                 const fallbackProvider = inferProvider(agent.fallback_model) ?? agent.provider;
                 if (!fallbackProvider) {
@@ -268,7 +276,7 @@ export async function processTask(task: Task) {
 
                 console.log(`[TaskRunner] Fallback model "${agent.fallback_model}" succeeded for task ${task.id}`);
             } else if (isModelError) {
-                throw new Error(`Model "${agent.model}" is not available on ${provider}. Please update the agent's model in Settings → Agents.`);
+                throw new Error(`Model "${effectiveModel}" is not available on ${provider}. Please update the agent's model in Settings → Agents.`);
             } else {
                 throw llmError;
             }
@@ -291,7 +299,7 @@ export async function processTask(task: Task) {
                 .update({
                     status: 'completed',
                     result: { output: executionResult.result },
-                    model_used: agent.model,
+                    model_used: effectiveModel,
                     tokens_used: executionResult.usage.totalTokens,
                     cost_estimate_usd: executionResult.usage.costEstimateUSD,
                     completed_at: new Date().toISOString(),
@@ -305,7 +313,7 @@ export async function processTask(task: Task) {
             taskId: task.id,
             agentId: agent.id,
             provider: provider,
-            model: agent.model,
+            model: effectiveModel,
             tokensUsed: executionResult.usage.totalTokens,
             costEstimateUsd: executionResult.usage.costEstimateUSD,
         });

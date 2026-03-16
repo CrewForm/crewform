@@ -15,6 +15,7 @@ import { createTask } from '@/db/tasks'
 import { deleteTask } from '@/db/tasks'
 import { supabase } from '@/lib/supabase'
 import { findDuplicateAgents } from '@/lib/similarity'
+import { MODEL_OPTIONS } from '@/lib/agentSchema'
 import { cn } from '@/lib/utils'
 import type { Task } from '@/types'
 import type { DuplicateMatch } from '@/lib/similarity'
@@ -234,6 +235,7 @@ export function ReviewQueue() {
                                 <TestRunPanel
                                     agentId={sub.agent_id}
                                     agentName={agent.name}
+                                    agentModel={agent.model}
                                     workspaceId={workspaceId}
                                     userId={user?.id ?? null}
                                 />
@@ -373,12 +375,14 @@ function DuplicateDetectionPanel({ agentName, agentTags, agentId, publishedAgent
 interface TestRunPanelProps {
     agentId: string
     agentName: string
+    agentModel: string
     workspaceId: string | null
     userId: string | null
 }
 
-function TestRunPanel({ agentId, agentName, workspaceId, userId }: TestRunPanelProps) {
+function TestRunPanel({ agentId, agentName, agentModel, workspaceId, userId }: TestRunPanelProps) {
     const [testPrompt, setTestPrompt] = useState('Hello, introduce yourself and explain what you can do.')
+    const [selectedModel, setSelectedModel] = useState(agentModel)
     const [testTask, setTestTask] = useState<Task | null>(null)
     const [testResult, setTestResult] = useState<string | null>(null)
     const [testError, setTestError] = useState<string | null>(null)
@@ -435,13 +439,14 @@ function TestRunPanel({ agentId, agentName, workspaceId, userId }: TestRunPanelP
                 priority: 'low',
                 status: 'dispatched',
                 created_by: userId,
+                ...(selectedModel !== agentModel ? { metadata: { model_override: selectedModel } } : {}),
             })
             setTestTask(task)
         } catch (err) {
             setTestError(err instanceof Error ? err.message : 'Failed to create test task')
             setIsRunning(false)
         }
-    }, [workspaceId, userId, testPrompt, agentId, agentName])
+    }, [workspaceId, userId, testPrompt, agentId, agentName, selectedModel, agentModel])
 
     const handleCleanup = useCallback(async () => {
         if (!testTask) return
@@ -481,6 +486,34 @@ function TestRunPanel({ agentId, agentName, workspaceId, userId }: TestRunPanelP
                     placeholder="Enter a test prompt..."
                     className="w-full rounded-lg border border-border bg-surface-primary px-3 py-2 text-xs text-gray-200 outline-none focus:border-brand-primary disabled:opacity-50"
                 />
+            </div>
+
+            {/* Model selector */}
+            <div className="mb-2">
+                <label className="mb-1 block text-[10px] text-gray-500">Model</label>
+                <select
+                    value={selectedModel}
+                    onChange={(e) => setSelectedModel(e.target.value)}
+                    disabled={isRunning}
+                    className="w-full rounded-lg border border-border bg-surface-primary px-3 py-1.5 text-xs text-gray-200 outline-none focus:border-brand-primary disabled:opacity-50"
+                >
+                    {/* Show agent default first if not in MODEL_OPTIONS */}
+                    {!MODEL_OPTIONS.some(g => g.models.some(m => m.value === agentModel)) && (
+                        <option value={agentModel}>{agentModel} (agent default)</option>
+                    )}
+                    {MODEL_OPTIONS.map((group) => {
+                        if (group.models.length === 0) return null
+                        return (
+                            <optgroup key={group.provider} label={group.provider}>
+                                {group.models.map((m) => (
+                                    <option key={m.value} value={m.value}>
+                                        {m.label}{m.value === agentModel ? ' (agent default)' : ''}
+                                    </option>
+                                ))}
+                            </optgroup>
+                        )
+                    })}
+                </select>
             </div>
 
             {/* Run button */}

@@ -65,6 +65,7 @@ export interface CreateTaskInput {
     status: TaskStatus
     created_by: string
     scheduled_for?: string | null
+    metadata?: Record<string, unknown>
 }
 
 export async function createTask(input: CreateTaskInput): Promise<Task> {
