@@ -6,11 +6,12 @@ import { toast } from 'sonner'
 import {
     Shield, BarChart3, Building2, Search,
     Loader2, Users, Bot, ListTodo, PackageOpen, Store, XCircle, ShieldCheck,
-    Activity, Coins, Zap, UserCheck,
+    Activity, Coins, Zap, UserCheck, Ban, Trash2, ShieldOff,
 } from 'lucide-react'
 import {
     usePlatformStats, useAllWorkspaces, useOverridePlan, useToggleBeta,
     useBetaUsers, useApproveBetaUser, useAllUsers, usePlatformAuditLog,
+    useSuspendWorkspace, useUnsuspendWorkspace, useDeleteWorkspace,
 } from '@/hooks/useAdmin'
 import { ReviewQueue } from '@/components/marketplace/ReviewQueue'
 import { LicenseAdminPanel } from '@/components/settings/LicenseAdminPanel'
@@ -171,7 +172,12 @@ function WorkspacesTab() {
     const { data: users } = useAllUsers()
     const overrideMutation = useOverridePlan()
     const betaMutation = useToggleBeta()
+    const suspendMutation = useSuspendWorkspace()
+    const unsuspendMutation = useUnsuspendWorkspace()
+    const deleteMutation = useDeleteWorkspace()
     const [search, setSearch] = useState('')
+    const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null)
+    const [deleteInput, setDeleteInput] = useState('')
 
     // Build a map of user_id -> auth.users data from the admin RPC
     const authUserMap = new Map<string, { email: string; full_name: string; last_sign_in_at: string | null }>()
@@ -194,6 +200,40 @@ function WorkspacesTab() {
         w.slug.toLowerCase().includes(search.toLowerCase()),
     ) ?? []
 
+    function handleSuspend(wsId: string, wsName: string) {
+        const reason = prompt(
+            `Suspend workspace "${wsName}"?\n\nProvide a reason (shown to the workspace owner):`,
+        )
+        if (reason === null) return
+        if (!reason.trim()) {
+            toast.error('A suspension reason is required.')
+            return
+        }
+        suspendMutation.mutate({ workspaceId: wsId, reason: reason.trim() }, {
+            onSuccess: () => toast.success(`"${wsName}" has been suspended.`),
+            onError: () => toast.error('Failed to suspend workspace.'),
+        })
+    }
+
+    function handleUnsuspend(wsId: string, wsName: string) {
+        unsuspendMutation.mutate({ workspaceId: wsId }, {
+            onSuccess: () => toast.success(`"${wsName}" has been unsuspended.`),
+            onError: () => toast.error('Failed to unsuspend workspace.'),
+        })
+    }
+
+    function handleDelete() {
+        if (!deleteConfirm || deleteInput !== deleteConfirm.name) return
+        deleteMutation.mutate({ workspaceId: deleteConfirm.id }, {
+            onSuccess: () => {
+                toast.success(`"${deleteConfirm.name}" has been permanently deleted.`)
+                setDeleteConfirm(null)
+                setDeleteInput('')
+            },
+            onError: () => toast.error('Failed to delete workspace.'),
+        })
+    }
+
     return (
         <div className="space-y-4">
             {/* Search */}
@@ -215,22 +255,25 @@ function WorkspacesTab() {
                         <tr className="border-b border-border text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                             <th className="px-4 py-3">Workspace</th>
                             <th className="px-4 py-3">Owner</th>
+                            <th className="px-4 py-3">Status</th>
                             <th className="px-4 py-3">Last Login</th>
                             <th className="px-4 py-3">Plan</th>
                             <th className="px-4 py-3">Beta</th>
                             <th className="px-4 py-3">Created</th>
+                            <th className="px-4 py-3">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-border/50">
                         {filtered.length === 0 ? (
                             <tr>
-                                <td colSpan={6} className="px-4 py-8 text-center text-gray-500">No workspaces found</td>
+                                <td colSpan={8} className="px-4 py-8 text-center text-gray-500">No workspaces found</td>
                             </tr>
                         ) : (
                             filtered.map((ws) => {
                                 const authUser = authUserMap.get(ws.owner_id)
+                                const isSuspended = !!ws.suspended_at
                                 return (
-                                    <tr key={ws.id} className="hover:bg-surface-raised/50">
+                                    <tr key={ws.id} className={cn('hover:bg-surface-raised/50', isSuspended && 'bg-red-500/5')}>
                                         <td className="px-4 py-3">
                                             <p className="font-medium text-gray-200">{ws.name}</p>
                                             <p className="text-xs text-gray-500">/{ws.slug} · {ws.member_count} members</p>
@@ -238,6 +281,25 @@ function WorkspacesTab() {
                                         <td className="px-4 py-3">
                                             <p className="text-gray-300">{authUser?.full_name || ws.owner_name || '—'}</p>
                                             <p className="text-xs text-gray-500">{authUser?.email || ws.owner_id.slice(0, 8)}</p>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            {isSuspended ? (
+                                                <div>
+                                                    <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase text-red-400 bg-red-500/10">
+                                                        <Ban className="h-3 w-3" />
+                                                        Suspended
+                                                    </span>
+                                                    {ws.suspended_reason && (
+                                                        <p className="mt-0.5 text-[10px] text-red-400/70 max-w-[160px] truncate" title={ws.suspended_reason}>
+                                                            {ws.suspended_reason}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <span className="rounded px-1.5 py-0.5 text-[10px] font-bold uppercase text-emerald-400 bg-emerald-500/10">
+                                                    Active
+                                                </span>
+                                            )}
                                         </td>
                                         <td className="px-4 py-3 text-xs text-gray-400">
                                             {authUser?.last_sign_in_at
@@ -287,6 +349,42 @@ function WorkspacesTab() {
                                         <td className="px-4 py-3 text-xs text-gray-600">
                                             {new Date(ws.created_at).toLocaleDateString()}
                                         </td>
+                                        <td className="px-4 py-3">
+                                            <div className="flex items-center gap-1.5">
+                                                {isSuspended ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleUnsuspend(ws.id, ws.name)}
+                                                        disabled={unsuspendMutation.isPending}
+                                                        title="Unsuspend workspace"
+                                                        className="flex items-center gap-1 rounded-lg border border-emerald-600/30 px-2 py-1 text-[11px] font-medium text-emerald-400 transition-colors hover:bg-emerald-600/10 disabled:opacity-50"
+                                                    >
+                                                        <ShieldOff className="h-3 w-3" />
+                                                        Unsuspend
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleSuspend(ws.id, ws.name)}
+                                                        disabled={suspendMutation.isPending}
+                                                        title="Suspend workspace"
+                                                        className="flex items-center gap-1 rounded-lg border border-amber-600/30 px-2 py-1 text-[11px] font-medium text-amber-400 transition-colors hover:bg-amber-600/10 disabled:opacity-50"
+                                                    >
+                                                        <Ban className="h-3 w-3" />
+                                                        Suspend
+                                                    </button>
+                                                )}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => { setDeleteConfirm({ id: ws.id, name: ws.name }); setDeleteInput('') }}
+                                                    title="Delete workspace"
+                                                    className="flex items-center gap-1 rounded-lg border border-red-600/30 px-2 py-1 text-[11px] font-medium text-red-400 transition-colors hover:bg-red-600/10"
+                                                >
+                                                    <Trash2 className="h-3 w-3" />
+                                                    Delete
+                                                </button>
+                                            </div>
+                                        </td>
                                     </tr>
                                 )
                             })
@@ -294,6 +392,56 @@ function WorkspacesTab() {
                     </tbody>
                 </table>
             </div>
+
+            {/* Delete confirmation modal */}
+            {deleteConfirm && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+                    <div className="w-full max-w-md rounded-2xl border border-red-500/30 bg-gray-900 p-6 shadow-2xl">
+                        <div className="mb-4 flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-500/10">
+                                <Trash2 className="h-5 w-5 text-red-400" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-semibold text-gray-100">Delete Workspace</h3>
+                                <p className="text-xs text-gray-500">This action is irreversible</p>
+                            </div>
+                        </div>
+                        <p className="mb-3 text-sm text-gray-400">
+                            This will permanently delete <strong className="text-gray-200">{deleteConfirm.name}</strong> and
+                            all associated data (agents, teams, tasks, members, API keys).
+                        </p>
+                        <p className="mb-2 text-xs text-gray-500">
+                            Type <strong className="text-gray-300">{deleteConfirm.name}</strong> to confirm:
+                        </p>
+                        <input
+                            type="text"
+                            value={deleteInput}
+                            onChange={(e) => setDeleteInput(e.target.value)}
+                            placeholder={deleteConfirm.name}
+                            className="mb-4 w-full rounded-lg border border-border bg-surface-card px-3 py-2 text-sm text-gray-200 outline-none focus:border-red-400"
+                            autoFocus
+                        />
+                        <div className="flex justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={() => { setDeleteConfirm(null); setDeleteInput('') }}
+                                className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-gray-400 hover:bg-surface-raised"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleDelete}
+                                disabled={deleteInput !== deleteConfirm.name || deleteMutation.isPending}
+                                className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+                            >
+                                {deleteMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                                Delete Permanently
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

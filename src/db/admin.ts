@@ -16,6 +16,8 @@ export interface AdminWorkspace {
     subscription_plan: string | null
     subscription_status: string | null
     is_beta: boolean
+    suspended_at: string | null
+    suspended_reason: string | null
     owner_email: string
     owner_name: string
 }
@@ -82,7 +84,8 @@ export async function fetchAllWorkspaces(): Promise<AdminWorkspace[]> {
 
     const workspaces = workspacesResult.data as Array<{
         id: string; name: string; slug: string; owner_id: string;
-        plan: string; created_at: string; is_beta: boolean
+        plan: string; created_at: string; is_beta: boolean;
+        suspended_at: string | null; suspended_reason: string | null
     }>
 
     // Fetch member counts
@@ -305,5 +308,32 @@ export async function approveBetaUser(userId: string): Promise<void> {
 /** Revoke beta approval (super admin only) */
 export async function revokeBetaUser(userId: string): Promise<void> {
     const result = await supabase.rpc('revoke_beta_user', { p_user_id: userId })
+    if (result.error) throw result.error
+}
+
+// ─── Workspace Moderation ───────────────────────────────────────────────────
+
+/** Suspend a workspace (super admin only) */
+export async function suspendWorkspace(workspaceId: string, reason: string): Promise<void> {
+    const result = await supabase.rpc('admin_suspend_workspace', {
+        p_workspace_id: workspaceId,
+        p_reason: reason,
+    })
+    if (result.error) throw result.error
+}
+
+/** Unsuspend a workspace (super admin only) */
+export async function unsuspendWorkspace(workspaceId: string): Promise<void> {
+    const result = await supabase.rpc('admin_unsuspend_workspace', {
+        p_workspace_id: workspaceId,
+    })
+    if (result.error) throw result.error
+}
+
+/** Permanently delete a workspace (super admin only) */
+export async function deleteWorkspace(workspaceId: string): Promise<void> {
+    const result = await supabase.rpc('admin_delete_workspace', {
+        p_workspace_id: workspaceId,
+    })
     if (result.error) throw result.error
 }

@@ -7,6 +7,7 @@ import {
     overrideWorkspacePlan, toggleBeta,
     fetchBetaUsers, approveBetaUser, revokeBetaUser,
     fetchAllUsers, fetchPlatformAuditLogs,
+    suspendWorkspace, unsuspendWorkspace, deleteWorkspace,
 } from '@/db/admin'
 import type { AdminWorkspace, PlatformStats, BetaUser, AdminUser, AuditLogEntry } from '@/db/admin'
 
@@ -111,5 +112,48 @@ export function usePlatformAuditLog() {
         queryKey: ['admin-audit-log'],
         queryFn: fetchPlatformAuditLogs,
         staleTime: 30 * 1000,
+    })
+}
+
+/** Suspend a workspace */
+export function useSuspendWorkspace() {
+    const queryClient = useQueryClient()
+    return useMutation<undefined, Error, { workspaceId: string; reason: string }>({
+        mutationFn: async ({ workspaceId, reason }) => {
+            await suspendWorkspace(workspaceId, reason)
+            return undefined
+        },
+        onSuccess: () => {
+            void queryClient.invalidateQueries({ queryKey: ['admin-workspaces'] })
+        },
+    })
+}
+
+/** Unsuspend a workspace */
+export function useUnsuspendWorkspace() {
+    const queryClient = useQueryClient()
+    return useMutation<undefined, Error, { workspaceId: string }>({
+        mutationFn: async ({ workspaceId }) => {
+            await unsuspendWorkspace(workspaceId)
+            return undefined
+        },
+        onSuccess: () => {
+            void queryClient.invalidateQueries({ queryKey: ['admin-workspaces'] })
+        },
+    })
+}
+
+/** Delete a workspace */
+export function useDeleteWorkspace() {
+    const queryClient = useQueryClient()
+    return useMutation<undefined, Error, { workspaceId: string }>({
+        mutationFn: async ({ workspaceId }) => {
+            await deleteWorkspace(workspaceId)
+            return undefined
+        },
+        onSuccess: () => {
+            void queryClient.invalidateQueries({ queryKey: ['admin-workspaces'] })
+            void queryClient.invalidateQueries({ queryKey: ['admin-stats'] })
+        },
     })
 }

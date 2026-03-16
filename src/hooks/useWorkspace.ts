@@ -23,6 +23,7 @@ export function useWorkspace() {
     return {
         workspace: workspace ?? null,
         workspaceId: workspace?.id ?? null,
+        isSuspended: !!workspace?.suspended_at,
         isLoading,
         error,
     }

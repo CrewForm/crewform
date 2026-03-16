@@ -16,6 +16,8 @@ export interface Workspace {
   owner_id: string
   plan: WorkspacePlan
   is_beta: boolean
+  suspended_at: string | null
+  suspended_reason: string | null
   settings: Record<string, unknown>
   created_at: string
   updated_at: string

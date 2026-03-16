@@ -21,6 +21,7 @@ import { useSuperAdmin } from '@/hooks/useAdmin'
 import { useIsMobile, useIsTablet } from '@/hooks/useMediaQuery'
 import { TopBar } from '@/components/layout/TopBar'
 import { MobileNav } from '@/components/layout/MobileNav'
+import { useWorkspace } from '@/hooks/useWorkspace'
 import { PageSkeleton } from '@/components/ui/PageSkeleton'
 
 const navItems = [
@@ -36,6 +37,7 @@ const navItems = [
 export function RootLayout() {
   const { user, signOut } = useAuth()
   const { isSuperAdmin } = useSuperAdmin()
+  const { workspace, isSuspended } = useWorkspace()
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const location = useLocation()
@@ -58,6 +60,44 @@ export function RootLayout() {
   const toggleSidebar = useCallback(() => {
     setSidebarOpen((prev) => !prev)
   }, [])
+
+  // ─── Suspension Gate ────────────────────────────────────────────────────────
+  // Super admins bypass the gate so they can still access the admin panel.
+  if (isSuspended && !isSuperAdmin) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-950 p-6">
+        <div className="mx-auto max-w-md rounded-2xl border border-red-500/30 bg-gray-900 p-8 text-center shadow-2xl">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-500/10">
+            <Shield className="h-7 w-7 text-red-400" />
+          </div>
+          <h1 className="mb-2 text-2xl font-bold text-gray-100">Workspace Suspended</h1>
+          <p className="mb-4 text-sm text-gray-400">
+            This workspace has been suspended by a platform administrator.
+          </p>
+          {workspace?.suspended_reason && (
+            <div className="mb-4 rounded-lg border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-300">
+              <strong className="block text-xs uppercase tracking-wider text-red-400 mb-1">Reason</strong>
+              {workspace.suspended_reason}
+            </div>
+          )}
+          <p className="mb-6 text-xs text-gray-500">
+            If you believe this is an error, please contact support at{' '}
+            <a href="mailto:team@crewform.tech" className="text-brand-primary hover:underline">
+              team@crewform.tech
+            </a>.
+          </p>
+          <button
+            type="button"
+            onClick={() => void signOut()}
+            className="inline-flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-800 px-4 py-2 text-sm font-medium text-gray-300 transition-colors hover:bg-gray-700"
+          >
+            <LogOut className="h-4 w-4" />
+            Sign Out
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   // Collapsed mode: icon-only on tablet
   const collapsed = isTablet
