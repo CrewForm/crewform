@@ -99,7 +99,6 @@ npm run dev
 - [Why CrewForm?](#why-crewform)
 - [Who It's For](#who-its-for)
 - [Key Features](#key-features)
-- [How It Compares](#how-it-compares)
 - [Editions & Pricing](#editions--pricing)
 - [Documentation](#documentation)
 - [Architecture](#architecture)
@@ -181,26 +180,6 @@ Each client gets their own workspace. Custom agents built around their tools and
 - 📈 **Advanced Analytics** — Charts, CSV export, prompt history with diffs *(Pro)*
 - 📋 **Audit Logs** — Full audit trail with Datadog/Splunk streaming *(Enterprise)*
 - 🐝 **Swarm** — Multi-runner concurrency pool *(Enterprise)*
-
-## How It Compares
-
-| Feature | CrewForm | AutoGPT | CrewAI | LangGraph |
-|---------|----------|---------|--------|-----------|
-| **Visual UI** | ✅ Full web app | ✅ Web UI | ❌ Code only | ❌ Code only |
-| **Self-Hostable** | ✅ Docker Compose | ✅ Docker | ✅ (library) | ✅ (library) |
-| **No-Code Setup** | ✅ Point-and-click | ✅ Partial | ❌ Python required | ❌ Python required |
-| **Team Modes** | ✅ Pipeline, Orchestrator, Collaboration | ❌ Single agent | ✅ Sequential, Hierarchical | ✅ Graph-based |
-| **Agent Marketplace** | ✅ Built-in | ✅ Built-in | ❌ | ❌ |
-| **BYOK Multi-Provider** | ✅ 14 providers | ✅ Limited | ✅ Via LiteLLM | ✅ Via config |
-| **Real-Time Monitoring** | ✅ Live updates | ✅ | ❌ | ❌ |
-| **Tool-Use / Function Calling** | ✅ Built-in | ✅ | ✅ | ✅ |
-| **Zapier Integration** | ✅ | ❌ | ❌ | ❌ |
-| **Messaging Channels** | ✅ Discord, Slack, Telegram, Email | ❌ | ❌ | ❌ |
-| **RBAC & Workspaces** | ✅ 5-role hierarchy | ❌ | ❌ | ❌ |
-| **Billing & Plans** | ✅ Stripe integrated | ❌ | ❌ | ❌ |
-| **License** | AGPL-3.0 | MIT | MIT | MIT |
-
-> **CrewForm's sweet spot:** You want a visual, production-ready AI agent platform that you can self-host, with no Python required and built-in team collaboration. If you prefer code-first orchestration, CrewAI and LangGraph are excellent choices.
 
 ## Editions & Pricing
 
