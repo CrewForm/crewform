@@ -9,6 +9,7 @@ import { TeamCard } from '@/components/teams/TeamCard'
 import { CreateTeamModal } from '@/components/teams/CreateTeamModal'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/shared/ErrorState'
+import { RoleGate } from '@/components/ui/RoleGate'
 
 export function Teams() {
   const { workspaceId } = useWorkspace()
@@ -28,14 +29,16 @@ export function Teams() {
             </span>
           )}
         </div>
-        <button
-          type="button"
-          onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-brand-hover"
-        >
-          <Plus className="h-4 w-4" />
-          New Team
-        </button>
+        <RoleGate minRole="member">
+          <button
+            type="button"
+            onClick={() => setShowCreateModal(true)}
+            className="flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-brand-hover"
+          >
+            <Plus className="h-4 w-4" />
+            New Team
+          </button>
+        </RoleGate>
       </div>
 
       {/* Loading */}
@@ -73,14 +76,16 @@ export function Teams() {
           <p className="mb-4 max-w-md text-center text-sm text-gray-500">
             Teams let multiple agents work together — in sequence, under a coordinator, or collaboratively.
           </p>
-          <button
-            type="button"
-            onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-brand-hover"
-          >
-            <Plus className="h-4 w-4" />
-            Create First Team
-          </button>
+          <RoleGate minRole="member">
+            <button
+              type="button"
+              onClick={() => setShowCreateModal(true)}
+              className="flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-brand-hover"
+            >
+              <Plus className="h-4 w-4" />
+              Create First Team
+            </button>
+          </RoleGate>
         </div>
       )}
 

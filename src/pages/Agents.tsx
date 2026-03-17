@@ -10,6 +10,7 @@ import { AgentCard } from '@/components/agents/AgentCard'
 import { AgentListRow } from '@/components/agents/AgentListRow'
 import { SkeletonCard } from '@/components/ui/skeleton'
 import { Skeleton } from '@/components/ui/skeleton'
+import { RoleGate } from '@/components/ui/RoleGate'
 import type { Agent } from '@/types'
 
 type ViewMode = 'grid' | 'list'
@@ -72,13 +73,15 @@ export function Agents() {
             </span>
           )}
         </div>
-        <button
-          type="button"
-          onClick={() => navigate('/agents/new')}
-          className="rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-brand-hover"
-        >
-          + New Agent
-        </button>
+        <RoleGate minRole="member">
+          <button
+            type="button"
+            onClick={() => navigate('/agents/new')}
+            className="rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-brand-hover"
+          >
+            + New Agent
+          </button>
+        </RoleGate>
       </div>
 
       {/* Toolbar: search + view toggle + sort */}
@@ -184,13 +187,15 @@ export function Agents() {
           <p className="mb-6 text-sm text-gray-500">
             Create your first agent to get started.
           </p>
-          <button
-            type="button"
-            onClick={() => navigate('/agents/new')}
-            className="rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-brand-hover"
-          >
-            + Create Agent
-          </button>
+          <RoleGate minRole="member">
+            <button
+              type="button"
+              onClick={() => navigate('/agents/new')}
+              className="rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-brand-hover"
+            >
+              + Create Agent
+            </button>
+          </RoleGate>
         </div>
       )}
 

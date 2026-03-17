@@ -13,6 +13,7 @@ import { TaskDetailPanel } from '@/components/tasks/TaskDetailPanel'
 import { TaskCalendar } from '@/components/tasks/TaskCalendar'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/shared/ErrorState'
+import { RoleGate } from '@/components/ui/RoleGate'
 import { cn } from '@/lib/utils'
 import type { TaskStatus, TaskPriority } from '@/types'
 
@@ -54,14 +55,16 @@ export function Tasks() {
             </span>
           )}
         </div>
-        <button
-          type="button"
-          onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-brand-hover"
-        >
-          <Plus className="h-4 w-4" />
-          New Task
-        </button>
+        <RoleGate minRole="member">
+          <button
+            type="button"
+            onClick={() => setShowCreateModal(true)}
+            className="flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-brand-hover"
+          >
+            <Plus className="h-4 w-4" />
+            New Task
+          </button>
+        </RoleGate>
       </div>
 
       {/* View Toggle + Filters */}
@@ -170,14 +173,16 @@ export function Tasks() {
           <p className="mb-4 text-sm text-gray-500">
             Create a task and assign it to an agent to get started.
           </p>
-          <button
-            type="button"
-            onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-brand-hover"
-          >
-            <Plus className="h-4 w-4" />
-            Create First Task
-          </button>
+          <RoleGate minRole="member">
+            <button
+              type="button"
+              onClick={() => setShowCreateModal(true)}
+              className="flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-brand-hover"
+            >
+              <Plus className="h-4 w-4" />
+              Create First Task
+            </button>
+          </RoleGate>
         </div>
       )}
 

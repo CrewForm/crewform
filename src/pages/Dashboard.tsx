@@ -18,6 +18,7 @@ import { TeamPerformanceGrid } from '@/components/dashboard/TeamPerformanceGrid'
 import { ActivityTimeline } from '@/components/dashboard/ActivityTimeline'
 import { QuickActions } from '@/components/dashboard/QuickActions'
 import { ErrorState } from '@/components/shared/ErrorState'
+import { RoleGate } from '@/components/ui/RoleGate'
 import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard'
 
 /**
@@ -171,13 +172,15 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-500">
-          Quick Actions
-        </h2>
-        <QuickActions />
-      </div>
+      {/* Quick Actions — hidden for viewers */}
+      <RoleGate minRole="member">
+        <div>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-500">
+            Quick Actions
+          </h2>
+          <QuickActions />
+        </div>
+      </RoleGate>
     </div>
   )
 }
