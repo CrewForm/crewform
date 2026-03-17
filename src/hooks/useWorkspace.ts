@@ -27,19 +27,19 @@ export function useWorkspace() {
             const savedId = localStorage.getItem(ACTIVE_WS_KEY)
             if (savedId) {
                 // Verify user is a member or owner
-                const { data: ws } = await supabase
+                const wsResult = await supabase
                     .from('workspaces')
                     .select('*')
                     .eq('id', savedId)
                     .single()
 
-                if (ws) return ws as Workspace
+                if (wsResult.data) return wsResult.data as Workspace
                 // If not accessible, clear the saved ID and fall through
                 localStorage.removeItem(ACTIVE_WS_KEY)
             }
 
             // 2. Fall back to the user's owned workspace
-            const { data, error: err } = await supabase
+            const ownedResult = await supabase
                 .from('workspaces')
                 .select('*')
                 .eq('owner_id', user.id)
@@ -47,8 +47,8 @@ export function useWorkspace() {
                 .limit(1)
                 .single()
 
-            if (err && err.code !== 'PGRST116') throw err
-            return (data as Workspace) ?? null
+            if (ownedResult.error && ownedResult.error.code !== 'PGRST116') throw ownedResult.error
+            return (ownedResult.data as Workspace | null) ?? null
         },
         enabled: !!user,
         staleTime: 5 * 60 * 1000,
