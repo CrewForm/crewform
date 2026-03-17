@@ -36,9 +36,11 @@ export function Auth() {
 
   useEffect(() => {
     if (!loading && user && mode !== 'reset-password') {
-      navigate('/', { replace: true })
+      const params = new URLSearchParams(location.search)
+      const redirect = params.get('redirect') ?? '/'
+      navigate(redirect, { replace: true })
     }
-  }, [user, loading, navigate, mode])
+  }, [user, loading, navigate, mode, location.search])
 
   if (loading) {
     return (

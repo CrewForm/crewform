@@ -29,6 +29,7 @@ const AdminPanel = lazy(() => import('@/pages/AdminPanel').then(m => ({ default:
 const NotFound = lazy(() => import('@/pages/NotFound').then(m => ({ default: m.NotFound })))
 const Terms = lazy(() => import('@/pages/Terms').then(m => ({ default: m.Terms })))
 const Privacy = lazy(() => import('@/pages/Privacy').then(m => ({ default: m.Privacy })))
+const AcceptInvite = lazy(() => import('@/pages/AcceptInvite').then(m => ({ default: m.AcceptInvite })))
 
 // ── Suspense fallback ────────────────────────────────────────────────────────
 function PageLoader() {
@@ -53,6 +54,7 @@ export function App() {
           <Route path="/beta-pending" element={<BetaPending />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/privacy" element={<Privacy />} />
+          <Route path="/invite/:token" element={<AcceptInvite />} />
 
           {/* App routes — protected */}
           <Route
