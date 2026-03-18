@@ -163,7 +163,7 @@ interface ToolCall {
  * Execute a single tool call and return the result string.
  * Supports both built-in tools and custom webhook-backed tools.
  */
-export async function executeToolCall(toolCall: ToolCall, customTools?: CustomToolConfig[]): Promise<string> {
+export async function executeToolCall(toolCall: ToolCall, customTools?: CustomToolConfig[], serperApiKey?: string): Promise<string> {
     const { name, arguments: argsStr } = toolCall.function;
 
     let args: Record<string, unknown>;
@@ -186,7 +186,7 @@ export async function executeToolCall(toolCall: ToolCall, customTools?: CustomTo
 
         switch (name) {
             case 'web_search':
-                return await executeWebSearch(args.query as string);
+                return await executeWebSearch(args.query as string, serperApiKey);
             case 'http_request':
                 return await executeHttpRequest(
                     args.url as string,
@@ -213,36 +213,65 @@ export async function executeToolCall(toolCall: ToolCall, customTools?: CustomTo
 
 // ─── Built-in Tool Implementations ───────────────────────────────────────────
 
-async function executeWebSearch(query: string): Promise<string> {
-    // Use a simple fetch-based approach — hit DuckDuckGo's html endpoint
-    const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
-    const response = await fetch(url, {
+interface SerperResult {
+    title: string;
+    link: string;
+    snippet: string;
+    position: number;
+}
+
+interface SerperResponse {
+    organic: SerperResult[];
+    answerBox?: { answer?: string; snippet?: string; title?: string };
+    knowledgeGraph?: { title?: string; description?: string };
+}
+
+async function executeWebSearch(query: string, serperApiKey?: string): Promise<string> {
+    if (!serperApiKey) {
+        return 'Error: Web search requires a Serper API key. Please configure it in Settings → API Keys.';
+    }
+
+    const response = await fetch('https://google.serper.dev/search', {
+        method: 'POST',
         headers: {
-            'User-Agent': 'CrewForm-Agent/1.0',
+            'X-API-KEY': serperApiKey,
+            'Content-Type': 'application/json',
         },
+        body: JSON.stringify({ q: query, num: 10 }),
+        signal: AbortSignal.timeout(15000),
     });
 
     if (!response.ok) {
-        return `Search failed with status ${response.status.toString()}`;
+        return `Search failed: HTTP ${response.status.toString()} ${response.statusText}`;
     }
 
-    const html = await response.text();
+    const data = await response.json() as SerperResponse;
+    const parts: string[] = [];
 
-    // Extract result snippets from DuckDuckGo HTML
-    const snippets: string[] = [];
-    const snippetRegex = /class="result__snippet"[^>]*>([\s\S]*?)<\/a>/g;
-    let match;
-    while ((match = snippetRegex.exec(html)) !== null && snippets.length < 5) {
-        // Strip HTML tags
-        const text = match[1].replace(/<[^>]+>/g, '').trim();
-        if (text) snippets.push(text);
+    // Include answer box if present
+    if (data.answerBox?.answer) {
+        parts.push(`**Quick Answer:** ${data.answerBox.answer}`);
+    } else if (data.answerBox?.snippet) {
+        parts.push(`**Quick Answer:** ${data.answerBox.snippet}`);
     }
 
-    if (snippets.length === 0) {
+    // Include knowledge graph if present
+    if (data.knowledgeGraph?.description) {
+        parts.push(`**${data.knowledgeGraph.title ?? 'Overview'}:** ${data.knowledgeGraph.description}`);
+    }
+
+    // Organic results
+    const organic = data.organic ?? [];
+    if (organic.length === 0 && parts.length === 0) {
         return `No search results found for: "${query}"`;
     }
 
-    return `Search results for "${query}":\n\n${snippets.map((s, i) => `${(i + 1).toString()}. ${s}`).join('\n\n')}`;
+    for (let i = 0; i < Math.min(organic.length, 10); i++) {
+        const r = organic[i];
+        parts.push(`${(i + 1).toString()}. **${r.title}**\n   ${r.snippet}\n   URL: ${r.link}`);
+    }
+
+    return `Search results for "${query}":\n\n${parts.join('\n\n')}`;
 }
 
 async function executeHttpRequest(url: string, method: string, body?: string): Promise<string> {
@@ -440,6 +469,7 @@ export async function executeWithToolLoop(
     userPrompt: string,
     toolNames: string[],
     customTools?: CustomToolConfig[],
+    serperApiKey?: string,
 ): Promise<ToolUseResult> {
     const tools = getToolDefinitions(toolNames, customTools);
     const messages: ToolUseMessage[] = [
@@ -488,7 +518,7 @@ export async function executeWithToolLoop(
         for (const toolCall of assistantMessage.tool_calls) {
             toolCallsMade++;
             console.log(`[ToolExecutor] Executing tool: ${toolCall.function.name} (round ${(round + 1).toString()}, call #${toolCallsMade.toString()})`);
-            const result = await executeToolCall(toolCall, customTools);
+            const result = await executeToolCall(toolCall, customTools, serperApiKey);
             messages.push({
                 role: 'tool',
                 tool_call_id: toolCall.id,

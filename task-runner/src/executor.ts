@@ -177,6 +177,24 @@ export async function processTask(task: Task) {
             console.log(`[TaskRunner] Loaded ${customToolConfigs.length.toString()} custom tools`);
         }
 
+        // Fetch Serper API key if web_search tool is enabled
+        let serperApiKey: string | undefined;
+        if (agentTools.includes('web_search')) {
+            const serperKeyResult = await supabase
+                .from('api_keys')
+                .select('*')
+                .eq('workspace_id', task.workspace_id)
+                .eq('provider', 'serper')
+                .single();
+            const serperKeyData = serperKeyResult.data as ApiKey | null;
+            if (serperKeyData) {
+                serperApiKey = decryptApiKey(serperKeyData.encrypted_key);
+                console.log('[TaskRunner] Loaded Serper API key for web_search');
+            } else {
+                console.warn('[TaskRunner] web_search enabled but no Serper API key found');
+            }
+        }
+
         try {
             if (hasTools) {
                 // ── Tool-Use Mode: non-streaming with tool loop ──
@@ -192,6 +210,7 @@ export async function processTask(task: Task) {
                     updateResultStream,
                     customToolConfigs,
                     agent.max_tokens,
+                    serperApiKey,
                 );
             } else if (providerLower === 'anthropic') {
                 executionResult = await executeAnthropic(rawKey, effectiveModel, systemPrompt, userPrompt, updateResultStream, agent.max_tokens);
@@ -404,6 +423,7 @@ async function executeToolUseTask(
     onProgressUpdate: (text: string) => Promise<void>,
     customTools?: CustomToolConfig[],
     maxTokens?: number | null,
+    serperApiKey?: string,
 ): Promise<{ result: string; usage: TokenUsage }> {
     // Determine base URL for OpenAI-compatible providers
     const baseURLMap: Record<string, string> = {
@@ -502,6 +522,7 @@ async function executeToolUseTask(
         userPrompt,
         toolNames,
         customTools,
+        serperApiKey,
     );
 
     void tools; // definitions are used internally by the loop

@@ -128,6 +128,14 @@ const PROVIDERS: ProviderConfig[] = [
         bgColor: 'bg-violet-500/10',
         borderColor: 'border-border',
     },
+    {
+        id: 'serper',
+        name: 'Serper (Web Search)',
+        prefix: '',
+        color: 'text-emerald-400',
+        bgColor: 'bg-emerald-500/10',
+        borderColor: 'border-border',
+    },
 ].map((p) => {
     const modelGroup = MODEL_OPTIONS.find(
         (g) => g.provider.toLowerCase() === p.id.toLowerCase(),

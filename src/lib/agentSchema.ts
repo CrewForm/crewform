@@ -11,32 +11,37 @@ export const BUILT_IN_TOOLS = [
     {
         name: 'web_search',
         label: 'Web Search',
-        description: 'Search the web for current information using a query.',
+        description: 'Search the web using Google via Serper. Requires a Serper API key.',
         icon: '🔍',
+        requiresProvider: 'serper' as const,
     },
     {
         name: 'http_request',
         label: 'HTTP Request',
         description: 'Make HTTP requests to external APIs and URLs.',
         icon: '🌐',
+        requiresProvider: undefined,
     },
     {
         name: 'code_interpreter',
         label: 'Code Interpreter',
         description: 'Execute JavaScript code in a sandboxed environment.',
         icon: '💻',
+        requiresProvider: undefined,
     },
     {
         name: 'read_file',
         label: 'Read File',
         description: 'Read contents of a file from a provided URL.',
         icon: '📄',
+        requiresProvider: undefined,
     },
     {
         name: 'grammar_check',
         label: 'Grammar Check',
         description: 'Check text for grammar, spelling, and style issues using LanguageTool.',
         icon: '✏️',
+        requiresProvider: undefined,
     },
 ] as const
 

@@ -336,6 +336,7 @@ export function AgentDetail() {
                     onUpdateField={updateField}
                     modelOptions={dynamicModelOptions}
                     workspaceId={workspaceId}
+                    activeProviders={activeProviders}
                     outputRouteIds={outputRouteIds}
                     onOutputRouteIdsChange={(ids) => { setOutputRouteIds(ids); setHasChanges(true) }}
                 />
@@ -387,11 +388,12 @@ interface ConfigTabProps {
     onUpdateField: <K extends keyof AgentFormData>(key: K, value: AgentFormData[K]) => void
     modelOptions: typeof MODEL_OPTIONS
     workspaceId: string
+    activeProviders: string[]
     outputRouteIds: string[] | null
     onOutputRouteIdsChange: (ids: string[] | null) => void
 }
 
-function ConfigurationTab({ formData, fieldErrors, onUpdateField, modelOptions, workspaceId, outputRouteIds, onOutputRouteIdsChange }: ConfigTabProps) {
+function ConfigurationTab({ formData, fieldErrors, onUpdateField, modelOptions, workspaceId, activeProviders, outputRouteIds, onOutputRouteIdsChange }: ConfigTabProps) {
     const { customTools } = useCustomTools(workspaceId)
     const createToolMutation = useCreateCustomTool()
     const updateToolMutation = useUpdateCustomTool()
@@ -636,11 +638,17 @@ function ConfigurationTab({ formData, fieldErrors, onUpdateField, modelOptions, 
                 <div className="space-y-2">
                     {BUILT_IN_TOOLS.map((tool) => {
                         const isEnabled = formData.tools.includes(tool.name)
+                        const providerMissing = tool.requiresProvider
+                            ? !activeProviders.some((p: string) => p.toLowerCase() === tool.requiresProvider?.toLowerCase())
+                            : false
+                        const isDisabled = providerMissing
                         return (
                             <button
                                 key={tool.name}
                                 type="button"
+                                disabled={isDisabled}
                                 onClick={() => {
+                                    if (isDisabled) return
                                     const newTools = isEnabled
                                         ? formData.tools.filter(t => t !== tool.name)
                                         : [...formData.tools, tool.name]
@@ -648,9 +656,11 @@ function ConfigurationTab({ formData, fieldErrors, onUpdateField, modelOptions, 
                                 }}
                                 className={cn(
                                     'flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors',
-                                    isEnabled
-                                        ? 'border-brand-primary bg-brand-muted/20'
-                                        : 'border-border hover:border-gray-600',
+                                    isDisabled
+                                        ? 'border-border opacity-50 cursor-not-allowed'
+                                        : isEnabled
+                                            ? 'border-brand-primary bg-brand-muted/20'
+                                            : 'border-border hover:border-gray-600',
                                 )}
                             >
                                 <span className="text-lg">{tool.icon}</span>
@@ -658,20 +668,25 @@ function ConfigurationTab({ formData, fieldErrors, onUpdateField, modelOptions, 
                                     <div className="flex items-center gap-2">
                                         <span className={cn(
                                             'text-sm font-medium',
-                                            isEnabled ? 'text-brand-primary' : 'text-gray-300',
+                                            isEnabled && !isDisabled ? 'text-brand-primary' : 'text-gray-300',
                                         )}>
                                             {tool.label}
                                         </span>
                                     </div>
                                     <p className="text-xs text-gray-500">{tool.description}</p>
+                                    {isDisabled && (
+                                        <p className="mt-1 text-xs text-yellow-400/70">
+                                            Requires a {tool.requiresProvider === 'serper' ? 'Serper' : tool.requiresProvider} API key — configure in Settings → API Keys
+                                        </p>
+                                    )}
                                 </div>
                                 <div className={cn(
                                     'flex h-5 w-9 items-center rounded-full p-0.5 transition-colors',
-                                    isEnabled ? 'bg-brand-primary' : 'bg-gray-700',
+                                    isEnabled && !isDisabled ? 'bg-brand-primary' : 'bg-gray-700',
                                 )}>
                                     <div className={cn(
                                         'h-4 w-4 rounded-full bg-white transition-transform',
-                                        isEnabled ? 'translate-x-4' : 'translate-x-0',
+                                        isEnabled && !isDisabled ? 'translate-x-4' : 'translate-x-0',
                                     )} />
                                 </div>
                             </button>
