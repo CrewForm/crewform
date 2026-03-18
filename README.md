@@ -97,6 +97,7 @@ npm run dev
 ## Table of Contents
 
 - [Why CrewForm?](#why-crewform)
+- [How It Works](#how-it-works)
 - [Who It's For](#who-its-for)
 - [Key Features](#key-features)
 - [Editions & Pricing](#editions--pricing)
@@ -122,6 +123,21 @@ CrewForm gives you everything you need to orchestrate multi-agent AI workflows �
 - 📊 **Built-in Analytics** — Track token usage, costs, and performance per agent and task
 
 CrewForm is built for developers and teams who want production-ready AI agent orchestration. The AI agent ecosystem is rich with great tools — we encourage you to explore and choose what works best for your needs.
+
+## How It Works
+
+CrewForm supports 4 execution modes — choose the right one for your workflow:
+
+<p align="center">
+  <img src=".github/assets/workflow-modes.png" alt="CrewForm Workflow Modes" width="700" />
+</p>
+
+| Mode | Description |
+|------|-------------|
+| **Single Task** | Send a prompt to one agent — it uses its LLM and tools, then returns the result. The simplest way to get work done. |
+| **Pipeline** | Chain multiple agents in sequence. Each agent completes its task and passes the output to the next. Great for research → write → review workflows. |
+| **Orchestrator** | A brain agent breaks down the task, delegates sub-tasks to worker agents, reviews their outputs, and assembles the final result. |
+| **Collaboration** | Multiple agents discuss the task in a shared thread, debate approaches, and converge on a consensus result. |
 
 ## Who It's For
 
