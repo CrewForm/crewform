@@ -7,12 +7,12 @@ FROM node:20-alpine
 WORKDIR /usr/src/app
 
 # Copy package files and install dependencies
-COPY task-runner/package*.json ./
+COPY package*.json ./
 RUN npm ci --include=dev
 
 # Copy source code
-COPY task-runner/tsconfig.json .
-COPY task-runner/src ./src
+COPY tsconfig.json .
+COPY src ./src
 
 # Build TypeScript to dist/
 RUN npx tsc

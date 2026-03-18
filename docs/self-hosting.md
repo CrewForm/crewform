@@ -126,12 +126,41 @@ docker compose up -d
 
 ## Updating
 
+### Using the Update Script (Recommended)
+
 ```bash
+# Update to the latest version
+./docker/update.sh
+
+# Or update to a specific tag/branch
+./docker/update.sh v1.2.0
+```
+
+The script will:
+1. Pull the latest code
+2. Stop running containers (data is preserved)
+3. Rebuild images
+4. Restart services (migrations run automatically)
+
+### Manual Update
+
+```bash
+# 1. Pull latest code
 git pull origin main
+
+# 2. Check for new environment variables
+diff .env .env.example
+
+# 3. Rebuild and restart
+docker compose down
 docker compose build --no-cache
 docker compose up -d
-# Migrations run automatically on startup
+
+# 4. Verify migrations ran
+docker compose logs migrate
 ```
+
+> **💡 Tip:** Always check `.env.example` after updating — new features may require additional environment variables.
 
 ## Troubleshooting
 
