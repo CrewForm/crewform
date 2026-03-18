@@ -393,7 +393,7 @@ export function AgentForm({ initialData, onSubmit, onBack, activeProviders, work
                                     <p className="text-xs text-gray-500">{tool.description}</p>
                                     {isDisabled && (
                                         <p className="mt-1 text-xs text-yellow-400/70">
-                                            Requires a {tool.requiresProvider === 'serper' ? 'Serper' : tool.requiresProvider} API key — configure in Settings → API Keys
+                                            Requires a {reqProvider === 'serper' ? 'Serper' : reqProvider} API key — configure in Settings → LLM Setup
                                         </p>
                                     )}
                                 </div>
