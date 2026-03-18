@@ -638,8 +638,9 @@ function ConfigurationTab({ formData, fieldErrors, onUpdateField, modelOptions, 
                 <div className="space-y-2">
                     {BUILT_IN_TOOLS.map((tool) => {
                         const isEnabled = formData.tools.includes(tool.name)
-                        const providerMissing = tool.requiresProvider
-                            ? !activeProviders.some((p: string) => p.toLowerCase() === tool.requiresProvider?.toLowerCase())
+                        const reqProvider = tool.requiresProvider
+                        const providerMissing = reqProvider
+                            ? !activeProviders.some((p: string) => p.toLowerCase() === reqProvider.toLowerCase())
                             : false
                         const isDisabled = providerMissing
                         return (
