@@ -302,60 +302,118 @@ async function start() {
             log(`Webhook server listening on port ${PORT}`);
         });
 
-        // ── Realtime Subscriptions ────────────────────────────────────────────
+        // ── Realtime Subscriptions with Auto-Reconnect ──────────────────────
         // Subscribe to tasks and team_runs for near-instant pickup.
-        const channel = supabase
-            .channel('runner-dispatch')
-            .on(
-                'postgres_changes',
-                {
-                    event: 'UPDATE',
-                    schema: 'public',
-                    table: 'tasks',
-                    filter: 'status=eq.dispatched',
-                },
-                (payload) => {
-                    log(`Realtime: task ${(payload.new as { id: string }).id} dispatched — claiming`);
-                    void tryClaimTask().catch((err: unknown) => {
-                        logError('Realtime task claim failed:', err);
-                    });
-                },
-            )
-            .on(
-                'postgres_changes',
-                {
-                    event: 'INSERT',
-                    schema: 'public',
-                    table: 'tasks',
-                    filter: 'status=eq.dispatched',
-                },
-                (payload) => {
-                    log(`Realtime: new task ${(payload.new as { id: string }).id} — claiming`);
-                    void tryClaimTask().catch((err: unknown) => {
-                        logError('Realtime task claim failed:', err);
-                    });
-                },
-            )
-            .on(
-                'postgres_changes',
-                {
-                    event: 'INSERT',
-                    schema: 'public',
-                    table: 'team_runs',
-                    filter: 'status=eq.pending',
-                },
-                (payload) => {
-                    log(`Realtime: new team run ${(payload.new as { id: string }).id} — claiming`);
-                    void tryClaimTeamRun().catch((err: unknown) => {
-                        logError('Realtime team-run claim failed:', err);
-                    });
-                },
-            )
-            .subscribe((status) => {
-                log(`Realtime channel status: ${status}`);
-            });
+        // Railway (and other PaaS) may drop idle WebSocket connections,
+        // so we monitor channel health and reconnect automatically.
 
-        // Store channel reference for cleanup
+        const REALTIME_HEALTH_CHECK_MS = 60_000; // Check every 60s
+        let realtimeReconnectAttempt = 0;
+        const REALTIME_MAX_RECONNECT_DELAY_MS = 30_000;
+
+        function createRealtimeChannel() {
+            const ch = supabase
+                .channel('runner-dispatch')
+                .on(
+                    'postgres_changes',
+                    {
+                        event: 'UPDATE',
+                        schema: 'public',
+                        table: 'tasks',
+                        filter: 'status=eq.dispatched',
+                    },
+                    (payload) => {
+                        log(`Realtime: task ${(payload.new as { id: string }).id} dispatched — claiming`);
+                        void tryClaimTask().catch((err: unknown) => {
+                            logError('Realtime task claim failed:', err);
+                        });
+                    },
+                )
+                .on(
+                    'postgres_changes',
+                    {
+                        event: 'INSERT',
+                        schema: 'public',
+                        table: 'tasks',
+                        filter: 'status=eq.dispatched',
+                    },
+                    (payload) => {
+                        log(`Realtime: new task ${(payload.new as { id: string }).id} — claiming`);
+                        void tryClaimTask().catch((err: unknown) => {
+                            logError('Realtime task claim failed:', err);
+                        });
+                    },
+                )
+                .on(
+                    'postgres_changes',
+                    {
+                        event: 'INSERT',
+                        schema: 'public',
+                        table: 'team_runs',
+                        filter: 'status=eq.pending',
+                    },
+                    (payload) => {
+                        log(`Realtime: new team run ${(payload.new as { id: string }).id} — claiming`);
+                        void tryClaimTeamRun().catch((err: unknown) => {
+                            logError('Realtime team-run claim failed:', err);
+                        });
+                    },
+                )
+                .subscribe((status) => {
+                    log(`Realtime channel status: ${status}`);
+
+                    if (status === 'SUBSCRIBED') {
+                        realtimeReconnectAttempt = 0;
+                        // Catch any work missed while disconnected
+                        void poll();
+                    } else if (status === 'CHANNEL_ERROR' || status === 'CLOSED') {
+                        log('Realtime channel lost — scheduling reconnect...');
+                        void reconnectRealtime();
+                    }
+                });
+
+            return ch;
+        }
+
+        async function reconnectRealtime() {
+            realtimeReconnectAttempt++;
+            const delay = Math.min(
+                1000 * Math.pow(2, realtimeReconnectAttempt - 1),
+                REALTIME_MAX_RECONNECT_DELAY_MS,
+            );
+            log(`Realtime reconnect attempt ${realtimeReconnectAttempt} in ${delay}ms`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+
+            // Remove old channel
+            const oldChannel = (globalThis as Record<string, unknown>).__realtimeChannel;
+            if (oldChannel) {
+                try {
+                    await supabase.removeChannel(oldChannel as ReturnType<typeof supabase.channel>);
+                } catch {
+                    // Best-effort cleanup
+                }
+            }
+
+            // Create fresh channel
+            const newChannel = createRealtimeChannel();
+            (globalThis as Record<string, unknown>).__realtimeChannel = newChannel;
+        }
+
+        // Health check: detect silent disconnects
+        setInterval(() => {
+            const ch = (globalThis as Record<string, unknown>).__realtimeChannel as
+                ReturnType<typeof supabase.channel> | undefined;
+            if (!ch) return;
+
+            // Access internal state — Supabase JS exposes .state on RealtimeChannel
+            const state = (ch as unknown as { state: string }).state;
+            if (state && state !== 'joined' && state !== 'joining') {
+                log(`Realtime health check: channel state "${state}" — triggering reconnect`);
+                void reconnectRealtime();
+            }
+        }, REALTIME_HEALTH_CHECK_MS);
+
+        const channel = createRealtimeChannel();
         (globalThis as Record<string, unknown>).__realtimeChannel = channel;
 
         // Start recovery sweep and trigger evaluation on fixed intervals
