@@ -8,9 +8,12 @@
  * and returns the connected account label.
  */
 
+const PRODUCTION_API_URL = 'https://api.crewform.tech/functions/v1';
+
 const test = async (z, bundle) => {
+    const apiUrl = bundle.authData.api_url || PRODUCTION_API_URL;
     const response = await z.request({
-        url: `${bundle.authData.api_url}/api-me`,
+        url: `${apiUrl}/api-me`,
         method: 'GET',
     });
 
@@ -40,8 +43,10 @@ const authentication = {
             key: 'api_url',
             label: 'API URL',
             type: 'string',
-            required: true,
-            helpText: 'Your CrewForm Supabase URL (e.g. https://your-project.supabase.co/functions/v1)',
+            required: false,
+            default: PRODUCTION_API_URL,
+            helpText:
+                'CrewForm API endpoint. Leave as default unless you are self-hosting.',
         },
     ],
 
@@ -51,9 +56,10 @@ const authentication = {
 
 // Middleware — inject API key + base URL into every request
 const addApiKeyHeader = (request, z, bundle) => {
-    // Prefix relative URLs with the user-provided API URL
-    if (bundle.authData.api_url && !request.url.startsWith('http')) {
-        request.url = `${bundle.authData.api_url}${request.url}`;
+    const apiUrl = bundle.authData.api_url || PRODUCTION_API_URL;
+    // Prefix relative URLs with the API URL
+    if (!request.url.startsWith('http')) {
+        request.url = `${apiUrl}${request.url}`;
     }
 
     request.headers = request.headers || {};
