@@ -7,6 +7,8 @@ import { writeTeamRunUsageRecord } from './usageWriter';
 import { dispatchTeamRunWebhooks } from './webhookDispatcher';
 import { loadInputFiles, buildFileContext, extractAndSaveArtifacts } from './fileAttachments';
 import { storeTeamMemory, retrieveRelevantMemories, buildMemoryContext } from './teamMemory';
+import { executeWithToolLoop, getToolDefinitions } from './toolExecutor';
+import type { CustomToolConfig, ToolCallLog } from './toolExecutor';
 import type { TeamRun, Agent, ApiKey, PipelineConfig, PipelineStep, TeamHandoffContext, TokenUsage } from './types';
 
 /**
@@ -288,9 +290,11 @@ async function executeStep(input: StepInput): Promise<StepResult | null> {
                 userPrompt += fileContextBlock;
             }
 
-            // Execute LLM — no streaming for pipeline steps (results captured atomically)
-            const noopStream = async () => { /* no streaming for pipeline steps */ };
-            let executionResult;
+            // Execute LLM — check if agent has tools for tool-use mode
+            const agentTools: string[] = Array.isArray(agent.tools) ? agent.tools : [];
+            const hasTools = agentTools.length > 0;
+            let executionResult: { result: string; usage: TokenUsage };
+            let toolCallLogs: ToolCallLog[] = [];
             const provider = agent.provider.toLowerCase();
 
             // Base URL map for OpenAI-compatible providers
@@ -316,15 +320,109 @@ async function executeStep(input: StepInput): Promise<StepResult | null> {
                 effectiveModel = agent.model.replace(/^groq\//, '');
             }
 
-            if (provider === 'anthropic') {
-                executionResult = await executeAnthropic(rawKey, effectiveModel, systemPrompt, userPrompt, noopStream);
-            } else if (provider === 'google') {
-                executionResult = await executeGoogle(rawKey, effectiveModel, systemPrompt, userPrompt, noopStream);
-            } else if (provider === 'openai' || baseURLMap[provider]) {
+            if (hasTools) {
+                // ── Tool-Use Mode ──
+                console.log(`[PipelineExecutor] Step ${stepIndex + 1} agent has ${agentTools.length} tools: ${agentTools.join(', ')}`);
+
+                // Fetch Serper API key if web_search is enabled
+                let serperApiKey: string | undefined;
+                if (agentTools.includes('web_search')) {
+                    const serperKeyResult = await supabase
+                        .from('api_keys')
+                        .select('*')
+                        .eq('workspace_id', run.workspace_id)
+                        .eq('provider', 'serper')
+                        .single();
+                    const serperKeyData = serperKeyResult.data as ApiKey | null;
+                    if (serperKeyData) {
+                        serperApiKey = decryptApiKey(serperKeyData.encrypted_key);
+                    } else {
+                        console.warn('[PipelineExecutor] web_search enabled but no Serper API key found');
+                    }
+                }
+
+                // Fetch custom tools if any
+                let customToolConfigs: CustomToolConfig[] = [];
+                const hasCustomTools = agentTools.some(t => t.startsWith('custom:'));
+                if (hasCustomTools) {
+                    const customToolIds = agentTools.filter(t => t.startsWith('custom:')).map(t => t.replace('custom:', ''));
+                    const ctResult = await supabase.from('custom_tools').select('*').in('id', customToolIds);
+                    if (ctResult.data) customToolConfigs = ctResult.data as CustomToolConfig[];
+                }
+
+                // Use OpenAI SDK for tool-use (all providers are OpenAI-compatible)
+                const OpenAI = (await import('openai')).default;
                 const baseURL = baseURLMap[provider];
-                executionResult = await executeOpenAI(rawKey, effectiveModel, systemPrompt, userPrompt, noopStream, baseURL);
+                const openai = new OpenAI({ apiKey: rawKey, ...(baseURL ? { baseURL } : {}) });
+                const tools = getToolDefinitions(agentTools, customToolConfigs);
+
+                const toolLoopResult = await executeWithToolLoop(
+                    async (messages, toolDefs) => {
+                        const openaiMessages = messages.map(m => {
+                            if (m.role === 'system') return { role: 'system' as const, content: m.content ?? '' };
+                            if (m.role === 'user') return { role: 'user' as const, content: m.content ?? '' };
+                            if (m.role === 'tool') return { role: 'tool' as const, content: m.content ?? '', tool_call_id: m.tool_call_id ?? '' };
+                            const assistantMsg: { role: 'assistant'; content: string; tool_calls?: { id: string; type: 'function'; function: { name: string; arguments: string } }[] } = {
+                                role: 'assistant' as const,
+                                content: m.content ?? '',
+                            };
+                            if (m.tool_calls && m.tool_calls.length > 0) {
+                                assistantMsg.tool_calls = m.tool_calls.map(tc => ({
+                                    id: tc.id,
+                                    type: 'function' as const,
+                                    function: { name: tc.function.name, arguments: tc.function.arguments },
+                                }));
+                            }
+                            return assistantMsg;
+                        });
+
+                        const response = await openai.chat.completions.create({
+                            model: effectiveModel,
+                            messages: openaiMessages,
+                            tools: toolDefs,
+                            ...(agent.max_tokens != null ? { max_tokens: agent.max_tokens } : {}),
+                        });
+
+                        const choice = response.choices[0];
+                        const msg = choice?.message;
+                        const tc = msg?.tool_calls?.map(t => ({
+                            id: t.id,
+                            function: {
+                                name: (t as { function: { name: string; arguments: string } }).function.name,
+                                arguments: (t as { function: { name: string; arguments: string } }).function.arguments,
+                            },
+                        }));
+
+                        return {
+                            message: { role: 'assistant' as const, content: msg?.content ?? null, tool_calls: tc },
+                            usage: { promptTokens: response.usage?.prompt_tokens ?? 0, completionTokens: response.usage?.completion_tokens ?? 0 },
+                        };
+                    },
+                    systemPrompt,
+                    userPrompt,
+                    agentTools,
+                    customToolConfigs,
+                    serperApiKey,
+                );
+
+                void tools; // used internally
+                executionResult = { result: toolLoopResult.result, usage: toolLoopResult.usage };
+                toolCallLogs = toolLoopResult.toolCallLogs;
+                console.log(`[PipelineExecutor] Step ${stepIndex + 1} tool-use complete. ${toolLoopResult.toolCallsMade} tool calls made.`);
             } else {
-                throw new Error(`Provider "${provider}" is not supported.`);
+                // ── Direct LLM Mode (no tools) ──
+                const noopStream = async () => { /* no streaming for pipeline steps */ };
+
+                if (provider === 'anthropic') {
+                    executionResult = await executeAnthropic(rawKey, effectiveModel, systemPrompt, userPrompt, noopStream);
+                } else if (provider === 'google') {
+                    executionResult = await executeGoogle(rawKey, effectiveModel, systemPrompt, userPrompt, noopStream);
+                } else if (provider === 'openai' || baseURLMap[provider]) {
+                    const baseURL = baseURLMap[provider];
+                    executionResult = await executeOpenAI(rawKey, effectiveModel, systemPrompt, userPrompt, noopStream, baseURL);
+                } else {
+                    throw new Error(`Provider "${provider}" is not supported.`);
+                }
             }
 
             // Record result message
@@ -339,6 +437,7 @@ async function executeStep(input: StepInput): Promise<StepResult | null> {
                     model: agent.model,
                     tokens: executionResult.usage.totalTokens,
                     cost: executionResult.usage.costEstimateUSD,
+                    tool_calls: toolCallLogs.length > 0 ? toolCallLogs : undefined,
                 },
                 step_idx: stepIndex,
                 tokens_used: executionResult.usage.totalTokens,

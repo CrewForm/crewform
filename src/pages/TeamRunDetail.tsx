@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 CrewForm
 
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
     ArrowLeft,
@@ -15,6 +16,9 @@ import {
     Cog,
     Brain,
     GitBranch,
+    Wrench,
+    ChevronDown,
+    ChevronRight,
 } from 'lucide-react'
 import { useTeamRun } from '@/hooks/useTeamRun'
 import { useTeam } from '@/hooks/useTeam'
@@ -322,10 +326,71 @@ function MessageCard({ message, agents }: MessageCardProps) {
                 </span>
             </div>
             <MarkdownContent content={message.content} />
+            {/* Tool calls from metadata */}
+            {(() => {
+                const meta = message.metadata as Record<string, unknown> | null
+                const toolCalls = Array.isArray(meta?.tool_calls) ? meta.tool_calls as { tool: string; arguments: Record<string, unknown>; result: string; success: boolean; duration_ms: number }[] : []
+                if (toolCalls.length === 0) return null
+                return (
+                    <div className="mt-3 border-t border-border pt-2">
+                        <p className="mb-1.5 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wider text-gray-500">
+                            <Wrench className="h-3 w-3" />
+                            Tool Calls ({toolCalls.length})
+                        </p>
+                        <div className="space-y-1.5">
+                            {toolCalls.map((tc, i) => (
+                                <ToolCallRow key={i} call={tc} />
+                            ))}
+                        </div>
+                    </div>
+                )
+            })()}
             {message.tokens_used > 0 && (
                 <p className="mt-1 text-[10px] text-gray-600">
                     {message.tokens_used.toLocaleString()} tokens
                 </p>
+            )}
+        </div>
+    )
+}
+
+// ─── Tool Call Row (reused pattern from TaskDetailPanel) ────────────────────
+
+function ToolCallRow({ call }: { call: { tool: string; arguments: Record<string, unknown>; result: string; success: boolean; duration_ms: number } }) {
+    const [expanded, setExpanded] = useState(false)
+
+    return (
+        <div className="rounded border border-border bg-surface-primary">
+            <button
+                type="button"
+                onClick={() => setExpanded(!expanded)}
+                className="flex w-full items-center gap-1.5 px-2 py-1 text-left text-xs transition-colors hover:bg-surface-elevated"
+            >
+                {expanded ? <ChevronDown className="h-3 w-3 text-gray-500" /> : <ChevronRight className="h-3 w-3 text-gray-500" />}
+                {call.success
+                    ? <CheckCircle2 className="h-3 w-3 text-green-400" />
+                    : <XCircle className="h-3 w-3 text-red-400" />
+                }
+                <span className="font-mono text-[11px] text-gray-300">{call.tool}</span>
+                <span className="ml-auto rounded bg-surface-elevated px-1 py-0.5 text-[9px] text-gray-500">
+                    {call.duration_ms}ms
+                </span>
+            </button>
+            {expanded && (
+                <div className="border-t border-border px-2 py-1.5 space-y-1.5">
+                    <div>
+                        <p className="text-[9px] font-medium uppercase tracking-wider text-gray-500 mb-0.5">Arguments</p>
+                        <pre className="rounded bg-surface-card p-1.5 text-[10px] text-gray-400 overflow-x-auto">
+                            {JSON.stringify(call.arguments, null, 2)}
+                        </pre>
+                    </div>
+                    <div>
+                        <p className="text-[9px] font-medium uppercase tracking-wider text-gray-500 mb-0.5">Result</p>
+                        <pre className="rounded bg-surface-card p-1.5 text-[10px] text-gray-400 overflow-x-auto whitespace-pre-wrap">
+                            {call.result}
+                        </pre>
+                    </div>
+                </div>
             )}
         </div>
     )
