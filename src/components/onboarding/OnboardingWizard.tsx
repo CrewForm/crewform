@@ -52,7 +52,7 @@ const API_KEY_URLS: Record<string, string> = {
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export function OnboardingWizard() {
-    const { workspaceId, workspace } = useWorkspace()
+    const { workspaceId, workspace, isLoading: workspaceLoading } = useWorkspace()
     const { agents } = useAgents(workspaceId)
     const createAgent = useCreateAgent()
     const navigate = useNavigate()
@@ -95,7 +95,11 @@ export function OnboardingWizard() {
 
     // ── Save API key to api_keys table ──
     async function handleSaveKey() {
-        if (!workspaceId || !apiKey.trim()) return
+        if (!workspaceId) {
+            setError('Workspace not loaded yet. Please wait a moment and try again.')
+            return
+        }
+        if (!apiKey.trim()) return
         setKeySaving(true)
         setError(null)
         try {
@@ -231,6 +235,15 @@ export function OnboardingWizard() {
         } catch (e) {
             setError(e instanceof Error ? e.message : 'Failed to complete setup')
         }
+    }
+
+    if (workspaceLoading) {
+        return (
+            <div className="mx-auto max-w-2xl py-8 px-4 flex flex-col items-center justify-center gap-4">
+                <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
+                <p className="text-sm text-gray-400">Loading workspace…</p>
+            </div>
+        )
     }
 
     return (

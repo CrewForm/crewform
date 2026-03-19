@@ -11,6 +11,7 @@ import {
   GitBranch,
 } from 'lucide-react'
 import { useWorkspace } from '@/hooks/useWorkspace'
+import { useAuth } from '@/hooks/useAuth'
 import { useDashboardStats, useAgentPerformance, useTeamPerformance, useRecentActivity } from '@/hooks/useDashboard'
 import { StatCard } from '@/components/dashboard/StatCard'
 import { AgentPerformanceGrid } from '@/components/dashboard/AgentPerformanceGrid'
@@ -27,14 +28,17 @@ import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard'
  */
 export function Dashboard() {
   const { workspace, workspaceId } = useWorkspace()
+  const { user } = useAuth()
   const { stats, isLoading: isLoadingStats, error: statsError } = useDashboardStats(workspaceId)
   const { agents: performanceAgents, isLoading: isLoadingAgents } = useAgentPerformance(workspaceId)
   const { teams: performanceTeams, isLoading: isLoadingTeams } = useTeamPerformance(workspaceId)
   const { activity, isLoading: isLoadingActivity } = useRecentActivity(workspaceId)
 
-  // Show onboarding for new users (only check the completion flag)
+  // Show onboarding only for workspace owners who haven't completed it yet.
+  // Invited members (non-owners) skip onboarding — they join an already-configured workspace.
+  const isOwner = workspace?.owner_id === user?.id
   const onboardingCompleted = workspace?.settings.onboarding_completed === true
-  const showOnboarding = !onboardingCompleted
+  const showOnboarding = isOwner && !onboardingCompleted
 
   if (showOnboarding) {
     return <OnboardingWizard />
