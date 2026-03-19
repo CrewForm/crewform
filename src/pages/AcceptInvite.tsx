@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { Loader2, CheckCircle2, XCircle, UserPlus } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { acceptInvitation } from '@/db/members'
@@ -13,6 +14,7 @@ export function AcceptInvite() {
     const { token } = useParams<{ token: string }>()
     const navigate = useNavigate()
     const { user, loading: authLoading } = useAuth()
+    const queryClient = useQueryClient()
     const [state, setState] = useState<InviteState>('loading')
     const [errorMsg, setErrorMsg] = useState('')
 
@@ -39,6 +41,7 @@ export function AcceptInvite() {
                     // Switch to the invited workspace
                     if (result.workspace_id) {
                         localStorage.setItem('crewform:activeWorkspaceId', result.workspace_id)
+                        void queryClient.invalidateQueries({ queryKey: ['workspace'] })
                     }
                     setState('success')
                     // Redirect to dashboard after a short delay
