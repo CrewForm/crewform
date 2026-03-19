@@ -8,6 +8,8 @@ import { executeAnthropic } from './providers/anthropic';
 import { executeOpenAI } from './providers/openai';
 import { executeGoogle } from './providers/google';
 import { decryptApiKey } from './crypto';
+import { executeWithToolLoop, getToolDefinitions } from './toolExecutor';
+import type { CustomToolConfig, ToolCallLog } from './toolExecutor';
 import type { Agent, ApiKey, TokenUsage } from './types';
 
 export interface LLMCallInput {
@@ -16,6 +18,8 @@ export interface LLMCallInput {
     systemPrompt: string;
     userPrompt: string;
     onStream?: (text: string) => Promise<void> | void;
+    /** When true, checks if the agent has tools and uses tool-use loop */
+    enableTools?: boolean;
 }
 
 export interface LLMCallResult {
@@ -23,6 +27,7 @@ export interface LLMCallResult {
     usage: TokenUsage;
     provider: string;
     model: string;
+    toolCallLogs: ToolCallLog[];
 }
 
 // ─── Retry Configuration ─────────────────────────────────────────────────────
@@ -93,14 +98,9 @@ export async function executeLLMCall(input: LLMCallInput): Promise<LLMCallResult
 
     const rawKey = decryptApiKey(apiKeyData.encrypted_key);
 
-    // 3. Route to provider with retry logic
+    // Provider routing common to both tool-use and direct modes
     const provider = agent.provider.toLowerCase();
-    const rawStreamFn = input.onStream;
-    const streamFn = async (text: string): Promise<void> => {
-        if (rawStreamFn) await rawStreamFn(text);
-    };
 
-    // Base URL map for OpenAI-compatible providers
     const baseURLMap: Record<string, string> = {
         openrouter: 'https://openrouter.ai/api/v1',
         groq: 'https://api.groq.com/openai/v1',
@@ -115,13 +115,117 @@ export async function executeLLMCall(input: LLMCallInput): Promise<LLMCallResult
         perplexity: 'https://api.perplexity.ai',
     };
 
-    // Strip provider prefix from model name if needed
     let effectiveModel = agent.model;
     if (provider === 'openrouter') {
         effectiveModel = agent.model.replace(/^openrouter\//, '');
     } else if (provider === 'groq') {
         effectiveModel = agent.model.replace(/^groq\//, '');
     }
+
+    // 3. Check if tool-use mode is requested and agent has tools
+    const agentTools: string[] = Array.isArray(agent.tools) ? agent.tools : [];
+    const useToolLoop = input.enableTools === true && agentTools.length > 0;
+
+    if (useToolLoop) {
+        // ── Tool-Use Mode ──
+        console.log(`[LLMHelper] Agent ${agent.name} has ${agentTools.length} tools: ${agentTools.join(', ')}`);
+
+        // Fetch Serper API key if web_search is enabled
+        let serperApiKey: string | undefined;
+        if (agentTools.includes('web_search')) {
+            const serperKeyResult = await supabase
+                .from('api_keys')
+                .select('*')
+                .eq('workspace_id', input.workspaceId)
+                .eq('provider', 'serper')
+                .single();
+            const serperKeyData = serperKeyResult.data as ApiKey | null;
+            if (serperKeyData) {
+                serperApiKey = decryptApiKey(serperKeyData.encrypted_key);
+            } else {
+                console.warn('[LLMHelper] web_search enabled but no Serper API key found');
+            }
+        }
+
+        // Fetch custom tools if any
+        let customToolConfigs: CustomToolConfig[] = [];
+        const hasCustomTools = agentTools.some(t => t.startsWith('custom:'));
+        if (hasCustomTools) {
+            const customToolIds = agentTools.filter(t => t.startsWith('custom:')).map(t => t.replace('custom:', ''));
+            const ctResult = await supabase.from('custom_tools').select('*').in('id', customToolIds);
+            if (ctResult.data) customToolConfigs = ctResult.data as CustomToolConfig[];
+        }
+
+        // Use OpenAI SDK for tool-use loop
+        const OpenAI = (await import('openai')).default;
+        const baseURL = baseURLMap[provider];
+        const openai = new OpenAI({ apiKey: rawKey, ...(baseURL ? { baseURL } : {}) });
+        void getToolDefinitions(agentTools, customToolConfigs); // validate
+
+        const toolLoopResult = await executeWithToolLoop(
+            async (messages, toolDefs) => {
+                const openaiMessages = messages.map(m => {
+                    if (m.role === 'system') return { role: 'system' as const, content: m.content ?? '' };
+                    if (m.role === 'user') return { role: 'user' as const, content: m.content ?? '' };
+                    if (m.role === 'tool') return { role: 'tool' as const, content: m.content ?? '', tool_call_id: m.tool_call_id ?? '' };
+                    const assistantMsg: { role: 'assistant'; content: string; tool_calls?: { id: string; type: 'function'; function: { name: string; arguments: string } }[] } = {
+                        role: 'assistant' as const,
+                        content: m.content ?? '',
+                    };
+                    if (m.tool_calls && m.tool_calls.length > 0) {
+                        assistantMsg.tool_calls = m.tool_calls.map(tc => ({
+                            id: tc.id,
+                            type: 'function' as const,
+                            function: { name: tc.function.name, arguments: tc.function.arguments },
+                        }));
+                    }
+                    return assistantMsg;
+                });
+
+                const response = await openai.chat.completions.create({
+                    model: effectiveModel,
+                    messages: openaiMessages,
+                    tools: toolDefs,
+                });
+
+                const choice = response.choices[0];
+                const msg = choice?.message;
+                const tc = msg?.tool_calls?.map(t => ({
+                    id: t.id,
+                    function: {
+                        name: (t as { function: { name: string; arguments: string } }).function.name,
+                        arguments: (t as { function: { name: string; arguments: string } }).function.arguments,
+                    },
+                }));
+
+                return {
+                    message: { role: 'assistant' as const, content: msg?.content ?? null, tool_calls: tc },
+                    usage: { promptTokens: response.usage?.prompt_tokens ?? 0, completionTokens: response.usage?.completion_tokens ?? 0 },
+                };
+            },
+            input.systemPrompt,
+            input.userPrompt,
+            agentTools,
+            customToolConfigs,
+            serperApiKey,
+        );
+
+        console.log(`[LLMHelper] Tool-use complete. ${toolLoopResult.toolCallsMade} tool calls made.`);
+
+        return {
+            result: toolLoopResult.result,
+            usage: toolLoopResult.usage,
+            provider: agent.provider,
+            model: agent.model,
+            toolCallLogs: toolLoopResult.toolCallLogs,
+        };
+    }
+
+    // 4. Route to provider with retry logic (no tools)
+    const rawStreamFn = input.onStream;
+    const streamFn = async (text: string): Promise<void> => {
+        if (rawStreamFn) await rawStreamFn(text);
+    };
 
     // ─── Retry Loop ──────────────────────────────────────────────────────────
     let lastError: unknown;
@@ -146,6 +250,7 @@ export async function executeLLMCall(input: LLMCallInput): Promise<LLMCallResult
                 usage: executionResult.usage,
                 provider: agent.provider,
                 model: agent.model,
+                toolCallLogs: [],
             };
         } catch (err: unknown) {
             lastError = err;

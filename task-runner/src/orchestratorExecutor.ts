@@ -370,6 +370,7 @@ async function executeToolCall(
                     agentId,
                     systemPrompt: worker.system_prompt || 'You are a helpful AI assistant.',
                     userPrompt: instruction,
+                    enableTools: true,
                 });
 
                 // Update delegation
@@ -386,7 +387,9 @@ async function executeToolCall(
                 delegation.status = 'completed';
                 delegations.set(delegation.id, delegation);
 
-                await recordMessage(run.id, agentId, 'result', `Worker "${worker.name}" result: ${workerResult.result.substring(0, 500)}...`);
+                await recordMessage(run.id, agentId, 'worker_result', `Worker "${worker.name}" result: ${workerResult.result.substring(0, 500)}...`, {
+                    tool_calls: workerResult.toolCallLogs.length > 0 ? workerResult.toolCallLogs : undefined,
+                });
 
                 return {
                     result: `Worker "${worker.name}" completed. Delegation ID: ${delegation.id}\n\nResult:\n${workerResult.result}`,
@@ -441,6 +444,7 @@ async function executeToolCall(
                     agentId: delegation.worker_agent_id,
                     systemPrompt: worker?.system_prompt || 'You are a helpful AI assistant.',
                     userPrompt: revisionPrompt,
+                    enableTools: true,
                 });
 
                 await supabase
@@ -457,7 +461,9 @@ async function executeToolCall(
                 delegation.revision_count += 1;
                 delegations.set(delegationId, delegation);
 
-                await recordMessage(run.id, delegation.worker_agent_id, 'result', `Worker "${workerName}" revised result: ${workerResult.result.substring(0, 500)}...`);
+                await recordMessage(run.id, delegation.worker_agent_id, 'worker_result', `Worker "${workerName}" revised result: ${workerResult.result.substring(0, 500)}...`, {
+                    tool_calls: workerResult.toolCallLogs.length > 0 ? workerResult.toolCallLogs : undefined,
+                });
 
                 return {
                     result: `Worker "${workerName}" revised output (revision ${delegation.revision_count}). Delegation ID: ${delegationId}\n\nRevised Result:\n${workerResult.result}`,
@@ -613,12 +619,14 @@ async function recordMessage(
     agentId: string,
     messageType: string,
     content: string,
+    metadata?: Record<string, unknown>,
 ): Promise<void> {
     await supabase.from('team_messages').insert({
         run_id: runId,
         sender_agent_id: agentId,
         message_type: messageType,
         content: content.substring(0, 10000), // Cap message length
+        metadata: metadata ?? null,
     });
 }
 

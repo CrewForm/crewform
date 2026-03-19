@@ -115,6 +115,7 @@ export async function processCollaborationRun(run: TeamRun): Promise<void> {
                 agentId: speakerId,
                 systemPrompt,
                 userPrompt,
+                enableTools: true,
             });
 
             totalTokens += result.usage.totalTokens;
@@ -135,6 +136,7 @@ export async function processCollaborationRun(run: TeamRun): Promise<void> {
                 model: result.model,
                 tokens: result.usage.totalTokens,
                 cost: result.usage.costEstimateUSD,
+                tool_calls: result.toolCallLogs.length > 0 ? result.toolCallLogs : undefined,
             });
 
             // Write per-turn usage record
