@@ -4,6 +4,26 @@ All notable changes to CrewForm will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.1.0] - 2026-03-20
+
+### Added
+
+- **Agent Tool Support for Teams** — Agents in Pipeline, Orchestrator, and Collaboration team modes can now use their configured tools (e.g. web search) during execution
+- **Tool Call Tracking** — Tool call logs (arguments, results, duration) are captured and displayed in both Task Detail and Team Run Detail views
+- **Change Password** — Users can now change their password in Settings → Profile
+- **Execution Mode Tutorials** — Added comprehensive tutorials for all 4 execution modes
+
+### Fixed
+
+- **Realtime Auto-Reconnect** — Task runner now detects dropped WebSocket connections and auto-reconnects with exponential backoff, preventing 4-5 minute delays in team run pickup
+- **Docker Build** — Fixed Dockerfile COPY paths for repo-root build context
+- **Onboarding Flow** — Fixed invite redirect through email confirmation and onboarding bugs for new users
+
+### Changed
+
+- **Zapier Integration** — Hardcoded production API URL (`api.crewform.tech`), removed user-provided Supabase URL field for security compliance
+- **Landing Page** — Updated CTAs from "Join the Beta" to "Get Started Free"
+
 ## [0.1.0] - 2026-03-09
 
 ### Added
