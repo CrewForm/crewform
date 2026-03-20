@@ -4,16 +4,17 @@
  * Uses API Key auth — the user enters their CrewForm REST API key,
  * which is sent as an X-API-Key header on all requests.
  *
+ * All requests go to the CrewForm production API at api.crewform.tech.
+ *
  * The test function calls GET /api-me to verify the key is valid
  * and returns the connected account label.
  */
 
-const PRODUCTION_API_URL = 'https://api.crewform.tech/functions/v1';
+const API_BASE_URL = 'https://api.crewform.tech/functions/v1';
 
 const test = async (z, bundle) => {
-    const apiUrl = bundle.authData.api_url || PRODUCTION_API_URL;
     const response = await z.request({
-        url: `${apiUrl}/api-me`,
+        url: `${API_BASE_URL}/api-me`,
         method: 'GET',
     });
 
@@ -39,27 +40,17 @@ const authentication = {
             required: true,
             helpText: 'Your CrewForm REST API key. Find it in Settings → API Keys.',
         },
-        {
-            key: 'api_url',
-            label: 'API URL',
-            type: 'string',
-            required: false,
-            default: PRODUCTION_API_URL,
-            helpText:
-                'CrewForm API endpoint. Leave as default unless you are self-hosting.',
-        },
     ],
 
     test: test,
     connectionLabel: getConnectionLabel,
 };
 
-// Middleware — inject API key + base URL into every request
+// Middleware — inject API key header and base URL into every request
 const addApiKeyHeader = (request, z, bundle) => {
-    const apiUrl = bundle.authData.api_url || PRODUCTION_API_URL;
-    // Prefix relative URLs with the API URL
+    // Prefix relative URLs with the production API base URL
     if (!request.url.startsWith('http')) {
-        request.url = `${apiUrl}${request.url}`;
+        request.url = `${API_BASE_URL}${request.url}`;
     }
 
     request.headers = request.headers || {};
