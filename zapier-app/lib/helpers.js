@@ -7,8 +7,10 @@
  * - performList: Polling fallback for sample data
  */
 
-const getBaseUrl = (bundle) => {
-    return bundle.authData.api_url || process.env.CREWFORM_API_URL;
+const API_BASE_URL = 'https://api.crewform.tech/functions/v1';
+
+const getBaseUrl = () => {
+    return API_BASE_URL;
 };
 
 /**
