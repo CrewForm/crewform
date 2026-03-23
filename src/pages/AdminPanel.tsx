@@ -6,19 +6,20 @@ import { toast } from 'sonner'
 import {
     Shield, BarChart3, Building2, Search,
     Loader2, Users, Bot, ListTodo, PackageOpen, Store, XCircle, ShieldCheck,
-    Activity, Coins, Zap, UserCheck, Ban, Trash2, ShieldOff,
+    Activity, Coins, Zap, UserCheck, Ban, Trash2, ShieldOff, AlertTriangle,
 } from 'lucide-react'
 import {
     usePlatformStats, useAllWorkspaces, useOverridePlan, useToggleBeta,
     useBetaUsers, useApproveBetaUser, useAllUsers, usePlatformAuditLog,
     useSuspendWorkspace, useUnsuspendWorkspace, useDeleteWorkspace,
+    useWorkspaceUsageStats,
 } from '@/hooks/useAdmin'
 import { ReviewQueue } from '@/components/marketplace/ReviewQueue'
 import { LicenseAdminPanel } from '@/components/settings/LicenseAdminPanel'
 import { fetchPublishedAgents, unpublishAgent } from '@/db/marketplace'
 import { cn } from '@/lib/utils'
 
-type AdminTab = 'overview' | 'workspaces' | 'beta-users' | 'activity' | 'review-queue' | 'marketplace' | 'licenses'
+type AdminTab = 'overview' | 'workspaces' | 'abuse' | 'beta-users' | 'activity' | 'review-queue' | 'marketplace' | 'licenses'
 
 const PLAN_COLORS: Record<string, string> = {
     free: 'text-gray-400 bg-gray-500/10',
@@ -51,6 +52,7 @@ export function AdminPanel() {
                 {([
                     { key: 'overview' as const, label: 'Overview', icon: BarChart3 },
                     { key: 'workspaces' as const, label: 'Workspaces', icon: Building2 },
+                    { key: 'abuse' as const, label: 'Abuse', icon: AlertTriangle },
                     { key: 'activity' as const, label: 'Activity', icon: Activity },
                     { key: 'beta-users' as const, label: 'Beta Users', icon: Users },
                     { key: 'licenses' as const, label: 'Licenses', icon: ShieldCheck },
@@ -77,6 +79,7 @@ export function AdminPanel() {
             {/* Tab content */}
             {activeTab === 'overview' && <OverviewTab />}
             {activeTab === 'workspaces' && <WorkspacesTab />}
+            {activeTab === 'abuse' && <AbuseTab />}
             {activeTab === 'activity' && <ActivityTab />}
             {activeTab === 'beta-users' && <BetaUsersTab />}
             {activeTab === 'licenses' && <LicenseAdminPanel />}
@@ -913,6 +916,232 @@ function ScannerConfigPanel() {
                     ✓ Scanner: <span className="font-medium">{agentName}</span>
                 </p>
             )}
+        </div>
+    )
+}
+
+// ─── Abuse Dashboard Tab ────────────────────────────────────────────────────
+
+const ABUSE_THRESHOLDS = {
+    taskCount: 500,
+    teamRunCount: 100,
+    tokens: 5_000_000,
+    costUsd: 50,
+}
+
+function AbuseTab() {
+    const [days, setDays] = useState(7)
+    const { data: stats, isLoading } = useWorkspaceUsageStats(days)
+    const suspendMutation = useSuspendWorkspace()
+    const [search, setSearch] = useState('')
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center py-16">
+                <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
+            </div>
+        )
+    }
+
+    const entries = stats ?? []
+    const flagged = entries.filter(ws =>
+        ws.task_count > ABUSE_THRESHOLDS.taskCount ||
+        ws.team_run_count > ABUSE_THRESHOLDS.teamRunCount ||
+        ws.total_tokens > ABUSE_THRESHOLDS.tokens ||
+        ws.total_cost_usd > ABUSE_THRESHOLDS.costUsd,
+    )
+
+    const filtered = entries.filter(ws =>
+        ws.workspace_name.toLowerCase().includes(search.toLowerCase()),
+    )
+
+    function handleSuspend(wsId: string, wsName: string) {
+        const reason = prompt(
+            `Suspend workspace "${wsName}"?\n\nProvide a reason (shown to the workspace owner):`,
+        )
+        if (reason === null) return
+        if (!reason.trim()) {
+            toast.error('A suspension reason is required.')
+            return
+        }
+        suspendMutation.mutate({ workspaceId: wsId, reason: reason.trim() }, {
+            onSuccess: () => toast.success(`"${wsName}" has been suspended.`),
+            onError: () => toast.error('Failed to suspend workspace.'),
+        })
+    }
+
+    return (
+        <div className="space-y-6">
+            {/* Header row */}
+            <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                    <h2 className="text-lg font-semibold text-gray-100">Usage Monitor</h2>
+                    <p className="text-xs text-gray-500">
+                        {flagged.length > 0 ? (
+                            <span className="text-amber-400">
+                                {flagged.length} workspace{flagged.length !== 1 ? 's' : ''} exceeding thresholds
+                            </span>
+                        ) : (
+                            'No workspaces exceeding thresholds'
+                        )}
+                    </p>
+                </div>
+                <div className="flex items-center gap-3">
+                    <label className="text-xs text-gray-500">Time window:</label>
+                    <select
+                        value={days}
+                        onChange={(e) => setDays(Number(e.target.value))}
+                        className="rounded-lg border border-border bg-surface-card px-3 py-1.5 text-xs text-gray-200 outline-none"
+                    >
+                        <option value={1}>Last 24h</option>
+                        <option value={7}>Last 7 days</option>
+                        <option value={30}>Last 30 days</option>
+                        <option value={90}>Last 90 days</option>
+                    </select>
+                </div>
+            </div>
+
+            {/* Threshold info */}
+            <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3">
+                <p className="text-xs text-amber-300">
+                    <AlertTriangle className="mr-1 inline h-3 w-3" />
+                    Flagged thresholds ({days}d window): {ABUSE_THRESHOLDS.taskCount}+ tasks,{' '}
+                    {ABUSE_THRESHOLDS.teamRunCount}+ team runs,{' '}
+                    {(ABUSE_THRESHOLDS.tokens / 1_000_000).toFixed(0)}M+ tokens,{' '}
+                    ${ABUSE_THRESHOLDS.costUsd}+ cost
+                </p>
+            </div>
+
+            {/* Search */}
+            <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+                <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search workspaces..."
+                    className="w-full rounded-lg border border-border bg-surface-card py-2.5 pl-10 pr-4 text-sm text-gray-200 outline-none focus:border-brand-primary"
+                />
+            </div>
+
+            {/* Usage table */}
+            <div className="rounded-xl border border-border bg-surface-card overflow-x-auto">
+                <table className="w-full text-sm">
+                    <thead>
+                        <tr className="border-b border-border text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                            <th className="px-4 py-3">Workspace</th>
+                            <th className="px-4 py-3">Plan</th>
+                            <th className="px-4 py-3 text-right">Tasks</th>
+                            <th className="px-4 py-3 text-right">Team Runs</th>
+                            <th className="px-4 py-3 text-right">Tokens</th>
+                            <th className="px-4 py-3 text-right">Cost</th>
+                            <th className="px-4 py-3">Status</th>
+                            <th className="px-4 py-3">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/50">
+                        {filtered.length === 0 ? (
+                            <tr>
+                                <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+                                    No workspaces found
+                                </td>
+                            </tr>
+                        ) : (
+                            filtered.map((ws) => {
+                                const isFlagged =
+                                    ws.task_count > ABUSE_THRESHOLDS.taskCount ||
+                                    ws.team_run_count > ABUSE_THRESHOLDS.teamRunCount ||
+                                    ws.total_tokens > ABUSE_THRESHOLDS.tokens ||
+                                    ws.total_cost_usd > ABUSE_THRESHOLDS.costUsd
+                                const isSuspended = !!ws.suspended_at
+                                return (
+                                    <tr key={ws.workspace_id} className={cn(
+                                        'hover:bg-surface-raised/50',
+                                        isFlagged && !isSuspended && 'bg-amber-500/5',
+                                        isSuspended && 'bg-red-500/5',
+                                    )}>
+                                        <td className="px-4 py-3">
+                                            <div className="flex items-center gap-2">
+                                                {isFlagged && !isSuspended && (
+                                                    <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-400" />
+                                                )}
+                                                <span className="font-medium text-gray-200">{ws.workspace_name}</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <span className={cn(
+                                                'rounded px-1.5 py-0.5 text-[10px] font-bold uppercase',
+                                                PLAN_COLORS[ws.plan] ?? PLAN_COLORS.free,
+                                            )}>
+                                                {ws.plan}
+                                            </span>
+                                        </td>
+                                        <td className={cn(
+                                            'px-4 py-3 text-right tabular-nums',
+                                            ws.task_count > ABUSE_THRESHOLDS.taskCount ? 'text-amber-400 font-bold' : 'text-gray-300',
+                                        )}>
+                                            {ws.task_count.toLocaleString()}
+                                        </td>
+                                        <td className={cn(
+                                            'px-4 py-3 text-right tabular-nums',
+                                            ws.team_run_count > ABUSE_THRESHOLDS.teamRunCount ? 'text-amber-400 font-bold' : 'text-gray-300',
+                                        )}>
+                                            {ws.team_run_count.toLocaleString()}
+                                        </td>
+                                        <td className={cn(
+                                            'px-4 py-3 text-right tabular-nums',
+                                            ws.total_tokens > ABUSE_THRESHOLDS.tokens ? 'text-amber-400 font-bold' : 'text-gray-300',
+                                        )}>
+                                            {ws.total_tokens > 1_000_000
+                                                ? `${(ws.total_tokens / 1_000_000).toFixed(1)}M`
+                                                : ws.total_tokens > 1_000
+                                                    ? `${(ws.total_tokens / 1_000).toFixed(0)}K`
+                                                    : ws.total_tokens.toLocaleString()
+                                            }
+                                        </td>
+                                        <td className={cn(
+                                            'px-4 py-3 text-right tabular-nums',
+                                            ws.total_cost_usd > ABUSE_THRESHOLDS.costUsd ? 'text-amber-400 font-bold' : 'text-gray-300',
+                                        )}>
+                                            ${ws.total_cost_usd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            {isSuspended ? (
+                                                <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase text-red-400 bg-red-500/10">
+                                                    <Ban className="h-3 w-3" />
+                                                    Suspended
+                                                </span>
+                                            ) : isFlagged ? (
+                                                <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-400 bg-amber-500/10">
+                                                    <AlertTriangle className="h-3 w-3" />
+                                                    Flagged
+                                                </span>
+                                            ) : (
+                                                <span className="rounded px-1.5 py-0.5 text-[10px] font-bold uppercase text-emerald-400 bg-emerald-500/10">
+                                                    Normal
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            {!isSuspended && isFlagged && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleSuspend(ws.workspace_id, ws.workspace_name)}
+                                                    disabled={suspendMutation.isPending}
+                                                    className="flex items-center gap-1 rounded-lg border border-amber-600/30 px-2 py-1 text-[11px] font-medium text-amber-400 transition-colors hover:bg-amber-600/10 disabled:opacity-50"
+                                                >
+                                                    <Ban className="h-3 w-3" />
+                                                    Suspend
+                                                </button>
+                                            )}
+                                        </td>
+                                    </tr>
+                                )
+                            })
+                        )}
+                    </tbody>
+                </table>
+            </div>
         </div>
     )
 }

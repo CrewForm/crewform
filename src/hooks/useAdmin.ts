@@ -8,8 +8,9 @@ import {
     fetchBetaUsers, approveBetaUser, revokeBetaUser,
     fetchAllUsers, fetchPlatformAuditLogs,
     suspendWorkspace, unsuspendWorkspace, deleteWorkspace,
+    fetchWorkspaceUsageStats,
 } from '@/db/admin'
-import type { AdminWorkspace, PlatformStats, BetaUser, AdminUser, AuditLogEntry } from '@/db/admin'
+import type { AdminWorkspace, PlatformStats, BetaUser, AdminUser, AuditLogEntry, WorkspaceUsageStats } from '@/db/admin'
 
 /** Check if current user is a super admin */
 export function useSuperAdmin() {
@@ -157,3 +158,13 @@ export function useDeleteWorkspace() {
         },
     })
 }
+
+/** Fetch per-workspace usage stats for abuse dashboard */
+export function useWorkspaceUsageStats(days = 7) {
+    return useQuery<WorkspaceUsageStats[]>({
+        queryKey: ['admin-usage-stats', days],
+        queryFn: () => fetchWorkspaceUsageStats(days),
+        staleTime: 60 * 1000,
+    })
+}
+
