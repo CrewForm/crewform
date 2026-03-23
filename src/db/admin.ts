@@ -337,3 +337,24 @@ export async function deleteWorkspace(workspaceId: string): Promise<void> {
     })
     if (result.error) throw result.error
 }
+
+// ─── Workspace Usage Stats (Abuse Dashboard) ───────────────────────────────
+
+export interface WorkspaceUsageStats {
+    workspace_id: string
+    workspace_name: string
+    owner_id: string
+    plan: string
+    suspended_at: string | null
+    task_count: number
+    team_run_count: number
+    total_tokens: number
+    total_cost_usd: number
+}
+
+/** Fetch per-workspace usage stats for the abuse dashboard (super admin only) */
+export async function fetchWorkspaceUsageStats(days = 7): Promise<WorkspaceUsageStats[]> {
+    const result = await supabase.rpc('admin_workspace_usage_stats', { p_days: days })
+    if (result.error) throw result.error
+    return result.data as WorkspaceUsageStats[]
+}
