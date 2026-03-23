@@ -8,9 +8,12 @@ import {
     fetchBetaUsers, approveBetaUser, revokeBetaUser,
     fetchAllUsers, fetchPlatformAuditLogs,
     suspendWorkspace, unsuspendWorkspace, deleteWorkspace,
-    fetchWorkspaceUsageStats,
+    fetchWorkspaceUsageStats, fetchUsageSpikes, fetchKeyRotationAlerts,
 } from '@/db/admin'
-import type { AdminWorkspace, PlatformStats, BetaUser, AdminUser, AuditLogEntry, WorkspaceUsageStats } from '@/db/admin'
+import type {
+    AdminWorkspace, PlatformStats, BetaUser, AdminUser, AuditLogEntry,
+    WorkspaceUsageStats, UsageSpikeEntry, KeyRotationAlert,
+} from '@/db/admin'
 
 /** Check if current user is a super admin */
 export function useSuperAdmin() {
@@ -168,3 +171,20 @@ export function useWorkspaceUsageStats(days = 7) {
     })
 }
 
+/** Fetch usage spikes (current vs previous window) */
+export function useUsageSpikes(days = 7) {
+    return useQuery<UsageSpikeEntry[]>({
+        queryKey: ['admin-usage-spikes', days],
+        queryFn: () => fetchUsageSpikes(days),
+        staleTime: 60 * 1000,
+    })
+}
+
+/** Fetch key rotation alerts from audit logs */
+export function useKeyRotationAlerts(days = 7) {
+    return useQuery<KeyRotationAlert[]>({
+        queryKey: ['admin-key-rotation-alerts', days],
+        queryFn: () => fetchKeyRotationAlerts(days),
+        staleTime: 60 * 1000,
+    })
+}

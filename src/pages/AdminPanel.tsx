@@ -6,13 +6,14 @@ import { toast } from 'sonner'
 import {
     Shield, BarChart3, Building2, Search,
     Loader2, Users, Bot, ListTodo, PackageOpen, Store, XCircle, ShieldCheck,
-    Activity, Coins, Zap, UserCheck, Ban, Trash2, ShieldOff, AlertTriangle,
+    Activity, Coins, Zap, UserCheck, Ban, Trash2, ShieldOff, AlertTriangle, KeyRound,
+    TrendingUp, ArrowUpRight,
 } from 'lucide-react'
 import {
     usePlatformStats, useAllWorkspaces, useOverridePlan, useToggleBeta,
     useBetaUsers, useApproveBetaUser, useAllUsers, usePlatformAuditLog,
     useSuspendWorkspace, useUnsuspendWorkspace, useDeleteWorkspace,
-    useWorkspaceUsageStats,
+    useWorkspaceUsageStats, useUsageSpikes, useKeyRotationAlerts,
 } from '@/hooks/useAdmin'
 import { ReviewQueue } from '@/components/marketplace/ReviewQueue'
 import { LicenseAdminPanel } from '@/components/settings/LicenseAdminPanel'
@@ -1142,6 +1143,228 @@ function AbuseTab() {
                     </tbody>
                 </table>
             </div>
+
+            {/* Spike Detection */}
+            <SpikeSection days={days} />
+
+            {/* Key Rotation Alerts */}
+            <KeyRotationSection days={days} />
+        </div>
+    )
+}
+
+// ─── Spike Detection Sub-section ────────────────────────────────────────────
+
+const SPIKE_THRESHOLD = 2.0
+
+function SpikeSection({ days }: { days: number }) {
+    const { data: spikes, isLoading } = useUsageSpikes(days)
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-5 w-5 animate-spin text-gray-500" />
+            </div>
+        )
+    }
+
+    const entries = spikes ?? []
+    const spiked = entries.filter(ws =>
+        (ws.task_spike !== null && ws.task_spike >= SPIKE_THRESHOLD) ||
+        (ws.run_spike !== null && ws.run_spike >= SPIKE_THRESHOLD) ||
+        (ws.cost_spike !== null && ws.cost_spike >= SPIKE_THRESHOLD),
+    )
+
+    return (
+        <div className="space-y-3">
+            <div className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-orange-400" />
+                <h3 className="text-sm font-semibold text-gray-200">Spike Detection</h3>
+                <span className="text-xs text-gray-500">
+                    Comparing last {days}d vs previous {days}d — flagging ≥{SPIKE_THRESHOLD}x increase
+                </span>
+            </div>
+
+            {spiked.length === 0 ? (
+                <p className="rounded-lg border border-border bg-surface-card px-4 py-6 text-center text-sm text-gray-500">
+                    No usage spikes detected
+                </p>
+            ) : (
+                <div className="rounded-xl border border-border bg-surface-card overflow-x-auto">
+                    <table className="w-full text-sm">
+                        <thead>
+                            <tr className="border-b border-border text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                                <th className="px-4 py-3">Workspace</th>
+                                <th className="px-4 py-3">Plan</th>
+                                <th className="px-4 py-3 text-right">Tasks (prev → curr)</th>
+                                <th className="px-4 py-3 text-right">Runs (prev → curr)</th>
+                                <th className="px-4 py-3 text-right">Cost (prev → curr)</th>
+                                <th className="px-4 py-3 text-right">Peak Spike</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/50">
+                            {spiked.map((ws) => {
+                                const peakSpike = Math.max(
+                                    ws.task_spike ?? 0,
+                                    ws.run_spike ?? 0,
+                                    ws.cost_spike ?? 0,
+                                )
+                                return (
+                                    <tr key={ws.workspace_id} className="hover:bg-surface-raised/50 bg-orange-500/5">
+                                        <td className="px-4 py-3">
+                                            <div className="flex items-center gap-2">
+                                                <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-orange-400" />
+                                                <span className="font-medium text-gray-200">{ws.workspace_name}</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <span className={cn(
+                                                'rounded px-1.5 py-0.5 text-[10px] font-bold uppercase',
+                                                PLAN_COLORS[ws.plan] ?? PLAN_COLORS.free,
+                                            )}>
+                                                {ws.plan}
+                                            </span>
+                                        </td>
+                                        <td className={cn(
+                                            'px-4 py-3 text-right tabular-nums text-xs',
+                                            ws.task_spike !== null && ws.task_spike >= SPIKE_THRESHOLD ? 'text-orange-400 font-bold' : 'text-gray-400',
+                                        )}>
+                                            {ws.prev_tasks} → {ws.curr_tasks}
+                                            {ws.task_spike !== null && (
+                                                <span className="ml-1 text-[10px]">({ws.task_spike}x)</span>
+                                            )}
+                                        </td>
+                                        <td className={cn(
+                                            'px-4 py-3 text-right tabular-nums text-xs',
+                                            ws.run_spike !== null && ws.run_spike >= SPIKE_THRESHOLD ? 'text-orange-400 font-bold' : 'text-gray-400',
+                                        )}>
+                                            {ws.prev_runs} → {ws.curr_runs}
+                                            {ws.run_spike !== null && (
+                                                <span className="ml-1 text-[10px]">({ws.run_spike}x)</span>
+                                            )}
+                                        </td>
+                                        <td className={cn(
+                                            'px-4 py-3 text-right tabular-nums text-xs',
+                                            ws.cost_spike !== null && ws.cost_spike >= SPIKE_THRESHOLD ? 'text-orange-400 font-bold' : 'text-gray-400',
+                                        )}>
+                                            ${ws.prev_cost.toFixed(2)} → ${ws.curr_cost.toFixed(2)}
+                                            {ws.cost_spike !== null && (
+                                                <span className="ml-1 text-[10px]">({ws.cost_spike}x)</span>
+                                            )}
+                                        </td>
+                                        <td className="px-4 py-3 text-right">
+                                            <span className={cn(
+                                                'rounded px-1.5 py-0.5 text-[10px] font-bold',
+                                                peakSpike >= 5 ? 'text-red-400 bg-red-500/10'
+                                                    : peakSpike >= 3 ? 'text-orange-400 bg-orange-500/10'
+                                                        : 'text-amber-400 bg-amber-500/10',
+                                            )}>
+                                                {peakSpike}x
+                                            </span>
+                                        </td>
+                                    </tr>
+                                )
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+        </div>
+    )
+}
+
+// ─── Key Rotation Alerts Sub-section ────────────────────────────────────────
+
+function KeyRotationSection({ days }: { days: number }) {
+    const { data: alerts, isLoading } = useKeyRotationAlerts(days)
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-5 w-5 animate-spin text-gray-500" />
+            </div>
+        )
+    }
+
+    const entries = alerts ?? []
+
+    return (
+        <div className="space-y-3">
+            <div className="flex items-center gap-2">
+                <KeyRound className="h-4 w-4 text-violet-400" />
+                <h3 className="text-sm font-semibold text-gray-200">API Key Activity</h3>
+                <span className="text-xs text-gray-500">
+                    Workspaces with 3+ key operations in the last {days}d
+                </span>
+            </div>
+
+            {entries.length === 0 ? (
+                <p className="rounded-lg border border-border bg-surface-card px-4 py-6 text-center text-sm text-gray-500">
+                    No unusual key activity detected
+                </p>
+            ) : (
+                <div className="rounded-xl border border-border bg-surface-card overflow-x-auto">
+                    <table className="w-full text-sm">
+                        <thead>
+                            <tr className="border-b border-border text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                                <th className="px-4 py-3">Workspace</th>
+                                <th className="px-4 py-3">Plan</th>
+                                <th className="px-4 py-3 text-right">Created</th>
+                                <th className="px-4 py-3 text-right">Rotated</th>
+                                <th className="px-4 py-3 text-right">Deleted</th>
+                                <th className="px-4 py-3 text-right">Total Ops</th>
+                                <th className="px-4 py-3">Latest</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/50">
+                            {entries.map((ws) => (
+                                <tr key={ws.workspace_id} className={cn(
+                                    'hover:bg-surface-raised/50',
+                                    ws.total_key_ops >= 10 ? 'bg-violet-500/5' : '',
+                                )}>
+                                    <td className="px-4 py-3">
+                                        <div className="flex items-center gap-2">
+                                            {ws.total_key_ops >= 10 && (
+                                                <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-violet-400" />
+                                            )}
+                                            <span className="font-medium text-gray-200">{ws.workspace_name}</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        <span className={cn(
+                                            'rounded px-1.5 py-0.5 text-[10px] font-bold uppercase',
+                                            PLAN_COLORS[ws.plan] ?? PLAN_COLORS.free,
+                                        )}>
+                                            {ws.plan}
+                                        </span>
+                                    </td>
+                                    <td className="px-4 py-3 text-right tabular-nums text-gray-300">
+                                        {ws.keys_created}
+                                    </td>
+                                    <td className={cn(
+                                        'px-4 py-3 text-right tabular-nums',
+                                        ws.keys_rotated >= 5 ? 'text-violet-400 font-bold' : 'text-gray-300',
+                                    )}>
+                                        {ws.keys_rotated}
+                                    </td>
+                                    <td className="px-4 py-3 text-right tabular-nums text-gray-300">
+                                        {ws.keys_deleted}
+                                    </td>
+                                    <td className={cn(
+                                        'px-4 py-3 text-right tabular-nums',
+                                        ws.total_key_ops >= 10 ? 'text-violet-400 font-bold' : 'text-gray-300',
+                                    )}>
+                                        {ws.total_key_ops}
+                                    </td>
+                                    <td className="px-4 py-3 text-xs text-gray-400">
+                                        {new Date(ws.latest_op_at).toLocaleString()}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
         </div>
     )
 }

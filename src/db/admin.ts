@@ -358,3 +358,49 @@ export async function fetchWorkspaceUsageStats(days = 7): Promise<WorkspaceUsage
     if (result.error) throw result.error
     return result.data as WorkspaceUsageStats[]
 }
+
+// ─── Spike Detection & Key Rotation Alerts ──────────────────────────────────
+
+export interface UsageSpikeEntry {
+    workspace_id: string
+    workspace_name: string
+    plan: string
+    suspended_at: string | null
+    curr_tasks: number
+    curr_runs: number
+    curr_tokens: number
+    curr_cost: number
+    prev_tasks: number
+    prev_runs: number
+    prev_tokens: number
+    prev_cost: number
+    task_spike: number | null
+    run_spike: number | null
+    token_spike: number | null
+    cost_spike: number | null
+}
+
+export interface KeyRotationAlert {
+    workspace_id: string
+    workspace_name: string
+    plan: string
+    keys_created: number
+    keys_rotated: number
+    keys_deleted: number
+    total_key_ops: number
+    latest_op_at: string
+}
+
+/** Fetch usage spike data (current vs previous window) */
+export async function fetchUsageSpikes(days = 7): Promise<UsageSpikeEntry[]> {
+    const result = await supabase.rpc('admin_usage_spikes', { p_days: days })
+    if (result.error) throw result.error
+    return result.data as UsageSpikeEntry[]
+}
+
+/** Fetch key rotation alerts from audit logs */
+export async function fetchKeyRotationAlerts(days = 7): Promise<KeyRotationAlert[]> {
+    const result = await supabase.rpc('admin_key_rotation_alerts', { p_days: days })
+    if (result.error) throw result.error
+    return result.data as KeyRotationAlert[]
+}
