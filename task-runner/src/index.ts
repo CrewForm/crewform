@@ -309,7 +309,9 @@ async function start() {
 
         const REALTIME_HEALTH_CHECK_MS = 60_000; // Check every 60s
         let realtimeReconnectAttempt = 0;
+        let isReconnecting = false;
         const REALTIME_MAX_RECONNECT_DELAY_MS = 30_000;
+        const REALTIME_MAX_ATTEMPTS_BEFORE_RESET = 15; // Cap exponent growth
 
         function createRealtimeChannel() {
             const ch = supabase
@@ -364,11 +366,14 @@ async function start() {
 
                     if (status === 'SUBSCRIBED') {
                         realtimeReconnectAttempt = 0;
+                        isReconnecting = false;
                         // Catch any work missed while disconnected
                         void poll();
-                    } else if (status === 'CHANNEL_ERROR' || status === 'CLOSED') {
-                        log('Realtime channel lost — scheduling reconnect...');
-                        void reconnectRealtime();
+                    } else if (status === 'CHANNEL_ERROR' || status === 'CLOSED' || status === 'TIMED_OUT') {
+                        if (!isReconnecting) {
+                            log('Realtime channel lost — scheduling reconnect...');
+                            void reconnectRealtime();
+                        }
                     }
                 });
 
@@ -376,31 +381,43 @@ async function start() {
         }
 
         async function reconnectRealtime() {
+            if (isReconnecting) return; // Prevent concurrent reconnect attempts
+            isReconnecting = true;
+
             realtimeReconnectAttempt++;
+            // Cap the attempt counter to prevent exponent overflow
+            const effectiveAttempt = Math.min(realtimeReconnectAttempt, REALTIME_MAX_ATTEMPTS_BEFORE_RESET);
             const delay = Math.min(
-                1000 * Math.pow(2, realtimeReconnectAttempt - 1),
+                1000 * Math.pow(2, effectiveAttempt - 1),
                 REALTIME_MAX_RECONNECT_DELAY_MS,
             );
             log(`Realtime reconnect attempt ${realtimeReconnectAttempt} in ${delay}ms`);
             await new Promise(resolve => setTimeout(resolve, delay));
 
-            // Remove old channel
-            const oldChannel = (globalThis as Record<string, unknown>).__realtimeChannel;
-            if (oldChannel) {
-                try {
-                    await supabase.removeChannel(oldChannel as ReturnType<typeof supabase.channel>);
-                } catch {
-                    // Best-effort cleanup
-                }
+            // Remove ALL channels — ensures no leaked subscriptions
+            try {
+                await supabase.removeAllChannels();
+            } catch {
+                // Best-effort cleanup
             }
 
             // Create fresh channel
             const newChannel = createRealtimeChannel();
             (globalThis as Record<string, unknown>).__realtimeChannel = newChannel;
+
+            // If subscription callback doesn't fire within 15s, allow another attempt
+            setTimeout(() => {
+                if (isReconnecting) {
+                    log('Realtime reconnect timed out — allowing retry');
+                    isReconnecting = false;
+                }
+            }, 15_000);
         }
 
         // Health check: detect silent disconnects
         setInterval(() => {
+            if (isReconnecting) return; // Don't pile on during reconnect
+
             const ch = (globalThis as Record<string, unknown>).__realtimeChannel as
                 ReturnType<typeof supabase.channel> | undefined;
             if (!ch) return;
