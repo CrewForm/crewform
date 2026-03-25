@@ -298,8 +298,8 @@ async function start() {
 
         // Start HTTP webhook server
         const server = createWebhookServer();
-        server.listen(PORT, () => {
-            log(`Webhook server listening on port ${PORT}`);
+        server.listen(PORT, '0.0.0.0', () => {
+            log(`Webhook server listening on 0.0.0.0:${PORT}`);
         });
 
         // ── Realtime Subscriptions with Auto-Reconnect ──────────────────────
