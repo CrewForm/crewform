@@ -231,6 +231,17 @@ export async function processOrchestratorRun(run: TeamRun): Promise<void> {
                 content: toolResult.result,
             });
 
+            // ── Memory guard: keep only the original user prompt + last 10 messages ──
+            // Each loop iteration adds 2 messages (assistant + tool). Without truncation,
+            // the array grows indefinitely and can cause OOM on long orchestrations.
+            const MAX_HISTORY_MESSAGES = 10;
+            if (conversationHistory.length > MAX_HISTORY_MESSAGES + 1) {
+                const firstMsg = conversationHistory[0]; // original user prompt
+                const recentMsgs = conversationHistory.slice(-(MAX_HISTORY_MESSAGES));
+                conversationHistory.length = 0;
+                conversationHistory.push(firstMsg, ...recentMsgs);
+            }
+
             if (toolResult.isDone) {
                 isDone = true;
             }
