@@ -50,27 +50,27 @@ export async function fetchMcpServers(workspaceId: string): Promise<McpServer[]>
 
 /** Create a new MCP server */
 export async function createMcpServer(input: CreateMcpServerInput): Promise<McpServer> {
-    const { data, error }: { data: unknown; error: unknown } = await supabase
+    const result = await supabase
         .from('mcp_servers')
         .insert(input)
         .select()
         .single()
 
-    if (error) throw error
-    return data as McpServer
+    if (result.error) throw result.error
+    return result.data as unknown as McpServer
 }
 
 /** Update an MCP server */
 export async function updateMcpServer(id: string, input: UpdateMcpServerInput): Promise<McpServer> {
-    const { data, error }: { data: unknown; error: unknown } = await supabase
+    const result = await supabase
         .from('mcp_servers')
         .update(input)
         .eq('id', id)
         .select()
         .single()
 
-    if (error) throw error
-    return data as McpServer
+    if (result.error) throw result.error
+    return result.data as unknown as McpServer
 }
 
 /** Delete an MCP server */
