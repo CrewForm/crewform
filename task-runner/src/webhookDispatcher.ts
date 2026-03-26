@@ -129,7 +129,7 @@ async function loadAttachmentsForPayload(
  */
 export async function dispatchWebhooks(
     task: TaskInfo,
-    agent: AgentInfo,
+    agent: AgentInfo & { id?: string },
     event: string,
     outputRouteIds: string[] | null = null,
 ): Promise<void> {
@@ -175,8 +175,8 @@ export async function dispatchWebhooks(
         );
         await Promise.allSettled(promises);
 
-        // 4. Also dispatch to Zapier subscriptions
-        void dispatchZapierHooks(task.workspace_id, event, payload);
+        // 4. Also dispatch to Zapier subscriptions (scoped to this agent)
+        void dispatchZapierHooks(task.workspace_id, event, payload, agent.id ?? null, null);
     } catch (err: unknown) {
         // Never let webhook errors bubble up
         console.error('[Webhooks] Dispatch error:', err instanceof Error ? err.message : String(err));
@@ -232,8 +232,8 @@ export async function dispatchTeamRunWebhooks(
         );
         await Promise.allSettled(promises);
 
-        // Also dispatch to Zapier subscriptions
-        void dispatchZapierHooks(teamRun.workspace_id, event, payload);
+        // Also dispatch to Zapier subscriptions (scoped to this team)
+        void dispatchZapierHooks(teamRun.workspace_id, event, payload, null, teamRun.team_id);
     } catch (err: unknown) {
         console.error('[Webhooks] Team run dispatch error:', err instanceof Error ? err.message : String(err));
     }
@@ -247,17 +247,32 @@ async function dispatchZapierHooks(
     workspaceId: string,
     event: string,
     payload: WebhookPayload,
+    agentId: string | null = null,
+    teamId: string | null = null,
 ): Promise<void> {
     try {
+        // Fetch all subscriptions for this workspace + event, then filter in-app
+        // to match: (sub.agent_id === agentId OR sub.agent_id IS NULL)
+        //       AND (sub.team_id  === teamId  OR sub.team_id  IS NULL)
         const { data: subs, error } = await supabase
             .from('zapier_subscriptions')
-            .select('id, target_url')
+            .select('id, target_url, agent_id, team_id')
             .eq('workspace_id', workspaceId)
             .eq('event', event);
 
         if (error || !subs || subs.length === 0) return;
 
-        const deliveries = (subs as Array<{ id: string; target_url: string }>).map(async (sub) => {
+        // Filter: only fire subscriptions where the filter matches or is null (workspace-wide)
+        const matchingSubs = (subs as Array<{ id: string; target_url: string; agent_id: string | null; team_id: string | null }>)
+            .filter((sub) => {
+                const agentMatch = sub.agent_id === null || sub.agent_id === agentId;
+                const teamMatch = sub.team_id === null || sub.team_id === teamId;
+                return agentMatch && teamMatch;
+            });
+
+        if (matchingSubs.length === 0) return;
+
+        const deliveries = matchingSubs.map(async (sub) => {
             try {
                 const resp = await fetch(sub.target_url, {
                     method: 'POST',

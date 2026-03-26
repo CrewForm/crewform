@@ -54,7 +54,9 @@ const addApiKeyHeader = (request, z, bundle) => {
     }
 
     request.headers = request.headers || {};
-    request.headers['X-API-Key'] = bundle.authData.api_key;
+    if (bundle.authData && bundle.authData.api_key) {
+        request.headers['X-API-Key'] = bundle.authData.api_key;
+    }
     request.headers['Content-Type'] = 'application/json';
     return request;
 };

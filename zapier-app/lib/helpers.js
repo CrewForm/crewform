@@ -37,15 +37,16 @@ const normaliseTaskPayload = (raw, event) => ({
 /**
  * Create a REST Hook trigger definition for a given event.
  *
- * @param {string} key       - Zapier trigger key (e.g. 'task_completed')
- * @param {string} event     - CrewForm event name (e.g. 'task.completed')
- * @param {string} noun      - Display noun (e.g. 'Task')
- * @param {string} label     - Human-readable label
- * @param {string} desc      - Description shown in Zapier
- * @param {string} listUrl   - API endpoint for sample data (polling fallback)
- * @param {object} outputFields - Output field definitions
+ * @param {string}  key         - Zapier trigger key (e.g. 'task_completed')
+ * @param {string}  event       - CrewForm event name (e.g. 'task.completed')
+ * @param {string}  noun        - Display noun (e.g. 'Task')
+ * @param {string}  label       - Human-readable label
+ * @param {string}  desc        - Description shown in Zapier
+ * @param {string}  listUrl     - API endpoint for sample data (polling fallback)
+ * @param {object}  outputFields - Output field definitions
+ * @param {Array}   inputFields  - Input fields for filtering (e.g. agent/team dropdown)
  */
-const makeRestHookTrigger = ({ key, event, noun, label, desc, listUrl, outputFields }) => {
+const makeRestHookTrigger = ({ key, event, noun, label, desc, listUrl, outputFields, inputFields }) => {
     return {
         key: key,
         noun: noun,
@@ -58,15 +59,28 @@ const makeRestHookTrigger = ({ key, event, noun, label, desc, listUrl, outputFie
         operation: {
             type: 'hook',
 
+            // Input fields — shown during Zap setup for filtering
+            inputFields: inputFields || [],
+
             // Called when a Zap is turned on — register the webhook
             performSubscribe: async (z, bundle) => {
+                const body = {
+                    event: event,
+                    target_url: bundle.targetUrl,
+                };
+
+                // Pass optional agent/team filter from the input fields
+                if (bundle.inputData.agent_id) {
+                    body.agent_id = bundle.inputData.agent_id;
+                }
+                if (bundle.inputData.team_id) {
+                    body.team_id = bundle.inputData.team_id;
+                }
+
                 const response = await z.request({
                     url: `${getBaseUrl(bundle)}/api-hooks`,
                     method: 'POST',
-                    body: {
-                        event: event,
-                        target_url: bundle.targetUrl,
-                    },
+                    body: body,
                 });
 
                 return response.data;
@@ -134,4 +148,3 @@ const makeRestHookTrigger = ({ key, event, noun, label, desc, listUrl, outputFie
 };
 
 module.exports = { makeRestHookTrigger, getBaseUrl };
-

@@ -20,6 +20,8 @@ import { checkRateLimit, tooManyRequests } from '../_shared/rateLimit.ts';
 const SubscribeSchema = z.object({
     target_url: z.string().url(),
     event: z.string().min(1),
+    agent_id: z.string().uuid().optional(),
+    team_id: z.string().uuid().optional(),
 });
 
 Deno.serve(async (req: Request) => {
@@ -51,7 +53,7 @@ Deno.serve(async (req: Request) => {
             }
 
             case 'POST': {
-                // Subscribe — Zapier sends { target_url, event }
+                // Subscribe — Zapier sends { target_url, event, agent_id?, team_id? }
                 const result = await validateBody(req, SubscribeSchema);
                 if ('error' in result) return result.error;
 
@@ -88,6 +90,8 @@ Deno.serve(async (req: Request) => {
                         event: result.data.event,
                         target_url: result.data.target_url,
                         api_key_id: apiKeyId,
+                        agent_id: result.data.agent_id ?? null,
+                        team_id: result.data.team_id ?? null,
                     })
                     .select()
                     .single();

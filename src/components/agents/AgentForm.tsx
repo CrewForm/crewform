@@ -2,13 +2,14 @@
 // Copyright (C) 2026 CrewForm
 
 import { useState, useMemo } from 'react'
-import { AlertCircle, Plus, Pencil, Trash2, X } from 'lucide-react'
+import { AlertCircle, Plus, Pencil, Trash2, X, Plug } from 'lucide-react'
 import type { AgentFormData } from '@/lib/agentSchema'
 import { agentSchema, MODEL_OPTIONS, BUILT_IN_TOOLS, getActiveModelOptions, mergeModelOptions } from '@/lib/agentSchema'
 import { useOpenRouterModels } from '@/hooks/useOpenRouterModels'
 import { useCustomTools, useCreateCustomTool, useUpdateCustomTool, useDeleteCustomTool } from '@/hooks/useCustomTools'
 import { CustomToolEditor } from '@/components/agents/CustomToolEditor'
 import { cn } from '@/lib/utils'
+import { useMcpServers } from '@/hooks/useMcpServers'
 import type { CustomTool } from '@/types'
 import type { ZodError } from 'zod'
 
@@ -39,6 +40,10 @@ export function AgentForm({ initialData, onSubmit, onBack, activeProviders, work
     const deleteToolMutation = useDeleteCustomTool()
     const [showToolEditor, setShowToolEditor] = useState(false)
     const [editingTool, setEditingTool] = useState<CustomTool | undefined>()
+
+    // MCP servers
+    const { mcpServers } = useMcpServers(workspaceId ?? null)
+    const enabledMcpServers = mcpServers.filter(s => s.is_enabled && s.tools_cache.length > 0)
 
     // Fetch live OpenRouter models when OpenRouter is active
     const isOpenRouterActive = activeProviders
@@ -532,6 +537,83 @@ export function AgentForm({ initialData, onSubmit, onBack, activeProviders, work
                             }}
                         />
                     )}
+                </div>
+            )}
+
+            {/* MCP Server Tools */}
+            {workspaceId && enabledMcpServers.length > 0 && (
+                <div>
+                    <div className="mb-1.5 flex items-center justify-between">
+                        <label className="text-sm font-medium text-gray-300">
+                            MCP Server Tools
+                        </label>
+                        <a
+                            href="/settings"
+                            className="text-xs text-brand-primary hover:text-brand-primary/80"
+                        >
+                            Manage Servers
+                        </a>
+                    </div>
+                    <p className="mb-3 text-xs text-gray-500">
+                        Tools from connected MCP servers. Enable servers in Settings → MCP Servers.
+                    </p>
+                    <div className="space-y-3">
+                        {enabledMcpServers.map((server) => (
+                            <div key={server.id}>
+                                <div className="mb-1.5 flex items-center gap-1.5">
+                                    <Plug className="h-3 w-3 text-brand-primary" />
+                                    <span className="text-xs font-medium text-gray-400">{server.name}</span>
+                                    <span className="text-[10px] text-gray-600">({(server.tools_cache as Array<{name: string}>).length} tools)</span>
+                                </div>
+                                <div className="space-y-1.5 ml-4">
+                                    {(server.tools_cache as Array<{name: string; description?: string}>).map((tool) => {
+                                        const toolKey = `mcp:${server.id}:${tool.name}`
+                                        const isEnabled = formData.tools.includes(toolKey)
+                                        return (
+                                            <button
+                                                key={toolKey}
+                                                type="button"
+                                                onClick={() => {
+                                                    const newTools = isEnabled
+                                                        ? formData.tools.filter(t => t !== toolKey)
+                                                        : [...formData.tools, toolKey]
+                                                    updateField('tools', newTools)
+                                                }}
+                                                className={cn(
+                                                    'flex w-full items-center gap-3 rounded-lg border p-2.5 text-left transition-colors',
+                                                    isEnabled
+                                                        ? 'border-brand-primary bg-brand-muted/20'
+                                                        : 'border-border hover:border-gray-600',
+                                                )}
+                                            >
+                                                <span className="text-sm">🔌</span>
+                                                <div className="min-w-0 flex-1">
+                                                    <span className={cn(
+                                                        'text-sm font-medium font-mono',
+                                                        isEnabled ? 'text-brand-primary' : 'text-gray-300',
+                                                    )}>
+                                                        {tool.name}
+                                                    </span>
+                                                    {tool.description && (
+                                                        <p className="text-xs text-gray-500">{tool.description}</p>
+                                                    )}
+                                                </div>
+                                                <div className={cn(
+                                                    'flex h-5 w-9 items-center rounded-full p-0.5 transition-colors',
+                                                    isEnabled ? 'bg-brand-primary' : 'bg-gray-700',
+                                                )}>
+                                                    <div className={cn(
+                                                        'h-4 w-4 rounded-full bg-white transition-transform',
+                                                        isEnabled ? 'translate-x-4' : 'translate-x-0',
+                                                    )} />
+                                                </div>
+                                            </button>
+                                        )
+                                    })}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             )}
 

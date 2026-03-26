@@ -2,7 +2,7 @@
 // Copyright (C) 2026 CrewForm
 
 import { useState, useMemo } from 'react'
-import { KeyRound, User, Building2, Webhook, Users, ScrollText, CreditCard, MessageSquareText, ShieldCheck, Brain, Zap } from 'lucide-react'
+import { KeyRound, User, Building2, Webhook, Users, ScrollText, CreditCard, MessageSquareText, ShieldCheck, Brain, Zap, Plug } from 'lucide-react'
 import { ApiKeysSettings } from '@/components/settings/ApiKeysSettings'
 import { RestApiKeysSettings } from '@/components/settings/RestApiKeysSettings'
 import { WebhooksSettings } from '@/components/settings/WebhooksSettings'
@@ -14,12 +14,13 @@ import { BillingSettings } from '@/components/settings/BillingSettings'
 import { ProfileSettings } from '@/components/settings/ProfileSettings'
 import { MessagingChannelsSettings } from '@/components/settings/MessagingChannelsSettings'
 import { ZapierAutomations } from '@/components/settings/ZapierAutomations'
+import { McpServersSettings } from '@/components/settings/McpServersSettings'
 import { LicenseActivation } from '@/components/settings/LicenseActivation'
 import { useWorkspace } from '@/hooks/useWorkspace'
 import { useEELicense } from '@/hooks/useEELicense'
 import { cn } from '@/lib/utils'
 
-type SettingsTab = 'llm-setup' | 'api-keys' | 'webhooks' | 'channels' | 'members' | 'workspace' | 'billing' | 'audit-log' | 'automations' | 'profile' | 'license'
+type SettingsTab = 'llm-setup' | 'api-keys' | 'webhooks' | 'channels' | 'members' | 'workspace' | 'billing' | 'audit-log' | 'automations' | 'mcp-servers' | 'profile' | 'license'
 
 const settingsTabs: { key: SettingsTab; label: string; icon: typeof KeyRound; eeFeature?: string }[] = [
   { key: 'llm-setup', label: 'LLM Setup', icon: Brain },
@@ -31,6 +32,7 @@ const settingsTabs: { key: SettingsTab; label: string; icon: typeof KeyRound; ee
   { key: 'billing', label: 'Billing', icon: CreditCard },
   { key: 'audit-log', label: 'Audit Log', icon: ScrollText, eeFeature: 'audit_logs' },
   { key: 'automations', label: 'Automations', icon: Zap },
+  { key: 'mcp-servers', label: 'MCP Servers', icon: Plug },
   { key: 'license', label: 'License', icon: ShieldCheck },
   { key: 'profile', label: 'Profile', icon: User },
 ]
@@ -97,6 +99,8 @@ export function Settings() {
         {activeTab === 'license' && <LicenseActivation />}
 
         {activeTab === 'automations' && <ZapierAutomations />}
+
+        {activeTab === 'mcp-servers' && <McpServersSettings />}
 
         {activeTab === 'profile' && <ProfileSettings />}
       </div>

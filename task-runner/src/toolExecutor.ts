@@ -6,6 +6,8 @@
  */
 
 import type { TokenUsage } from './types';
+import { callMcpTool, parseMcpToolName } from './mcpClient';
+import type { McpServerConfig } from './mcpClient';
 
 // ─── Tool Call Logging ───────────────────────────────────────────────────────
 
@@ -50,7 +52,11 @@ export interface CustomToolConfig {
  * Returns OpenAI-compatible tool definitions for the given tool names.
  * Merges built-in tools with custom tools (prefixed with "custom:").
  */
-export function getToolDefinitions(toolNames: string[], customTools?: CustomToolConfig[]): ToolDefinition[] {
+export function getToolDefinitions(
+    toolNames: string[],
+    customTools?: CustomToolConfig[],
+    mcpToolDefs?: ToolDefinition[],
+): ToolDefinition[] {
     const defs: ToolDefinition[] = [];
 
     for (const name of toolNames) {
@@ -72,12 +78,20 @@ export function getToolDefinitions(toolNames: string[], customTools?: CustomTool
                     },
                 });
             }
+        } else if (name.startsWith('mcp:')) {
+            // MCP tools are already in mcpToolDefs — skip the name lookup
+            // They're merged below
         } else {
             const def = TOOL_REGISTRY[name];
             if (def) {
                 defs.push(def);
             }
         }
+    }
+
+    // Append MCP tool definitions (already in OpenAI format)
+    if (mcpToolDefs && mcpToolDefs.length > 0) {
+        defs.push(...mcpToolDefs);
     }
 
     return defs;
@@ -173,7 +187,12 @@ interface ToolCall {
  * Execute a single tool call and return the result string.
  * Supports both built-in tools and custom webhook-backed tools.
  */
-export async function executeToolCall(toolCall: ToolCall, customTools?: CustomToolConfig[], serperApiKey?: string): Promise<string> {
+export async function executeToolCall(
+    toolCall: ToolCall,
+    customTools?: CustomToolConfig[],
+    serperApiKey?: string,
+    mcpServers?: McpServerConfig[],
+): Promise<string> {
     const { name, arguments: argsStr } = toolCall.function;
 
     let args: Record<string, unknown>;
@@ -184,6 +203,15 @@ export async function executeToolCall(toolCall: ToolCall, customTools?: CustomTo
     }
 
     try {
+        // Check for MCP tool (prefixed with mcp_)
+        if (name.startsWith('mcp_') && mcpServers) {
+            const parsed = parseMcpToolName(name, mcpServers);
+            if (parsed) {
+                return await callMcpTool(parsed.serverId, parsed.toolName, args);
+            }
+            return `Error: Could not resolve MCP tool "${name}"`;
+        }
+
         // Check for custom tool (prefixed with custom_)
         if (name.startsWith('custom_')) {
             const toolName = name.replace('custom_', '');
@@ -481,8 +509,10 @@ export async function executeWithToolLoop(
     toolNames: string[],
     customTools?: CustomToolConfig[],
     serperApiKey?: string,
+    mcpToolDefs?: ToolDefinition[],
+    mcpServers?: McpServerConfig[],
 ): Promise<ToolUseResult> {
-    const tools = getToolDefinitions(toolNames, customTools);
+    const tools = getToolDefinitions(toolNames, customTools, mcpToolDefs);
     const messages: ToolUseMessage[] = [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
@@ -533,7 +563,7 @@ export async function executeWithToolLoop(
             console.log(`[ToolExecutor] Executing tool: ${toolCall.function.name} (round ${(round + 1).toString()}, call #${toolCallsMade.toString()})`);
 
             const callStart = Date.now();
-            const result = await executeToolCall(toolCall, customTools, serperApiKey);
+            const result = await executeToolCall(toolCall, customTools, serperApiKey, mcpServers);
             const durationMs = Date.now() - callStart;
 
             let parsedArgs: Record<string, unknown> = {};

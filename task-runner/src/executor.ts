@@ -7,6 +7,9 @@ import { writeTaskUsageRecord } from './usageWriter';
 import { dispatchWebhooks, replyToSourceChannel } from './webhookDispatcher';
 import { executeWithToolLoop, getToolDefinitions } from './toolExecutor';
 import { loadInputFiles, buildFileContext, extractAndSaveArtifacts } from './fileAttachments';
+import { connectToServer, discoverTools, disconnectAll as disconnectMcpClients } from './mcpClient';
+import type { McpServerConfig } from './mcpClient';
+import type { ToolDefinition } from './toolExecutor';
 import type { CustomToolConfig, ToolCallLog } from './toolExecutor';
 import type { Task, Agent, ApiKey, TokenUsage } from './types';
 
@@ -137,7 +140,7 @@ export async function processTask(task: Task) {
         // 3b. Fire task.started webhook (fire-and-forget)
         void dispatchWebhooks(
             { id: task.id, title: task.title, workspace_id: task.workspace_id, status: 'running' },
-            { name: agent.name },
+            { id: agent.id, name: agent.name },
             'task.started',
         );
 
@@ -177,6 +180,38 @@ export async function processTask(task: Task) {
             console.log(`[TaskRunner] Loaded ${customToolConfigs.length.toString()} custom tools`);
         }
 
+        // Fetch MCP server configs and discover tools if any mcp: tools are enabled
+        let mcpToolDefs: ToolDefinition[] = [];
+        let mcpServers: McpServerConfig[] = [];
+        const hasMcpTools = agentTools.some(t => t.startsWith('mcp:'));
+        if (hasMcpTools) {
+            try {
+                const { data: mcpData } = await supabase
+                    .from('mcp_servers')
+                    .select('id, name, url, transport, config')
+                    .eq('workspace_id', task.workspace_id)
+                    .eq('is_enabled', true);
+
+                if (mcpData && mcpData.length > 0) {
+                    mcpServers = mcpData as McpServerConfig[];
+                    // Discover tools from all connected MCP servers
+                    for (const server of mcpServers) {
+                        try {
+                            const discovered = await discoverTools(server);
+                            mcpToolDefs.push(...discovered.definitions);
+                        } catch (err: unknown) {
+                            const msg = err instanceof Error ? err.message : String(err);
+                            console.warn(`[TaskRunner] Failed to discover MCP tools from "${server.name}": ${msg}`);
+                        }
+                    }
+                    console.log(`[TaskRunner] Loaded ${mcpToolDefs.length.toString()} MCP tools from ${mcpServers.length.toString()} servers`);
+                }
+            } catch (err: unknown) {
+                const msg = err instanceof Error ? err.message : String(err);
+                console.warn(`[TaskRunner] MCP server fetch failed (non-fatal): ${msg}`);
+            }
+        }
+
         // Fetch Serper API key if web_search tool is enabled
         let serperApiKey: string | undefined;
         if (agentTools.includes('web_search')) {
@@ -211,6 +246,8 @@ export async function processTask(task: Task) {
                     customToolConfigs,
                     agent.max_tokens,
                     serperApiKey,
+                    mcpToolDefs,
+                    mcpServers,
                 );
             } else if (providerLower === 'anthropic') {
                 executionResult = await executeAnthropic(rawKey, effectiveModel, systemPrompt, userPrompt, updateResultStream, agent.max_tokens);
@@ -351,10 +388,13 @@ export async function processTask(task: Task) {
         // 7b. Extract output file artifacts (fire-and-forget)
         void extractAndSaveArtifacts(task.workspace_id, task.id, null, executionResult.result);
 
+        // 7c. Disconnect MCP clients (fire-and-forget)
+        if (mcpServers.length > 0) void disconnectMcpClients();
+
         // 8. Fire webhooks (fire-and-forget)
         void dispatchWebhooks(
             { id: task.id, title: task.title, workspace_id: task.workspace_id, status: 'completed', result: executionResult.result },
-            { name: agent.name },
+            { id: agent.id, name: agent.name },
             'task.completed',
             agent.output_route_ids ?? null,
         );
@@ -398,7 +438,7 @@ export async function processTask(task: Task) {
         // Fire webhooks for failure (fire-and-forget)
         void dispatchWebhooks(
             { id: task.id, title: task.title, workspace_id: task.workspace_id, status: 'failed', error: errMsg },
-            { name: agent?.name ?? 'Unknown Agent' },
+            { id: agent?.id, name: agent?.name ?? 'Unknown Agent' },
             'task.failed',
             agent?.output_route_ids ?? null,
         );
@@ -427,6 +467,8 @@ async function executeToolUseTask(
     customTools?: CustomToolConfig[],
     maxTokens?: number | null,
     serperApiKey?: string,
+    mcpToolDefs?: ToolDefinition[],
+    mcpServers?: McpServerConfig[],
 ): Promise<{ result: string; usage: TokenUsage; toolCallLogs: ToolCallLog[] }> {
     // Determine base URL for OpenAI-compatible providers
     const baseURLMap: Record<string, string> = {
@@ -526,6 +568,8 @@ async function executeToolUseTask(
         toolNames,
         customTools,
         serperApiKey,
+        mcpToolDefs,
+        mcpServers,
     );
 
     void tools; // definitions are used internally by the loop
