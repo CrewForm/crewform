@@ -83,134 +83,41 @@ export async function deleteMcpServer(id: string): Promise<void> {
     if (error) throw error
 }
 
-// ─── MCP Tool Discovery (client-side JSON-RPC) ──────────────────────────────
-
-interface McpJsonRpcResponse {
-    jsonrpc: '2.0'
-    id: number
-    result?: { tools?: Array<{ name: string; description?: string; inputSchema?: unknown }> }
-    error?: { code: number; message: string }
-}
+// ─── MCP Tool Discovery (via Edge Function proxy) ───────────────────────────
 
 /**
- * Discover tools from an MCP server using Streamable HTTP transport.
- * Sends JSON-RPC initialize + tools/list to the server URL,
- * then saves the result to tools_cache in the database.
+ * Discover tools from an MCP server via the mcp-discover Edge Function.
+ * The Edge Function proxies JSON-RPC calls server-side to bypass CORS.
+ * Saves discovered tools to tools_cache in the database.
  */
 export async function discoverMcpTools(
     server: McpServer,
 ): Promise<Array<{ name: string; description?: string }>> {
-    const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-        Accept: 'application/json, text/event-stream',
-    }
-
-    // Add any auth headers from server config
     const configHeaders = server.config.headers as Record<string, string> | undefined
-    if (configHeaders) {
-        Object.assign(headers, configHeaders)
-    }
 
-    // 1. Initialize the MCP connection
-    const initResponse = await fetch(server.url, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-            jsonrpc: '2.0',
-            id: 1,
-            method: 'initialize',
-            params: {
-                protocolVersion: '2025-03-26',
-                capabilities: {},
-                clientInfo: { name: 'crewform', version: '1.0.0' },
-            },
-        }),
+    const result = await supabase.functions.invoke('mcp-discover', {
+        body: {
+            server_url: server.url,
+            server_headers: configHeaders,
+        },
     })
 
-    if (!initResponse.ok) {
-        throw new Error(`MCP server returned ${String(initResponse.status)}: ${await initResponse.text()}`)
+    if (result.error) {
+        const errObj = result.error as { message?: string }
+        throw new Error(errObj.message ?? 'Discovery request failed')
     }
 
-    // Capture session ID from response headers if present (for stateful servers)
-    const sessionId = initResponse.headers.get('mcp-session-id')
-    if (sessionId) {
-        headers['mcp-session-id'] = sessionId
+    const response = result.data as { tools?: Array<{ name: string; description?: string }>; error?: string }
+
+    if (response.error) {
+        throw new Error(response.error)
     }
 
-    // Handle response — could be JSON or SSE
-    const initContentType = initResponse.headers.get('content-type') ?? ''
-    if (initContentType.includes('text/event-stream')) {
-        // Parse SSE response to extract the JSON-RPC result
-        const sseText = await initResponse.text()
-        const jsonMatch = /^data: (.+)$/m.exec(sseText)
-        if (jsonMatch) {
-            const parsed = JSON.parse(jsonMatch[1]) as McpJsonRpcResponse
-            if (parsed.error) {
-                throw new Error(`MCP initialize failed: ${parsed.error.message}`)
-            }
-        }
-    } else {
-        const initResult = await initResponse.json() as McpJsonRpcResponse
-        if (initResult.error) {
-            throw new Error(`MCP initialize failed: ${initResult.error.message}`)
-        }
-    }
+    const tools = response.tools ?? []
 
-    // 2. Send initialized notification
-    void fetch(server.url, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-            jsonrpc: '2.0',
-            method: 'notifications/initialized',
-        }),
-    })
-
-    // 3. List available tools
-    const toolsResponse = await fetch(server.url, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-            jsonrpc: '2.0',
-            id: 2,
-            method: 'tools/list',
-            params: {},
-        }),
-    })
-
-    if (!toolsResponse.ok) {
-        throw new Error(`tools/list failed: HTTP ${String(toolsResponse.status)}`)
-    }
-
-    let tools: Array<{ name: string; description?: string }> = []
-
-    const toolsContentType = toolsResponse.headers.get('content-type') ?? ''
-    if (toolsContentType.includes('text/event-stream')) {
-        const sseText = await toolsResponse.text()
-        const jsonMatch = /^data: (.+)$/m.exec(sseText)
-        if (jsonMatch) {
-            const parsed = JSON.parse(jsonMatch[1]) as McpJsonRpcResponse
-            if (parsed.error) {
-                throw new Error(`tools/list failed: ${parsed.error.message}`)
-            }
-            tools = (parsed.result?.tools ?? []).map((t) => ({
-                name: t.name,
-                description: t.description,
-            }))
-        }
-    } else {
-        const toolsResult = await toolsResponse.json() as McpJsonRpcResponse
-        if (toolsResult.error) {
-            throw new Error(`tools/list failed: ${toolsResult.error.message}`)
-        }
-        tools = (toolsResult.result?.tools ?? []).map((t) => ({
-            name: t.name,
-            description: t.description,
-        }))
-    }
-
-    // 4. Save to tools_cache
+    // Save to tools_cache
     await updateMcpServer(server.id, { tools_cache: tools })
 
     return tools
 }
+
