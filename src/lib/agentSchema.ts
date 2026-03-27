@@ -50,6 +50,13 @@ export const BUILT_IN_TOOLS = [
         icon: '📚',
         requiresProvider: undefined,
     },
+    {
+        name: 'a2a_delegate',
+        label: 'A2A Delegate',
+        description: 'Delegate tasks to external A2A-compatible agents. Configure agents in Settings → A2A.',
+        icon: '🔗',
+        requiresProvider: undefined,
+    },
 ] as const
 
 export type BuiltInToolName = typeof BUILT_IN_TOOLS[number]['name']

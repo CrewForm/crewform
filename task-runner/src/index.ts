@@ -6,6 +6,7 @@ import { processOrchestratorRun } from './orchestratorExecutor';
 import { processCollaborationRun } from './collaborationExecutor';
 import { writeTeamRunAudit } from './auditWriter';
 import { isFeatureEnabled } from './license';
+import { handleA2ARequest } from './a2aServer';
 import {
     registerRunner, deregisterRunner, getRunnerId, getInstanceName,
     runRecoverySweep, RECOVERY_INTERVAL_MS, MAX_CONCURRENT, decrementLoad,
@@ -226,7 +227,11 @@ async function poll() {
 
 function createWebhookServer(): http.Server {
     const server = http.createServer((req, res) => {
-        // Health check
+        // A2A protocol endpoints (Agent Card + JSON-RPC)
+        void handleA2ARequest(req, res).then((handled) => {
+            if (handled) return;
+
+            // Health check
         if (req.method === 'GET' && req.url === '/health') {
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({
@@ -276,6 +281,7 @@ function createWebhookServer(): http.Server {
         // 404 for everything else
         res.writeHead(404, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Not found' }));
+        }); // end handleA2ARequest.then
     });
 
     return server;

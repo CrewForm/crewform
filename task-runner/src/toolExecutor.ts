@@ -6,6 +6,7 @@
  */
 
 import { searchKnowledge, formatKnowledgeResults } from './knowledgeSearch';
+import { delegateToA2AAgent } from './a2aClient';
 import type { TokenUsage } from './types';
 import { callMcpTool, parseMcpToolName } from './mcpClient';
 import type { McpServerConfig } from './mcpClient';
@@ -186,6 +187,21 @@ const TOOL_REGISTRY: Record<string, ToolDefinition> = {
             },
         },
     },
+    a2a_delegate: {
+        type: 'function',
+        function: {
+            name: 'a2a_delegate',
+            description: 'Delegate a task to an external A2A-compatible agent. Sends a message and returns the result.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    remote_agent_id: { type: 'string', description: 'The ID of the registered remote A2A agent' },
+                    message: { type: 'string', description: 'The task/message to send to the remote agent' },
+                },
+                required: ['remote_agent_id', 'message'],
+            },
+        },
+    },
 };
 
 // ─── Tool Execution ──────────────────────────────────────────────────────────
@@ -266,6 +282,16 @@ export async function executeToolCall(
                     args.query as string,
                 );
                 return formatKnowledgeResults(results);
+            }
+            case 'a2a_delegate': {
+                if (!knowledgeContext?.workspaceId) {
+                    return 'Error: A2A delegate not available — no workspace context.';
+                }
+                return await delegateToA2AAgent(
+                    args.remote_agent_id as string,
+                    args.message as string,
+                    knowledgeContext.workspaceId,
+                );
             }
             default:
                 return `Error: Unknown tool "${name}"`;
