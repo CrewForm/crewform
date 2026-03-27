@@ -46,7 +46,7 @@ function pipelineToGraph(config: PipelineConfig, agents: Agent[]): { nodes: Node
     nodes.push({
         id: 'start',
         type: 'startNode',
-        position: { x: X_CENTER, y: 0 },
+        position: config.node_positions?.start ?? { x: X_CENTER, y: 0 },
         data: {},
         draggable: true,
     })
@@ -58,7 +58,7 @@ function pipelineToGraph(config: PipelineConfig, agents: Agent[]): { nodes: Node
         nodes.push({
             id: nodeId,
             type: 'agentNode',
-            position: { x: X_CENTER, y: (idx + 1) * Y_SPACING },
+            position: config.node_positions?.[nodeId] ?? { x: X_CENTER, y: (idx + 1) * Y_SPACING },
             data: makeAgentNodeData(agent, 'worker'),
             draggable: true,
         })
@@ -79,7 +79,7 @@ function pipelineToGraph(config: PipelineConfig, agents: Agent[]): { nodes: Node
     nodes.push({
         id: 'end',
         type: 'endNode',
-        position: { x: X_CENTER, y: endY },
+        position: config.node_positions?.end ?? { x: X_CENTER, y: endY },
         data: {},
         draggable: true,
     })
@@ -116,7 +116,7 @@ function orchestratorToGraph(config: OrchestratorConfig, agents: Agent[]): { nod
     nodes.push({
         id: 'start',
         type: 'startNode',
-        position: { x: X_CENTER, y: 0 },
+        position: config.node_positions?.start ?? { x: X_CENTER, y: 0 },
         data: {},
         draggable: true,
     })
@@ -126,7 +126,7 @@ function orchestratorToGraph(config: OrchestratorConfig, agents: Agent[]): { nod
     nodes.push({
         id: 'brain',
         type: 'agentNode',
-        position: { x: X_CENTER, y: Y_SPACING },
+        position: config.node_positions?.brain ?? { x: X_CENTER, y: Y_SPACING },
         data: makeAgentNodeData(brainAgent, 'brain'),
         draggable: true,
     })
@@ -153,7 +153,7 @@ function orchestratorToGraph(config: OrchestratorConfig, agents: Agent[]): { nod
         nodes.push({
             id: nodeId,
             type: 'agentNode',
-            position: { x, y: Y_SPACING * 2.5 },
+            position: config.node_positions?.[nodeId] ?? { x, y: Y_SPACING * 2.5 },
             data: makeAgentNodeData(agent, 'worker'),
             draggable: true,
         })
@@ -174,7 +174,7 @@ function orchestratorToGraph(config: OrchestratorConfig, agents: Agent[]): { nod
     nodes.push({
         id: 'end',
         type: 'endNode',
-        position: { x: X_CENTER, y: endY },
+        position: config.node_positions?.end ?? { x: X_CENTER, y: endY },
         data: {},
         draggable: true,
     })
@@ -211,7 +211,7 @@ function collaborationToGraph(config: CollaborationConfig, agents: Agent[]): { n
         nodes.push({
             id: `collab-${idx}`,
             type: 'agentNode',
-            position: { x, y },
+            position: config.node_positions?.[`collab-${idx}`] ?? { x, y },
             data: makeAgentNodeData(agent, isFacilitator ? 'brain' : 'worker'),
             draggable: true,
         })
@@ -293,6 +293,16 @@ export function validateConfig(
     }
 }
 
+// ─── Position extraction ─────────────────────────────────────────────────────
+
+function extractNodePositions(nodes: Node[]): Record<string, { x: number; y: number }> {
+    const positions: Record<string, { x: number; y: number }> = {}
+    for (const node of nodes) {
+        positions[node.id] = { x: node.position.x, y: node.position.y }
+    }
+    return positions
+}
+
 // ─── Graph → Config (reverse) ────────────────────────────────────────────────
 
 /**
@@ -370,6 +380,7 @@ export function graphToPipelineConfig(
     return {
         ...existingConfig,
         steps,
+        node_positions: extractNodePositions(nodes),
     }
 }
 
@@ -398,6 +409,7 @@ export function graphToOrchestratorConfig(
         ...existingConfig,
         brain_agent_id: brainAgentId,
         worker_agent_ids: workerIds,
+        node_positions: extractNodePositions(nodes),
     }
 }
 
@@ -420,6 +432,7 @@ export function graphToCollaborationConfig(
         ...existingConfig,
         agent_ids: agentIds,
         facilitator_agent_id: facilitatorStillPresent ? facilitatorId : undefined,
+        node_positions: extractNodePositions(nodes),
     }
 }
 

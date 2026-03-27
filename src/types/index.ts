@@ -141,6 +141,7 @@ export type TeamMode = 'pipeline' | 'orchestrator' | 'collaboration'
 export interface PipelineConfig {
   steps: PipelineStep[]
   auto_handoff: boolean
+  node_positions?: Record<string, { x: number; y: number }>
 }
 
 export interface PipelineStep {
@@ -165,6 +166,7 @@ export interface OrchestratorConfig {
   routing_strategy: string
   planner_enabled: boolean
   max_delegation_depth: number
+  node_positions?: Record<string, { x: number; y: number }>
 }
 
 export interface CollaborationConfig {
@@ -174,6 +176,7 @@ export interface CollaborationConfig {
   termination_condition: string
   consensus_phrase: string
   facilitator_agent_id?: string
+  node_positions?: Record<string, { x: number; y: number }>
 }
 
 // ─── Team Member ──────────────────────────────────────────────────────────────

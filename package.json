@@ -14,6 +14,7 @@
     "format:check": "prettier --check \"src/**/*.{ts,tsx}\""
   },
   "dependencies": {
+    "@dagrejs/dagre": "^3.0.0",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
@@ -37,6 +38,7 @@
     "@playwright/test": "^1.58.2",
     "@testing-library/jest-dom": "^6.6.0",
     "@testing-library/react": "^16.1.0",
+    "@types/d3-hierarchy": "^3.1.7",
     "@types/node": "^22.10.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",

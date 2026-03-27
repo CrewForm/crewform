@@ -6,7 +6,7 @@
  * Phase 2: Supports interactive editing — add, remove, reorder agents on the canvas.
  */
 
-import { useCallback, useMemo, useState, useRef, type DragEvent } from 'react'
+import { useCallback, useMemo, useState, useRef, useEffect, type DragEvent } from 'react'
 import {
     ReactFlow,
     Background,
@@ -26,10 +26,12 @@ import { AgentNode } from './nodes/AgentNode'
 import { StartNode } from './nodes/StartNode'
 import { EndNode } from './nodes/EndNode'
 import { useWorkflowGraph, graphToConfig, validateConfig } from './useWorkflowGraph'
+import { useCanvasHistory } from './useCanvasHistory'
+import { useAutoLayout } from './useAutoLayout'
 import { WorkflowSidebar } from './WorkflowSidebar'
 import type { Agent, Team, PipelineConfig, PipelineStep, OrchestratorConfig, CollaborationConfig } from '@/types'
 import type { AgentNodeData } from './nodes/AgentNode'
-import { Bot, AlertCircle } from 'lucide-react'
+import { Bot, AlertCircle, Undo2, Redo2, LayoutGrid } from 'lucide-react'
 
 const NODE_TYPES: NodeTypes = {
     agentNode: AgentNode,
@@ -54,6 +56,12 @@ export function WorkflowCanvas({ team, agents, onSaveConfig, onCanvasError }: Wo
     const [canvasError, setCanvasError] = useState<string | null>(null)
     const [isSaving, setIsSaving] = useState(false)
 
+    // Undo/redo history
+    const { pushState, undo, redo, canUndo, canRedo, resetHistory } = useCanvasHistory(setNodes, setEdges)
+
+    // Auto-layout
+    const { applyAutoLayout } = useAutoLayout()
+
     // Snapshot for rollback
     const snapshotRef = useRef<{ nodes: Node[]; edges: Edge[] }>({ nodes: initialNodes, edges: initialEdges })
 
@@ -62,8 +70,21 @@ export function WorkflowCanvas({ team, agents, onSaveConfig, onCanvasError }: Wo
         setNodes(initialNodes)
         setEdges(initialEdges)
         snapshotRef.current = { nodes: initialNodes, edges: initialEdges }
+        resetHistory()
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [initialNodes, initialEdges])
+
+    // Listen for undo/redo keyboard events
+    useEffect(() => {
+        const handleUndo = () => { undo(nodes, edges) }
+        const handleRedo = () => { redo(nodes, edges) }
+        window.addEventListener('canvas:undo', handleUndo)
+        window.addEventListener('canvas:redo', handleRedo)
+        return () => {
+            window.removeEventListener('canvas:undo', handleUndo)
+            window.removeEventListener('canvas:redo', handleRedo)
+        }
+    }, [undo, redo, nodes, edges])
 
     // ─── Save logic ──────────────────────────────────────────────────────────
 
@@ -128,12 +149,26 @@ export function WorkflowCanvas({ team, agents, onSaveConfig, onCanvasError }: Wo
             )
             // Get latest nodes from state for save
             setNodes((currentNodes) => {
+                pushState(currentNodes, eds)
                 void saveGraph(currentNodes, updated)
                 return currentNodes
             })
             return updated
         })
-    }, [team.mode, setEdges, setNodes, saveGraph])
+    }, [team.mode, setEdges, setNodes, saveGraph, pushState])
+
+    // ─── Node drag stop (persist position) ────────────────────────────────────
+
+    const onNodeDragStop = useCallback(() => {
+        // Save positions after dragging — reads latest state
+        setNodes((currentNodes) => {
+            setEdges((currentEdges) => {
+                void saveGraph(currentNodes, currentEdges)
+                return currentEdges
+            })
+            return currentNodes
+        })
+    }, [setNodes, setEdges, saveGraph])
 
     // ─── Node deletion ───────────────────────────────────────────────────────
 
@@ -165,6 +200,7 @@ export function WorkflowCanvas({ team, agents, onSaveConfig, onCanvasError }: Wo
                 (n) => !actualDeleted.some((d) => d.id === n.id),
             )
             setEdges((currentEdges) => {
+                pushState(currentNodes, currentEdges)
                 // Remove edges connected to deleted nodes
                 const deletedIds = new Set(actualDeleted.map((n) => n.id))
                 const remainingEdges = currentEdges.filter(
@@ -175,7 +211,7 @@ export function WorkflowCanvas({ team, agents, onSaveConfig, onCanvasError }: Wo
             })
             return remaining
         })
-    }, [team.mode, setNodes, setEdges, saveGraph])
+    }, [team.mode, setNodes, setEdges, saveGraph, pushState])
 
     // ─── Drag & Drop from sidebar ────────────────────────────────────────────
 
@@ -276,6 +312,7 @@ export function WorkflowCanvas({ team, agents, onSaveConfig, onCanvasError }: Wo
             } else {
                 // Collaboration: add edges to all existing agent nodes
                 setEdges((currentEdges) => {
+                    pushState(currentNodes, currentEdges)
                     const existingAgentNodes = currentNodes.filter((n) => n.type === 'agentNode')
                     const newEdges = existingAgentNodes.map((an) => ({
                         id: `e-collab-${an.id}-${nodeId}`,
@@ -291,7 +328,23 @@ export function WorkflowCanvas({ team, agents, onSaveConfig, onCanvasError }: Wo
 
             return updated
         })
-    }, [agents, team.mode, setNodes, setEdges, saveGraph])
+    }, [agents, team.mode, setNodes, setEdges, saveGraph, pushState])
+
+    // ─── Auto-layout ─────────────────────────────────────────────────────────
+
+    const handleAutoLayout = useCallback(() => {
+        setNodes((currentNodes) => {
+            setEdges((currentEdges) => {
+                pushState(currentNodes, currentEdges)
+                const direction = team.mode === 'collaboration' ? 'LR' : 'TB'
+                const layoutedNodes = applyAutoLayout(currentNodes, currentEdges, { direction })
+                setNodes(layoutedNodes)
+                void saveGraph(layoutedNodes, currentEdges)
+                return currentEdges
+            })
+            return currentNodes
+        })
+    }, [setNodes, setEdges, pushState, applyAutoLayout, team.mode, saveGraph])
 
     // ─── Sidebar callbacks ───────────────────────────────────────────────────
 
@@ -342,6 +395,7 @@ export function WorkflowCanvas({ team, agents, onSaveConfig, onCanvasError }: Wo
                     onNodeClick={onNodeClick}
                     onPaneClick={onPaneClick}
                     onNodesDelete={onNodesDelete}
+                    onNodeDragStop={onNodeDragStop}
                     onDragOver={onDragOver}
                     onDrop={onDrop}
                     nodeTypes={NODE_TYPES}
@@ -384,6 +438,33 @@ export function WorkflowCanvas({ team, agents, onSaveConfig, onCanvasError }: Wo
                                     Saving…
                                 </span>
                             )}
+                            <span className="mx-1 text-gray-600">|</span>
+                            <button
+                                type="button"
+                                onClick={() => { undo(nodes, edges) }}
+                                disabled={!canUndo}
+                                className="rounded p-0.5 text-gray-400 hover:text-gray-200 disabled:opacity-30 disabled:cursor-not-allowed"
+                                title="Undo (Ctrl+Z)"
+                            >
+                                <Undo2 className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => { redo(nodes, edges) }}
+                                disabled={!canRedo}
+                                className="rounded p-0.5 text-gray-400 hover:text-gray-200 disabled:opacity-30 disabled:cursor-not-allowed"
+                                title="Redo (Ctrl+Shift+Z)"
+                            >
+                                <Redo2 className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleAutoLayout}
+                                className="rounded p-0.5 text-gray-400 hover:text-gray-200"
+                                title="Auto-layout"
+                            >
+                                <LayoutGrid className="h-3.5 w-3.5" />
+                            </button>
                         </div>
                     </Panel>
 

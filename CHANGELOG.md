@@ -4,6 +4,16 @@ All notable changes to CrewForm will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.4.1] - 2026-03-27
+
+### Added
+
+- **Canvas Undo/Redo** — Full undo/redo support with `Ctrl+Z` / `Ctrl+Shift+Z` keyboard shortcuts and toolbar buttons (30-entry history stack)
+- **Canvas Auto-Layout** — One-click dagre-based graph layout via toolbar button (TB for pipeline/orchestrator, LR for collaboration)
+- **Canvas Position Persistence** — Node positions saved to `teams.config` JSONB and restored on reload — no DB migration needed
+- **Per-Task Token Breakdown** — Prompt vs completion token split persisted per agent; stacked bar chart on Analytics page
+- **Cost Forecasting** — 30-day cost projection using linear regression with trend indicator, daily average, and mini forecast chart
+
 ## [1.4.0] - 2026-03-27
 
 ### Added
