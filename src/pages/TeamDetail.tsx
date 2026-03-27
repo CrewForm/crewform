@@ -37,6 +37,7 @@ import { UpgradeCard } from '@/components/shared/UpgradeBadge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { WorkflowCanvas } from '@/components/workflow/WorkflowCanvas'
+import { CanvasErrorBoundary } from '@/components/workflow/CanvasErrorBoundary'
 import type { PipelineConfig, OrchestratorConfig, CollaborationConfig, TeamMode } from '@/types'
 
 const MODE_BADGE: Record<string, { label: string; className: string }> = {
@@ -387,7 +388,25 @@ export function TeamDetail() {
 
                     {/* Canvas View */}
                     {view === 'canvas' && (
-                        <WorkflowCanvas team={team} agents={agents} />
+                        <CanvasErrorBoundary
+                            onError={() => {
+                                setView('form')
+                            }}
+                        >
+                            <WorkflowCanvas
+                                team={team}
+                                agents={agents}
+                                onSaveConfig={async (config) => {
+                                    await updateMutation.mutateAsync({
+                                        id: team.id,
+                                        updates: { config },
+                                    })
+                                }}
+                                onCanvasError={() => {
+                                    setView('form')
+                                }}
+                            />
+                        </CanvasErrorBoundary>
                     )}
 
                     {/* Form View — Pipeline configuration */}

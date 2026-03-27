@@ -3,21 +3,24 @@
 
 /**
  * Sidebar for the workflow canvas.
- * Shows agent palette and properties of the selected node.
+ * Phase 2: Draggable agent palette + selected node properties + delete.
  */
 
+import type { DragEvent } from 'react'
 import type { Node } from '@xyflow/react'
 import type { Agent, Team, PipelineConfig, PipelineStep } from '@/types'
 import type { AgentNodeData } from './nodes/AgentNode'
-import { Bot, Info, Layers } from 'lucide-react'
+import { Bot, Info, Layers, Trash2, GripVertical } from 'lucide-react'
 
 interface WorkflowSidebarProps {
     team: Team
     agents: Agent[]
     selectedNode: Node | null
+    onDeleteNode?: (nodeId: string) => void
+    draggable?: boolean
 }
 
-export function WorkflowSidebar({ team, agents, selectedNode }: WorkflowSidebarProps) {
+export function WorkflowSidebar({ team, agents, selectedNode, onDeleteNode, draggable }: WorkflowSidebarProps) {
     const isAgentNode = selectedNode?.type === 'agentNode'
     const nodeData = isAgentNode ? (selectedNode.data as unknown as AgentNodeData) : null
 
@@ -30,16 +33,43 @@ export function WorkflowSidebar({ team, agents, selectedNode }: WorkflowSidebarP
         ? (pipelineConfig.steps[stepIndex] ?? null)
         : null
 
+    // Can this node be deleted?
+    const protectedIds = new Set(['start', 'end', 'brain'])
+    const canDelete = selectedNode && !protectedIds.has(selectedNode.id) && isAgentNode
+
+    // Is this the brain in orchestrator mode?
+    const isBrain = nodeData?.role === 'brain' || nodeData?.role === 'orchestrator'
+
+    // ─── Drag handlers for sidebar palette ────────────────────────────────────
+
+    function handleDragStart(event: DragEvent, agentId: string) {
+        event.dataTransfer.setData('application/crewform-agent', agentId)
+        event.dataTransfer.effectAllowed = 'move'
+    }
+
     return (
         <div className="w-64 shrink-0 border-l border-border bg-surface-elevated/50 overflow-y-auto">
             {isAgentNode && nodeData ? (
                 /* ─── Node Properties ─── */
                 <div className="p-4">
-                    <div className="mb-4 flex items-center gap-2">
-                        <Info className="h-3.5 w-3.5 text-brand-primary" />
-                        <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                            Agent Properties
-                        </span>
+                    <div className="mb-4 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <Info className="h-3.5 w-3.5 text-brand-primary" />
+                            <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                                Agent Properties
+                            </span>
+                        </div>
+                        {canDelete && onDeleteNode && (
+                            <button
+                                type="button"
+                                onClick={() => onDeleteNode(selectedNode.id)}
+                                className="flex items-center gap-1 rounded-md px-2 py-1 text-[10px] text-red-400 transition-colors hover:bg-red-500/10"
+                                title="Remove from team"
+                            >
+                                <Trash2 className="h-3 w-3" />
+                                Remove
+                            </button>
+                        )}
                     </div>
 
                     <div className="space-y-3">
@@ -62,6 +92,15 @@ export function WorkflowSidebar({ team, agents, selectedNode }: WorkflowSidebarP
                             <div>
                                 <label className="text-[10px] font-medium uppercase tracking-wide text-gray-500">Role</label>
                                 <div className="mt-0.5 text-sm capitalize text-gray-300">{nodeData.role}</div>
+                            </div>
+                        )}
+
+                        {/* Brain protection notice */}
+                        {isBrain && team.mode === 'orchestrator' && (
+                            <div className="rounded-md border border-amber-500/20 bg-amber-500/5 px-3 py-2">
+                                <p className="text-[10px] text-amber-400">
+                                    This is the brain agent. It cannot be removed from the orchestrator.
+                                </p>
                             </div>
                         )}
 
@@ -111,15 +150,23 @@ export function WorkflowSidebar({ team, agents, selectedNode }: WorkflowSidebarP
                     </div>
 
                     <p className="mb-3 text-[11px] text-gray-500 leading-relaxed">
-                        Click an agent node on the canvas to view its properties. Use the form view to add or remove agents.
+                        {draggable
+                            ? 'Drag an agent onto the canvas to add it to the team, or click a node to view its properties.'
+                            : 'Click an agent node on the canvas to view its properties. Use the form view to add or remove agents.'
+                        }
                     </p>
 
                     <div className="space-y-1.5">
                         {agents.map((agent) => (
                             <div
                                 key={agent.id}
-                                className="flex items-center gap-2.5 rounded-lg border border-border bg-surface-card p-2.5 transition-colors hover:border-brand-primary/30"
+                                draggable={draggable}
+                                onDragStart={draggable ? (e) => handleDragStart(e, agent.id) : undefined}
+                                className={`flex items-center gap-2.5 rounded-lg border border-border bg-surface-card p-2.5 transition-colors hover:border-brand-primary/30 ${draggable ? 'cursor-grab active:cursor-grabbing' : ''}`}
                             >
+                                {draggable && (
+                                    <GripVertical className="h-3.5 w-3.5 text-gray-600 shrink-0" />
+                                )}
                                 {agent.avatar_url ? (
                                     <img
                                         src={agent.avatar_url}
