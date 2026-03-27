@@ -4,6 +4,23 @@ All notable changes to CrewForm will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.4.0] - 2026-03-27
+
+### Added
+
+- **Visual Workflow Builder — Interactive Editing** — Full Phase 2 canvas editing capabilities:
+  - Drag agents from the sidebar onto the canvas to add them to a team
+  - Delete agent nodes from the canvas (with brain agent protection in orchestrator mode)
+  - Connect nodes by dragging edges to define pipeline execution order
+  - Edit step name, instructions, expected output, and on-failure handling inline on the canvas sidebar
+  - Auto-save with validation — invalid configs are rejected with rollback and toast notification
+- **Canvas Error Boundary** — Any canvas crash automatically switches to Form view with error toast, keeping data safe
+- **Draggable Agent Palette** — Sidebar agents show grip handles and are draggable onto the canvas
+
+### Changed
+
+- **Workflow Sidebar** — Pipeline step properties are now editable inputs (text, textarea, select) instead of read-only labels
+
 ## [1.3.0] - 2026-03-27
 
 ### Added

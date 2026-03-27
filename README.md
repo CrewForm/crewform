@@ -120,6 +120,20 @@
 📊<br/><strong>Analytics</strong><br/>Track tokens, costs, and agent performance
 </td>
 </tr>
+<tr>
+<td align="center" width="25%">
+🎨<br/><strong>Visual Workflow Canvas</strong><br/>Drag-and-drop agent orchestration with React Flow
+</td>
+<td align="center" width="25%">
+🔄<br/><strong>Fallback Models</strong><br/>Auto-switch to backup models on failure
+</td>
+<td align="center" width="25%">
+🐳<br/><strong>Local AI via Ollama</strong><br/>Air-gapped setup — zero data leaving your network
+</td>
+<td align="center" width="25%">
+🛡️<br/><strong>RBAC & Workspaces</strong><br/>Role-based access, multi-tenant isolation
+</td>
+</tr>
 </table>
 
 ## 🚀 Quick Start
@@ -243,6 +257,7 @@ Each client gets their own workspace. Custom agents built around their tools and
 - 🏠 **Self-Hostable** — Run on your own infrastructure with Docker Compose
 - 🔒 **Secure by Default** — AES-256-GCM key encryption, Row-Level Security, GDPR-ready
 - ⚡ **Real-Time** — Watch your agents work in real-time with live task execution updates
+- 🎨 **Visual Workflow Canvas** — Drag-and-drop agents onto an interactive canvas, connect nodes, and edit step configs inline
 - 📊 **Usage Tracking** — Monitor token usage, costs, and performance per agent and task
 
 ### Enterprise Edition (Paid Plans)
