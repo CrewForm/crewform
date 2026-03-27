@@ -1,0 +1,95 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Copyright (C) 2026 CrewForm */
+
+/*
+ * Dark theme overrides for React Flow canvas.
+ * Matches CrewForm's surface-card / border design tokens.
+ */
+
+/* ─── Canvas background ─── */
+
+.workflow-flow {
+    background: var(--color-surface-elevated, #0d0d0d) !important;
+}
+
+/* ─── Handles (connection points) ─── */
+
+.workflow-handle {
+    width: 8px !important;
+    height: 8px !important;
+    background: var(--color-brand-primary, #6bedb9) !important;
+    border: 2px solid var(--color-surface-card, #1a1a1a) !important;
+    border-radius: 50%;
+}
+
+.workflow-handle:hover {
+    width: 10px !important;
+    height: 10px !important;
+}
+
+/* ─── Controls ─── */
+
+.workflow-controls {
+    border: 1px solid var(--color-border, #2a2a2a) !important;
+    border-radius: 10px !important;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+}
+
+.workflow-controls button {
+    background: var(--color-surface-card, #1a1a1a) !important;
+    border-bottom: 1px solid var(--color-border, #2a2a2a) !important;
+    fill: #6b7280 !important;
+    width: 28px !important;
+    height: 28px !important;
+}
+
+.workflow-controls button:hover {
+    background: var(--color-surface-elevated, #252525) !important;
+    fill: var(--color-brand-primary, #6bedb9) !important;
+}
+
+.workflow-controls button:last-child {
+    border-bottom: none !important;
+}
+
+/* ─── MiniMap ─── */
+
+.workflow-minimap {
+    border: 1px solid var(--color-border, #2a2a2a) !important;
+    border-radius: 10px !important;
+    background: var(--color-surface-card, #1a1a1a) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+    overflow: hidden;
+}
+
+/* ─── Edges ─── */
+
+.react-flow__edge-path {
+    stroke-linecap: round;
+}
+
+/* ─── Selection ─── */
+
+.react-flow__node.selected .workflow-agent-node {
+    box-shadow: 0 0 0 2px rgba(107, 237, 185, 0.4),
+        0 0 20px rgba(107, 237, 185, 0.1);
+}
+
+/* ─── Edge labels ─── */
+
+.react-flow__edge-textwrapper {
+    pointer-events: none;
+}
+
+.react-flow__edge-text {
+    fill: #6b7280;
+    font-size: 10px;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+/* ─── Canvas container ─── */
+
+.workflow-canvas-container {
+    transition: height 0.2s ease;
+}

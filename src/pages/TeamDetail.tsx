@@ -14,6 +14,8 @@ import {
     X,
     Play,
     ChevronDown,
+    LayoutList,
+    Workflow,
 } from 'lucide-react'
 import { useTeam } from '@/hooks/useTeam'
 import { useAgents } from '@/hooks/useAgents'
@@ -34,6 +36,7 @@ import { EEGate } from '@/components/shared/UpgradeBadge'
 import { UpgradeCard } from '@/components/shared/UpgradeBadge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
+import { WorkflowCanvas } from '@/components/workflow/WorkflowCanvas'
 import type { PipelineConfig, OrchestratorConfig, CollaborationConfig, TeamMode } from '@/types'
 
 const MODE_BADGE: Record<string, { label: string; className: string }> = {
@@ -71,6 +74,7 @@ export function TeamDetail() {
     const [showModeDropdown, setShowModeDropdown] = useState(false)
     const [outputRouteIds, setOutputRouteIds] = useState<string[] | null>(null)
     const [channelInitialized, setChannelInitialized] = useState(false)
+    const [view, setView] = useState<'form' | 'canvas'>('form')
 
     const { runs, isLoading: isLoadingRuns } = useTeamRuns(id ?? null)
     const pipelineConfig = team?.mode === 'pipeline' ? (team.config as PipelineConfig) : undefined
@@ -351,15 +355,50 @@ export function TeamDetail() {
                         </div>
                     </div>
 
-                    {/* Pipeline configuration */}
-                    {team.mode === 'pipeline' && (
+                    {/* View Toggle */}
+                    <div className="mb-4 flex items-center gap-1 rounded-lg border border-border bg-surface-card p-1 w-fit">
+                        <button
+                            type="button"
+                            onClick={() => setView('form')}
+                            className={cn(
+                                'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+                                view === 'form'
+                                    ? 'bg-brand-primary/10 text-brand-primary'
+                                    : 'text-gray-500 hover:text-gray-300',
+                            )}
+                        >
+                            <LayoutList className="h-3.5 w-3.5" />
+                            Form
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setView('canvas')}
+                            className={cn(
+                                'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+                                view === 'canvas'
+                                    ? 'bg-brand-primary/10 text-brand-primary'
+                                    : 'text-gray-500 hover:text-gray-300',
+                            )}
+                        >
+                            <Workflow className="h-3.5 w-3.5" />
+                            Canvas
+                        </button>
+                    </div>
+
+                    {/* Canvas View */}
+                    {view === 'canvas' && (
+                        <WorkflowCanvas team={team} agents={agents} />
+                    )}
+
+                    {/* Form View — Pipeline configuration */}
+                    {view === 'form' && team.mode === 'pipeline' && (
                         <div className="rounded-xl border border-border bg-surface-card p-6">
                             <PipelineConfigPanel team={team} agents={agents} />
                         </div>
                     )}
 
-                    {/* Orchestrator configuration */}
-                    {team.mode === 'orchestrator' && orchestratorConfig && (
+                    {/* Form View — Orchestrator configuration */}
+                    {view === 'form' && team.mode === 'orchestrator' && orchestratorConfig && (
                         <div className="rounded-xl border border-border bg-surface-card p-6">
                             <OrchestratorConfigPanel
                                 agents={agents}
@@ -387,8 +426,8 @@ export function TeamDetail() {
                         </div>
                     )}
 
-                    {/* Collaboration configuration */}
-                    {team.mode === 'collaboration' && collaborationConfig && (
+                    {/* Form View — Collaboration configuration */}
+                    {view === 'form' && team.mode === 'collaboration' && collaborationConfig && (
                         <div className="rounded-xl border border-border bg-surface-card p-6">
                             <CollaborationConfigPanel
                                 agents={agents}

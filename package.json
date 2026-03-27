@@ -19,6 +19,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@supabase/supabase-js": "^2.45.0",
     "@tanstack/react-query": "^5.59.0",
+    "@xyflow/react": "^12.10.2",
     "clsx": "^2.1.0",
     "lucide-react": "^0.460.0",
     "react": "^18.3.1",
