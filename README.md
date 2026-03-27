@@ -249,6 +249,8 @@ CrewForm uses an **open-core** model: a free Community Edition under AGPL-3.0 an
 | [Channels](https://docs.crewform.tech/channels) | Discord, Slack, Telegram, Email triggers |
 | [Discord Integration](https://docs.crewform.tech/discord-integration) | Slash commands and bot setup |
 | [Output Routes](https://docs.crewform.tech/output-routes) | Deliver results to external destinations |
+| [MCP Protocol](https://docs.crewform.tech/mcp-protocol) | Connect agents to external tool servers |
+| [Knowledge Base](https://docs.crewform.tech/knowledge-base) | RAG document upload, chunking, and search |
 | [A2A Protocol](https://docs.crewform.tech/a2a-protocol) | Agent-to-Agent interoperability |
 | [AG-UI Protocol](https://docs.crewform.tech/ag-ui-protocol) | Real-time SSE streaming for frontends |
 | [API Reference](https://docs.crewform.tech/api-reference) | REST API endpoints and authentication |

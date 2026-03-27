@@ -71,8 +71,10 @@
         {
             "group": "Protocols",
             "pages": [
+                "mcp-protocol",
                 "a2a-protocol",
-                "ag-ui-protocol"
+                "ag-ui-protocol",
+                "knowledge-base"
             ]
         },
         {
