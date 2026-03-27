@@ -61,6 +61,12 @@
 <img src=".github/assets/screenshot-a2a.png" alt="A2A Settings" width="400" />
 <br/><em>Connect to external A2A agents</em>
 </td>
+</tr>
+<tr>
+<td align="center" width="50%">
+<img src=".github/assets/screenshot-pipeline-canvas.png" alt="Pipeline Canvas" width="400" />
+<br/><em>Visual workflow builder for pipeline teams</em>
+</td>
 <td align="center" width="50%">
 <img src=".github/assets/screenshot-dashboard.png" alt="Analytics Dashboard" width="400" />
 <br/><em>Track token usage, costs, and performance</em>
