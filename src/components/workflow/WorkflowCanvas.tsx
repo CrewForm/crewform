@@ -27,7 +27,7 @@ import { StartNode } from './nodes/StartNode'
 import { EndNode } from './nodes/EndNode'
 import { useWorkflowGraph, graphToConfig, validateConfig } from './useWorkflowGraph'
 import { WorkflowSidebar } from './WorkflowSidebar'
-import type { Agent, Team, PipelineConfig, OrchestratorConfig, CollaborationConfig } from '@/types'
+import type { Agent, Team, PipelineConfig, PipelineStep, OrchestratorConfig, CollaborationConfig } from '@/types'
 import type { AgentNodeData } from './nodes/AgentNode'
 import { Bot, AlertCircle } from 'lucide-react'
 
@@ -302,6 +302,27 @@ export function WorkflowCanvas({ team, agents, onSaveConfig, onCanvasError }: Wo
         }
     }, [nodes, onNodesDelete])
 
+    const handleStepUpdate = useCallback(async (stepIndex: number, updates: Partial<PipelineStep>) => {
+        if (team.mode !== 'pipeline') return
+
+        const config = team.config as PipelineConfig
+        const updatedSteps = config.steps.map((step, idx) =>
+            idx === stepIndex ? { ...step, ...updates } : step,
+        )
+        const updatedConfig: PipelineConfig = { ...config, steps: updatedSteps }
+
+        setCanvasError(null)
+        setIsSaving(true)
+        try {
+            await onSaveConfig(updatedConfig)
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : 'Failed to save step config'
+            setCanvasError(msg)
+        } finally {
+            setIsSaving(false)
+        }
+    }, [team, onSaveConfig])
+
     // ─── Render ──────────────────────────────────────────────────────────────
 
     const selectedNode = nodes.find((n) => n.id === selectedNodeId)
@@ -391,6 +412,7 @@ export function WorkflowCanvas({ team, agents, onSaveConfig, onCanvasError }: Wo
                 agents={agents}
                 selectedNode={selectedNode ?? null}
                 onDeleteNode={handleDeleteNode}
+                onStepUpdate={(idx, updates) => { void handleStepUpdate(idx, updates) }}
                 draggable
             />
         </div>

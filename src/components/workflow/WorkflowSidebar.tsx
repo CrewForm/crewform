@@ -17,10 +17,11 @@ interface WorkflowSidebarProps {
     agents: Agent[]
     selectedNode: Node | null
     onDeleteNode?: (nodeId: string) => void
+    onStepUpdate?: (stepIndex: number, updates: Partial<PipelineStep>) => void
     draggable?: boolean
 }
 
-export function WorkflowSidebar({ team, agents, selectedNode, onDeleteNode, draggable }: WorkflowSidebarProps) {
+export function WorkflowSidebar({ team, agents, selectedNode, onDeleteNode, onStepUpdate, draggable }: WorkflowSidebarProps) {
     const isAgentNode = selectedNode?.type === 'agentNode'
     const nodeData = isAgentNode ? (selectedNode.data as unknown as AgentNodeData) : null
 
@@ -39,6 +40,13 @@ export function WorkflowSidebar({ team, agents, selectedNode, onDeleteNode, drag
 
     // Is this the brain in orchestrator mode?
     const isBrain = nodeData?.role === 'brain' || nodeData?.role === 'orchestrator'
+
+    // ─── Step editing helpers ─────────────────────────────────────────────────
+
+    function handleStepFieldBlur(field: keyof PipelineStep, value: string) {
+        if (stepIndex < 0 || !onStepUpdate) return
+        onStepUpdate(stepIndex, { [field]: value })
+    }
 
     // ─── Drag handlers for sidebar palette ────────────────────────────────────
 
@@ -104,36 +112,60 @@ export function WorkflowSidebar({ team, agents, selectedNode, onDeleteNode, drag
                             </div>
                         )}
 
-                        {/* Pipeline step details */}
+                        {/* Pipeline step details — editable */}
                         {stepConfig && (
                             <>
                                 <hr className="border-border" />
                                 <div className="text-[10px] font-medium uppercase tracking-wide text-gray-500">Step Config</div>
 
-                                {stepConfig.step_name && (
-                                    <div>
-                                        <label className="text-[10px] font-medium uppercase tracking-wide text-gray-500">Step Name</label>
-                                        <div className="mt-0.5 text-sm text-gray-300">{stepConfig.step_name}</div>
-                                    </div>
-                                )}
+                                <div>
+                                    <label className="text-[10px] font-medium uppercase tracking-wide text-gray-500">Step Name</label>
+                                    <input
+                                        type="text"
+                                        defaultValue={stepConfig.step_name}
+                                        key={`${selectedNode.id}-step_name`}
+                                        onBlur={(e) => handleStepFieldBlur('step_name', e.target.value)}
+                                        className="mt-0.5 w-full rounded-md border border-border bg-surface-card px-2 py-1 text-sm text-gray-200 outline-none focus:border-brand-primary/50 transition-colors"
+                                        placeholder="Step name"
+                                    />
+                                </div>
 
-                                {stepConfig.instructions && (
-                                    <div>
-                                        <label className="text-[10px] font-medium uppercase tracking-wide text-gray-500">Instructions</label>
-                                        <div className="mt-0.5 text-xs text-gray-400 leading-relaxed">{stepConfig.instructions}</div>
-                                    </div>
-                                )}
+                                <div>
+                                    <label className="text-[10px] font-medium uppercase tracking-wide text-gray-500">Instructions</label>
+                                    <textarea
+                                        defaultValue={stepConfig.instructions}
+                                        key={`${selectedNode.id}-instructions`}
+                                        onBlur={(e) => handleStepFieldBlur('instructions', e.target.value)}
+                                        rows={3}
+                                        className="mt-0.5 w-full rounded-md border border-border bg-surface-card px-2 py-1 text-xs text-gray-300 leading-relaxed outline-none resize-y focus:border-brand-primary/50 transition-colors"
+                                        placeholder="What should this agent do in this step?"
+                                    />
+                                </div>
 
-                                {stepConfig.expected_output && (
-                                    <div>
-                                        <label className="text-[10px] font-medium uppercase tracking-wide text-gray-500">Expected Output</label>
-                                        <div className="mt-0.5 text-xs text-gray-400 leading-relaxed">{stepConfig.expected_output}</div>
-                                    </div>
-                                )}
+                                <div>
+                                    <label className="text-[10px] font-medium uppercase tracking-wide text-gray-500">Expected Output</label>
+                                    <textarea
+                                        defaultValue={stepConfig.expected_output}
+                                        key={`${selectedNode.id}-expected_output`}
+                                        onBlur={(e) => handleStepFieldBlur('expected_output', e.target.value)}
+                                        rows={2}
+                                        className="mt-0.5 w-full rounded-md border border-border bg-surface-card px-2 py-1 text-xs text-gray-300 leading-relaxed outline-none resize-y focus:border-brand-primary/50 transition-colors"
+                                        placeholder="What output is expected from this step?"
+                                    />
+                                </div>
 
                                 <div>
                                     <label className="text-[10px] font-medium uppercase tracking-wide text-gray-500">On Failure</label>
-                                    <div className="mt-0.5 text-sm capitalize text-gray-300">{stepConfig.on_failure}</div>
+                                    <select
+                                        defaultValue={stepConfig.on_failure}
+                                        key={`${selectedNode.id}-on_failure`}
+                                        onChange={(e) => handleStepFieldBlur('on_failure', e.target.value)}
+                                        className="mt-0.5 w-full rounded-md border border-border bg-surface-card px-2 py-1.5 text-sm text-gray-300 outline-none focus:border-brand-primary/50 transition-colors cursor-pointer"
+                                    >
+                                        <option value="stop">Stop</option>
+                                        <option value="skip">Skip</option>
+                                        <option value="retry">Retry</option>
+                                    </select>
                                 </div>
                             </>
                         )}
