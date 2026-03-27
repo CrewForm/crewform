@@ -43,6 +43,13 @@ export const BUILT_IN_TOOLS = [
         icon: '✏️',
         requiresProvider: undefined,
     },
+    {
+        name: 'knowledge_search',
+        label: 'Knowledge Search',
+        description: 'Search uploaded documents for relevant information. Upload docs in Knowledge Base.',
+        icon: '📚',
+        requiresProvider: undefined,
+    },
 ] as const
 
 export type BuiltInToolName = typeof BUILT_IN_TOOLS[number]['name']

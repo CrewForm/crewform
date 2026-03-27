@@ -33,6 +33,7 @@ export interface Agent {
     tools: string[];
     fallback_model: string | null;
     output_route_ids: string[] | null;
+    config: Record<string, unknown>;
 }
 
 export interface ApiKey {

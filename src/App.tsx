@@ -30,6 +30,7 @@ const NotFound = lazy(() => import('@/pages/NotFound').then(m => ({ default: m.N
 const Terms = lazy(() => import('@/pages/Terms').then(m => ({ default: m.Terms })))
 const Privacy = lazy(() => import('@/pages/Privacy').then(m => ({ default: m.Privacy })))
 const AcceptInvite = lazy(() => import('@/pages/AcceptInvite').then(m => ({ default: m.AcceptInvite })))
+const KnowledgeBase = lazy(() => import('@/pages/KnowledgeBase'))
 
 // ── Suspense fallback ────────────────────────────────────────────────────────
 function PageLoader() {
@@ -74,6 +75,7 @@ export function App() {
             <Route path="/tasks" element={<Tasks />} />
             <Route path="/tasks/:id" element={<TaskDetail />} />
             <Route path="/marketplace" element={<Marketplace />} />
+            <Route path="/knowledge" element={<KnowledgeBase />} />
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/settings" element={<Settings />} />
 

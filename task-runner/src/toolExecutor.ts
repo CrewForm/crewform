@@ -5,6 +5,7 @@
  * The executor handles the tool-use loop: LLM calls → tool calls → results fed back.
  */
 
+import { searchKnowledge, formatKnowledgeResults } from './knowledgeSearch';
 import type { TokenUsage } from './types';
 import { callMcpTool, parseMcpToolName } from './mcpClient';
 import type { McpServerConfig } from './mcpClient';
@@ -171,6 +172,20 @@ const TOOL_REGISTRY: Record<string, ToolDefinition> = {
             },
         },
     },
+    knowledge_search: {
+        type: 'function',
+        function: {
+            name: 'knowledge_search',
+            description: 'Search the knowledge base for relevant information from uploaded documents. Returns the most relevant text passages.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    query: { type: 'string', description: 'The search query to find relevant information' },
+                },
+                required: ['query'],
+            },
+        },
+    },
 };
 
 // ─── Tool Execution ──────────────────────────────────────────────────────────
@@ -192,6 +207,7 @@ export async function executeToolCall(
     customTools?: CustomToolConfig[],
     serperApiKey?: string,
     mcpServers?: McpServerConfig[],
+    knowledgeContext?: { workspaceId: string; documentIds?: string[] },
 ): Promise<string> {
     const { name, arguments: argsStr } = toolCall.function;
 
@@ -240,6 +256,17 @@ export async function executeToolCall(
                     args.text as string,
                     (args.language as string) || 'auto',
                 );
+            case 'knowledge_search': {
+                if (!knowledgeContext?.workspaceId) {
+                    return 'Error: Knowledge search not available — no workspace context.';
+                }
+                const results = await searchKnowledge(
+                    knowledgeContext.workspaceId,
+                    knowledgeContext.documentIds ?? null,
+                    args.query as string,
+                );
+                return formatKnowledgeResults(results);
+            }
             default:
                 return `Error: Unknown tool "${name}"`;
         }
@@ -511,6 +538,7 @@ export async function executeWithToolLoop(
     serperApiKey?: string,
     mcpToolDefs?: ToolDefinition[],
     mcpServers?: McpServerConfig[],
+    knowledgeContext?: { workspaceId: string; documentIds?: string[] },
 ): Promise<ToolUseResult> {
     const tools = getToolDefinitions(toolNames, customTools, mcpToolDefs);
     const messages: ToolUseMessage[] = [
@@ -563,7 +591,7 @@ export async function executeWithToolLoop(
             console.log(`[ToolExecutor] Executing tool: ${toolCall.function.name} (round ${(round + 1).toString()}, call #${toolCallsMade.toString()})`);
 
             const callStart = Date.now();
-            const result = await executeToolCall(toolCall, customTools, serperApiKey, mcpServers);
+            const result = await executeToolCall(toolCall, customTools, serperApiKey, mcpServers, knowledgeContext);
             const durationMs = Date.now() - callStart;
 
             let parsedArgs: Record<string, unknown> = {};

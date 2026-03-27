@@ -248,6 +248,9 @@ export async function processTask(task: Task) {
                     serperApiKey,
                     mcpToolDefs,
                     mcpServers,
+                    agentTools.includes('knowledge_search')
+                        ? { workspaceId: task.workspace_id, documentIds: (agent.config?.knowledge_base_ids as string[] | undefined) ?? undefined }
+                        : undefined,
                 );
             } else if (providerLower === 'anthropic') {
                 executionResult = await executeAnthropic(rawKey, effectiveModel, systemPrompt, userPrompt, updateResultStream, agent.max_tokens);
@@ -469,6 +472,7 @@ async function executeToolUseTask(
     serperApiKey?: string,
     mcpToolDefs?: ToolDefinition[],
     mcpServers?: McpServerConfig[],
+    knowledgeContext?: { workspaceId: string; documentIds?: string[] },
 ): Promise<{ result: string; usage: TokenUsage; toolCallLogs: ToolCallLog[] }> {
     // Determine base URL for OpenAI-compatible providers
     const baseURLMap: Record<string, string> = {
@@ -570,6 +574,7 @@ async function executeToolUseTask(
         serperApiKey,
         mcpToolDefs,
         mcpServers,
+        knowledgeContext,
     );
 
     void tools; // definitions are used internally by the loop
