@@ -136,6 +136,14 @@ const PROVIDERS: ProviderConfig[] = [
         bgColor: 'bg-emerald-500/10',
         borderColor: 'border-border',
     },
+    {
+        id: 'ollama',
+        name: 'Ollama (Local)',
+        prefix: '',
+        color: 'text-gray-400',
+        bgColor: 'bg-gray-500/10',
+        borderColor: 'border-border',
+    },
 ].map((p) => {
     const modelGroup = MODEL_OPTIONS.find(
         (g) => g.provider.toLowerCase() === p.id.toLowerCase(),
