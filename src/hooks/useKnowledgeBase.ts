@@ -2,6 +2,7 @@
 // Copyright (C) 2026 CrewForm
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import {
     fetchKnowledgeDocuments,
     uploadKnowledgeDocument,
@@ -47,8 +48,12 @@ export function useUploadKnowledgeDocument() {
             void processKnowledgeDocument(doc.id)
             return doc
         },
-        onSuccess: (_data, variables) => {
+        onSuccess: (data, variables) => {
+            toast.success(`Uploaded "${data.name}" — processing started`)
             void qc.invalidateQueries({ queryKey: ['knowledge-documents', variables.workspaceId] })
+        },
+        onError: (error: Error) => {
+            toast.error(`Upload failed: ${error.message}`)
         },
     })
 }
@@ -59,7 +64,11 @@ export function useDeleteKnowledgeDocument() {
     return useMutation({
         mutationFn: (doc: KnowledgeDocument) => deleteKnowledgeDocument(doc),
         onSuccess: () => {
+            toast.success('Document deleted')
             void qc.invalidateQueries({ queryKey: ['knowledge-documents'] })
+        },
+        onError: (error: Error) => {
+            toast.error(`Delete failed: ${error.message}`)
         },
     })
 }

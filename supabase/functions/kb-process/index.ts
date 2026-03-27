@@ -86,16 +86,19 @@ function chunkText(text: string): Chunk[] {
 
 // ─── Embedding ──────────────────────────────────────────────────────────────
 
-interface EmbeddingKeyResult {
+interface EmbeddingProvider {
     apiKey: string;
     baseURL?: string;
+    label: string;
 }
 
-async function getEmbeddingKey(
+async function getEmbeddingProviders(
     supabase: ReturnType<typeof createClient>,
     workspaceId: string,
-): Promise<EmbeddingKeyResult | null> {
-    // Try OpenAI first
+): Promise<EmbeddingProvider[]> {
+    const providers: EmbeddingProvider[] = [];
+
+    // Try OpenAI
     const { data: openaiKey } = await supabase
         .from('api_keys')
         .select('encrypted_key')
@@ -104,12 +107,13 @@ async function getEmbeddingKey(
         .maybeSingle();
 
     if (openaiKey) {
-        // Decrypt key — Edge Functions use the same encryption as task runner
-        // For now, pass as-is (encrypted_key is stored encrypted but accessible via service role)
-        return { apiKey: (openaiKey as { encrypted_key: string }).encrypted_key };
+        providers.push({
+            apiKey: (openaiKey as { encrypted_key: string }).encrypted_key,
+            label: 'OpenAI',
+        });
     }
 
-    // Fallback: OpenRouter
+    // Try OpenRouter
     const { data: routerKey } = await supabase
         .from('api_keys')
         .select('encrypted_key')
@@ -118,13 +122,14 @@ async function getEmbeddingKey(
         .maybeSingle();
 
     if (routerKey) {
-        return {
+        providers.push({
             apiKey: (routerKey as { encrypted_key: string }).encrypted_key,
             baseURL: 'https://openrouter.ai/api/v1',
-        };
+            label: 'OpenRouter',
+        });
     }
 
-    return null;
+    return providers;
 }
 
 async function generateEmbeddings(
@@ -159,6 +164,28 @@ async function generateEmbeddings(
     };
 
     return result.data.map((d) => d.embedding);
+}
+
+/** Try each provider in order; return embeddings from the first that succeeds */
+async function generateEmbeddingsWithFallback(
+    texts: string[],
+    providers: EmbeddingProvider[],
+): Promise<number[][]> {
+    const errors: string[] = [];
+
+    for (const provider of providers) {
+        try {
+            console.log(`[kb-process] Trying embeddings via ${provider.label}...`);
+            const result = await generateEmbeddings(texts, provider.apiKey, provider.baseURL);
+            return result;
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : String(err);
+            console.warn(`[kb-process] ${provider.label} failed: ${msg}`);
+            errors.push(`${provider.label}: ${msg}`);
+        }
+    }
+
+    throw new Error(`All embedding providers failed:\n${errors.join('\n')}`);
 }
 
 // ─── Main Handler ───────────────────────────────────────────────────────────
@@ -257,9 +284,9 @@ Deno.serve(async (req: Request) => {
         const chunks = chunkText(text);
         console.log(`[kb-process] Created ${chunks.length} chunks`);
 
-        // 6. Get embedding key
-        const embeddingKey = await getEmbeddingKey(supabase, document.workspace_id);
-        if (!embeddingKey) {
+        // 6. Get all available embedding providers
+        const providers = await getEmbeddingProviders(supabase, document.workspace_id);
+        if (providers.length === 0) {
             await supabase
                 .from('knowledge_documents')
                 .update({ status: 'error', error_message: 'No OpenAI or OpenRouter API key found. Add one in Settings → LLM Setup.' })
@@ -267,24 +294,22 @@ Deno.serve(async (req: Request) => {
             return jsonOk({ error: 'No embedding API key found' });
         }
 
+        console.log(`[kb-process] Found ${providers.length} embedding provider(s): ${providers.map((p) => p.label).join(', ')}`);
+
         // 7. Delete existing chunks (in case of re-processing)
         await supabase
             .from('knowledge_chunks')
             .delete()
             .eq('document_id', document.id);
 
-        // 8. Embed and store chunks in batches
+        // 8. Embed and store chunks in batches (with provider fallback)
         let storedCount = 0;
         for (let i = 0; i < chunks.length; i += EMBEDDING_BATCH_SIZE) {
             const batch = chunks.slice(i, i + EMBEDDING_BATCH_SIZE);
             const texts = batch.map((c) => c.content);
 
             try {
-                const embeddings = await generateEmbeddings(
-                    texts,
-                    embeddingKey.apiKey,
-                    embeddingKey.baseURL,
-                );
+                const embeddings = await generateEmbeddingsWithFallback(texts, providers);
 
                 const rows = batch.map((chunk, j) => ({
                     document_id: document.id,
