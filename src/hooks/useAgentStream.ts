@@ -120,6 +120,7 @@ export function useAgentStream(
             const decoder = new TextDecoder()
             let buffer = ''
 
+            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
             while (true) {
                 const { done, value } = await reader.read()
                 if (done) break
@@ -172,7 +173,7 @@ export function useAgentStream(
                                         if (event.toolCallId) {
                                             newToolCalls = newToolCalls.map(tc =>
                                                 tc.id === event.toolCallId
-                                                    ? { ...tc, status: 'done' as const, result: (event.result as string) ?? '' }
+                                                    ? { ...tc, status: 'done' as const, result: event.result ?? '' }
                                                     : tc,
                                             )
                                         }
@@ -184,7 +185,7 @@ export function useAgentStream(
 
                                     case 'RUN_ERROR':
                                         newStatus = 'error'
-                                        newError = (event.message as string) ?? 'Unknown error'
+                                        newError = event.message ?? 'Unknown error'
                                         break
                                 }
 
