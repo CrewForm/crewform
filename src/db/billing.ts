@@ -38,6 +38,7 @@ export interface UsageSummary {
     members: number
     triggers: number
     marketplaceInstalls: number
+    knowledgeDocuments: number
 }
 
 // ─── Subscription ───────────────────────────────────────────────────────────
@@ -93,7 +94,7 @@ export async function fetchCurrentUsage(workspaceId: string): Promise<UsageSumma
     startOfMonth.setDate(1)
     startOfMonth.setHours(0, 0, 0, 0)
 
-    const [agents, tasks, teams, members, triggers, installs] = await Promise.all([
+    const [agents, tasks, teams, members, triggers, installs, kbDocs] = await Promise.all([
         supabase
             .from('agents')
             .select('id', { count: 'exact', head: true })
@@ -119,6 +120,10 @@ export async function fetchCurrentUsage(workspaceId: string): Promise<UsageSumma
             .from('marketplace_installs')
             .select('id', { count: 'exact', head: true })
             .eq('workspace_id', workspaceId),
+        supabase
+            .from('knowledge_documents')
+            .select('id', { count: 'exact', head: true })
+            .eq('workspace_id', workspaceId),
     ])
 
     return {
@@ -128,6 +133,7 @@ export async function fetchCurrentUsage(workspaceId: string): Promise<UsageSumma
         members: members.count ?? 0,
         triggers: triggers.count ?? 0,
         marketplaceInstalls: installs.count ?? 0,
+        knowledgeDocuments: kbDocs.count ?? 0,
     }
 }
 
@@ -168,8 +174,8 @@ export async function checkQuota(
         return { allowed: true, current: 0, limit: -1, resource }
     }
 
-    // Feature flag (csv_export, orchestrator) — 0 means disabled, 1 means enabled
-    if (resource === 'csv_export' || resource === 'orchestrator') {
+    // Feature flag (csv_export, orchestrator, a2a_publish) — 0 means disabled, 1 means enabled
+    if (resource === 'csv_export' || resource === 'orchestrator' || resource === 'a2a_publish') {
         return { allowed: limit > 0, current: 0, limit, resource }
     }
 
@@ -182,6 +188,7 @@ export async function checkQuota(
         members: usage.members,
         triggers: usage.triggers,
         marketplace_installs: usage.marketplaceInstalls,
+        knowledge_documents: usage.knowledgeDocuments,
     }
 
     const current = currentMap[resource] ?? 0

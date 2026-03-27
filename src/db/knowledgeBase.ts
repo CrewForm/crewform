@@ -2,6 +2,7 @@
 // Copyright (C) 2026 CrewForm
 
 import { supabase } from '@/lib/supabase'
+import { enforceQuota } from '@/lib/enforceQuota'
 
 export interface KnowledgeDocument {
     id: string
@@ -40,6 +41,9 @@ export async function uploadKnowledgeDocument(
     name: string,
     userId: string,
 ): Promise<KnowledgeDocument> {
+    // Check knowledge document quota before uploading
+    await enforceQuota(workspaceId, 'knowledge_documents')
+
     const timestamp = Date.now()
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
     const storagePath = `${workspaceId}/${String(timestamp)}_${safeName}`

@@ -21,6 +21,7 @@ export const EE_FEATURES = {
     MARKETPLACE_PUBLISH: 'marketplace_publish',
     CUSTOM_TOOLS: 'custom_tools',
     ADMIN_PANEL: 'admin_panel',
+    A2A_PUBLISH: 'a2a_publish',
 } as const;
 
 export type EEFeature = (typeof EE_FEATURES)[keyof typeof EE_FEATURES];
@@ -40,6 +41,7 @@ export const PLAN_FEATURES: Record<string, EEFeature[]> = {
         EE_FEATURES.ORCHESTRATOR_MODE,
         EE_FEATURES.MESSAGING_CHANNELS,
         EE_FEATURES.CUSTOM_TOOLS,
+        EE_FEATURES.A2A_PUBLISH,
     ],
     team: [
         // All pro features plus:
@@ -55,6 +57,7 @@ export const PLAN_FEATURES: Record<string, EEFeature[]> = {
         EE_FEATURES.COLLABORATION_MODE,
         EE_FEATURES.TEAM_MEMORY,
         EE_FEATURES.RBAC,
+        EE_FEATURES.A2A_PUBLISH,
     ],
     enterprise: [
         // All team features plus:
@@ -74,5 +77,6 @@ export const PLAN_FEATURES: Record<string, EEFeature[]> = {
         EE_FEATURES.SWARM,
         EE_FEATURES.MARKETPLACE_PUBLISH,
         EE_FEATURES.ADMIN_PANEL,
+        EE_FEATURES.A2A_PUBLISH,
     ],
 };
