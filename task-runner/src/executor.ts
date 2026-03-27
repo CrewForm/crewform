@@ -9,6 +9,7 @@ import { executeWithToolLoop, getToolDefinitions } from './toolExecutor';
 import { loadInputFiles, buildFileContext, extractAndSaveArtifacts } from './fileAttachments';
 import { connectToServer, discoverTools, disconnectAll as disconnectMcpClients } from './mcpClient';
 import type { McpServerConfig } from './mcpClient';
+import { agUiEventBus, AgUiEventType } from './agUiEventBus';
 import type { ToolDefinition } from './toolExecutor';
 import type { CustomToolConfig, ToolCallLog } from './toolExecutor';
 import type { Task, Agent, ApiKey, TokenUsage } from './types';
@@ -144,6 +145,14 @@ export async function processTask(task: Task) {
             'task.started',
         );
 
+        // AG-UI: Run started
+        agUiEventBus.emit(task.id, {
+            type: AgUiEventType.RUN_STARTED,
+            timestamp: Date.now(),
+            threadId: task.id,
+            runId: task.id,
+        });
+
         // Throttle DB updates to avoid rate limits (every ~500ms at most)
         let lastUpdate = 0;
         const updateResultStream = async (text: string) => {
@@ -251,6 +260,7 @@ export async function processTask(task: Task) {
                     agentTools.includes('knowledge_search')
                         ? { workspaceId: task.workspace_id, documentIds: (agent.config?.knowledge_base_ids as string[] | undefined) ?? undefined }
                         : undefined,
+                    task.id,
                 );
             } else if (providerLower === 'anthropic') {
                 executionResult = await executeAnthropic(rawKey, effectiveModel, systemPrompt, userPrompt, updateResultStream, agent.max_tokens);
@@ -402,6 +412,15 @@ export async function processTask(task: Task) {
             agent.output_route_ids ?? null,
         );
 
+        // AG-UI: Run finished
+        agUiEventBus.emit(task.id, {
+            type: AgUiEventType.RUN_FINISHED,
+            timestamp: Date.now(),
+            threadId: task.id,
+            runId: task.id,
+            result: executionResult.result,
+        });
+
         // 8b. Reply to source channel if task originated from messaging (fire-and-forget)
         void replyToSourceChannel(task.id, executionResult.result, null, 'completed');
 
@@ -448,6 +467,16 @@ export async function processTask(task: Task) {
 
         // Reply to source channel on failure too
         void replyToSourceChannel(task.id, null, errMsg, 'failed');
+
+        // AG-UI: Run error
+        agUiEventBus.emit(task.id, {
+            type: AgUiEventType.RUN_ERROR,
+            timestamp: Date.now(),
+            threadId: task.id,
+            runId: task.id,
+            message: errMsg,
+            code: 'TASK_FAILED',
+        });
     }
 }
 
@@ -473,6 +502,7 @@ async function executeToolUseTask(
     mcpToolDefs?: ToolDefinition[],
     mcpServers?: McpServerConfig[],
     knowledgeContext?: { workspaceId: string; documentIds?: string[] },
+    taskId?: string,
 ): Promise<{ result: string; usage: TokenUsage; toolCallLogs: ToolCallLog[] }> {
     // Determine base URL for OpenAI-compatible providers
     const baseURLMap: Record<string, string> = {
@@ -575,6 +605,7 @@ async function executeToolUseTask(
         mcpToolDefs,
         mcpServers,
         knowledgeContext,
+        taskId,
     );
 
     void tools; // definitions are used internally by the loop

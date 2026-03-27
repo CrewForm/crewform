@@ -7,6 +7,7 @@ import { processCollaborationRun } from './collaborationExecutor';
 import { writeTeamRunAudit } from './auditWriter';
 import { isFeatureEnabled } from './license';
 import { handleA2ARequest } from './a2aServer';
+import { handleAgUiRequest } from './agUiServer';
 import {
     registerRunner, deregisterRunner, getRunnerId, getInstanceName,
     runRecoverySweep, RECOVERY_INTERVAL_MS, MAX_CONCURRENT, decrementLoad,
@@ -228,59 +229,64 @@ async function poll() {
 function createWebhookServer(): http.Server {
     const server = http.createServer((req, res) => {
         // A2A protocol endpoints (Agent Card + JSON-RPC)
-        void handleA2ARequest(req, res).then((handled) => {
-            if (handled) return;
+        void handleA2ARequest(req, res).then((a2aHandled) => {
+            if (a2aHandled) return;
 
-            // Health check
-        if (req.method === 'GET' && req.url === '/health') {
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({
-                status: 'ok',
-                activeSlots,
-                maxConcurrent: MAX_CONCURRENT,
-                runnerId: getRunnerId(),
-            }));
-            return;
-        }
+            // AG-UI protocol endpoints (SSE streaming)
+            void handleAgUiRequest(req, res).then((agUiHandled) => {
+                if (agUiHandled) return;
 
-        // Webhook endpoints
-        if (req.method === 'POST' && (req.url === '/webhook/task' || req.url === '/webhook/team-run')) {
-            // Validate webhook secret
-            if (WEBHOOK_SECRET && req.headers['x-webhook-secret'] !== WEBHOOK_SECRET) {
-                log('Webhook rejected — invalid secret');
-                res.writeHead(401, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Unauthorized' }));
-                return;
-            }
-
-            // Read body (we don't actually need the payload — we use claim_next RPC)
-            let body = '';
-            req.on('data', (chunk: Buffer) => { body += chunk.toString(); });
-            req.on('end', () => {
-                const endpoint = req.url;
-                log(`Webhook received: ${endpoint} (${body.length} bytes)`);
-
-                // Respond immediately — processing is async
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ accepted: true }));
-
-                // Attempt to claim and process
-                if (endpoint === '/webhook/task') {
-                    void tryClaimTask().catch((err: unknown) => {
-                        logError('Webhook task claim failed:', err);
-                    });
-                } else {
-                    void tryClaimTeamRun().catch((err: unknown) => {
-                        logError('Webhook team-run claim failed:', err);
-                    });
+                // Health check
+                if (req.method === 'GET' && req.url === '/health') {
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({
+                        status: 'ok',
+                        activeSlots,
+                        maxConcurrent: MAX_CONCURRENT,
+                        runnerId: getRunnerId(),
+                    }));
+                    return;
                 }
-            });
-            return;
-        }
 
-        // 404 for everything else
-        res.writeHead(404, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Not found' }));
+                // Webhook endpoints
+                if (req.method === 'POST' && (req.url === '/webhook/task' || req.url === '/webhook/team-run')) {
+                    // Validate webhook secret
+                    if (WEBHOOK_SECRET && req.headers['x-webhook-secret'] !== WEBHOOK_SECRET) {
+                        log('Webhook rejected — invalid secret');
+                        res.writeHead(401, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ error: 'Unauthorized' }));
+                        return;
+                    }
+
+                    // Read body (we don't actually need the payload — we use claim_next RPC)
+                    let body = '';
+                    req.on('data', (chunk: Buffer) => { body += chunk.toString(); });
+                    req.on('end', () => {
+                        const endpoint = req.url;
+                        log(`Webhook received: ${endpoint} (${body.length} bytes)`);
+
+                        // Respond immediately — processing is async
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ accepted: true }));
+
+                        // Attempt to claim and process
+                        if (endpoint === '/webhook/task') {
+                            void tryClaimTask().catch((err: unknown) => {
+                                logError('Webhook task claim failed:', err);
+                            });
+                        } else {
+                            void tryClaimTeamRun().catch((err: unknown) => {
+                                logError('Webhook team-run claim failed:', err);
+                            });
+                        }
+                    });
+                    return;
+                }
+
+                // 404 for everything else
+                res.writeHead(404, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Not found' }));
+            }); // end handleAgUiRequest.then
         }); // end handleA2ARequest.then
     });
 

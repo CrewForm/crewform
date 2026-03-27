@@ -7,6 +7,7 @@
 
 import { searchKnowledge, formatKnowledgeResults } from './knowledgeSearch';
 import { delegateToA2AAgent } from './a2aClient';
+import { agUiEventBus, AgUiEventType } from './agUiEventBus';
 import type { TokenUsage } from './types';
 import { callMcpTool, parseMcpToolName } from './mcpClient';
 import type { McpServerConfig } from './mcpClient';
@@ -565,6 +566,7 @@ export async function executeWithToolLoop(
     mcpToolDefs?: ToolDefinition[],
     mcpServers?: McpServerConfig[],
     knowledgeContext?: { workspaceId: string; documentIds?: string[] },
+    taskId?: string,
 ): Promise<ToolUseResult> {
     const tools = getToolDefinitions(toolNames, customTools, mcpToolDefs);
     const messages: ToolUseMessage[] = [
@@ -588,6 +590,28 @@ export async function executeWithToolLoop(
 
         // If no tool calls, we're done
         if (!assistantMessage.tool_calls || assistantMessage.tool_calls.length === 0) {
+            // AG-UI: Emit final text message
+            if (taskId && assistantMessage.content) {
+                const msgId = `msg_${Date.now().toString()}`;
+                agUiEventBus.emit(taskId, {
+                    type: AgUiEventType.TEXT_MESSAGE_START,
+                    timestamp: Date.now(),
+                    messageId: msgId,
+                    role: 'assistant',
+                });
+                agUiEventBus.emit(taskId, {
+                    type: AgUiEventType.TEXT_MESSAGE_CONTENT,
+                    timestamp: Date.now(),
+                    messageId: msgId,
+                    delta: assistantMessage.content,
+                });
+                agUiEventBus.emit(taskId, {
+                    type: AgUiEventType.TEXT_MESSAGE_END,
+                    timestamp: Date.now(),
+                    messageId: msgId,
+                });
+            }
+
             const totalTokens = totalPromptTokens + totalCompletionTokens;
             const costEstimateUSD = (totalPromptTokens / 1_000_000) * 5 + (totalCompletionTokens / 1_000_000) * 15;
 
@@ -616,9 +640,35 @@ export async function executeWithToolLoop(
             toolCallsMade++;
             console.log(`[ToolExecutor] Executing tool: ${toolCall.function.name} (round ${(round + 1).toString()}, call #${toolCallsMade.toString()})`);
 
+            // AG-UI: Tool call start
+            if (taskId) {
+                agUiEventBus.emit(taskId, {
+                    type: AgUiEventType.TOOL_CALL_START,
+                    timestamp: Date.now(),
+                    toolCallId: toolCall.id,
+                    toolCallName: toolCall.function.name,
+                });
+                agUiEventBus.emit(taskId, {
+                    type: AgUiEventType.TOOL_CALL_ARGS,
+                    timestamp: Date.now(),
+                    toolCallId: toolCall.id,
+                    delta: toolCall.function.arguments,
+                });
+            }
+
             const callStart = Date.now();
             const result = await executeToolCall(toolCall, customTools, serperApiKey, mcpServers, knowledgeContext);
             const durationMs = Date.now() - callStart;
+
+            // AG-UI: Tool call end
+            if (taskId) {
+                agUiEventBus.emit(taskId, {
+                    type: AgUiEventType.TOOL_CALL_END,
+                    timestamp: Date.now(),
+                    toolCallId: toolCall.id,
+                    result: result.length > 200 ? result.slice(0, 200) + '…' : result,
+                });
+            }
 
             let parsedArgs: Record<string, unknown> = {};
             try { parsedArgs = JSON.parse(toolCall.function.arguments) as Record<string, unknown>; } catch { /* ignore */ }
