@@ -133,6 +133,19 @@ export function ProviderDetailModal({
                         API Key
                     </h3>
 
+                    {/* Ollama-specific note */}
+                    {provider.id === 'ollama' && (
+                        <div className="mb-3 rounded-lg border border-gray-600/30 bg-gray-800/50 px-4 py-3">
+                            <p className="text-sm font-medium text-gray-200">🏠 Local Model Provider</p>
+                            <p className="mt-1 text-xs text-gray-400">
+                                Ollama runs locally — no API key required. Enter any value (e.g. &quot;ollama&quot;) as a
+                                placeholder. Make sure Ollama is running at{' '}
+                                <code className="rounded bg-gray-700 px-1 py-0.5 text-gray-300">http://localhost:11434</code>
+                                {' '}on the same machine as the task runner.
+                            </p>
+                        </div>
+                    )}
+
                     {/* Configured — show masked key */}
                     {isConfigured && !isEditing && (
                         <div className="space-y-3">

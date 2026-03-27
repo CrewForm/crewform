@@ -294,6 +294,22 @@ export const MODEL_OPTIONS = [
             { value: 'sonar', label: 'Sonar' },
         ],
     },
+    {
+        provider: 'Ollama',
+        models: [
+            { value: 'llama3.3', label: 'Llama 3.3 (70B)' },
+            { value: 'llama3.2', label: 'Llama 3.2 (3B)' },
+            { value: 'llama3.1', label: 'Llama 3.1 (8B)' },
+            { value: 'qwen2.5', label: 'Qwen 2.5 (7B)' },
+            { value: 'qwen2.5-coder', label: 'Qwen 2.5 Coder (7B)' },
+            { value: 'mistral', label: 'Mistral (7B)' },
+            { value: 'mixtral', label: 'Mixtral 8x7B' },
+            { value: 'deepseek-r1', label: 'DeepSeek R1' },
+            { value: 'phi4', label: 'Phi-4 (14B)' },
+            { value: 'gemma2', label: 'Gemma 2 (9B)' },
+            { value: 'codellama', label: 'Code Llama (7B)' },
+        ],
+    },
 ]
 
 export type ModelGroup = typeof MODEL_OPTIONS[number]

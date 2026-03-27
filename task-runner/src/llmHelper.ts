@@ -113,6 +113,7 @@ export async function executeLLMCall(input: LLMCallInput): Promise<LLMCallResult
         minimax: 'https://api.minimaxi.chat/v1',
         moonshot: 'https://api.moonshot.cn/v1',
         perplexity: 'https://api.perplexity.ai',
+        ollama: 'http://localhost:11434/v1',
     };
 
     let effectiveModel = agent.model;
