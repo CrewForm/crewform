@@ -54,10 +54,10 @@
 🏠<br/><strong>Self-Hostable</strong><br/>Docker Compose — your data, your infra
 </td>
 <td align="center" width="25%">
-⚡<br/><strong>Real-Time</strong><br/>Watch agents work with live updates
+🔌<br/><strong>MCP Protocol</strong><br/>Connect to thousands of MCP tool servers
 </td>
 <td align="center" width="25%">
-🛠️<br/><strong>Tool-Use</strong><br/>HTTP tools, code interpreter, web search
+📚<br/><strong>Knowledge Base (RAG)</strong><br/>Upload docs, chunk, embed, and search
 </td>
 <td align="center" width="25%">
 🧠<br/><strong>Team Memory</strong><br/>pgvector semantic search across runs
@@ -117,6 +117,8 @@ CrewForm gives you everything you need to orchestrate multi-agent AI workflows �
 - 🔑 **BYOK (Bring Your Own Key)** — Connect your own LLM provider keys. Pay your provider directly at their standard rates, zero markup
 - 🏠 **Self-Hostable** — Deploy on your own infrastructure with Docker. Your data stays with you
 - 🔀 **3 Orchestration Modes** — Pipeline (sequential), Orchestrator (brain + workers), and Collaboration (multi-agent discussion)
+- 🔌 **MCP Protocol** — Connect agents to thousands of external tool servers via the Model Context Protocol
+- 📚 **Knowledge Base (RAG)** — Upload docs (TXT, MD, CSV, JSON), auto-chunk and embed with pgvector, then search via agents
 - 🏪 **Agent Marketplace** — Browse and install community-built agent templates, or publish your own
 - ⚡ **Integrations Ecosystem** — Zapier (7,000+ apps), Discord, Slack, Telegram, Email, webhooks, and output routes
 - 🔒 **Secure by Default** — AES-256-GCM key encryption, Row-Level Security, GDPR-ready
@@ -175,6 +177,8 @@ Each client gets their own workspace. Custom agents built around their tools and
 - 🏪 **Marketplace** — Browse and install agent templates built by the community
 - 👥 **Pipeline Mode** — Chain agents together in sequential workflows
 - ✅ **Single Tasks** — Send a prompt to any agent and get results in real-time
+- 🔌 **MCP Protocol** — Connect agents to external MCP tool servers for dynamic tool discovery
+- 📚 **Knowledge Base (RAG)** — Upload documents, auto-chunk and embed, and search via agents
 - 🏠 **Self-Hostable** — Run on your own infrastructure with Docker Compose
 - 🔒 **Secure by Default** — AES-256-GCM key encryption, Row-Level Security, GDPR-ready
 - ⚡ **Real-Time** — Watch your agents work in real-time with live task execution updates
@@ -267,7 +271,8 @@ CrewForm uses an **open-core** model: a free Community Edition under AGPL-3.0 an
 | **State** | TanStack Query · Zustand |
 | **Backend** | Supabase (Auth, Database, Realtime, Edge Functions) |
 | **Task Runner** | Node.js · Multi-provider LLM integration |
-| **Vector Search** | pgvector (team memory) |
+| **Vector Search** | pgvector (team memory + knowledge base RAG) |
+| **Protocols** | MCP (Model Context Protocol) |
 | **Integrations** | Zapier · Discord · Slack · Telegram · Email · Webhooks |
 | **Validation** | Zod |
 | **Deployment** | Vercel · Docker |
@@ -329,13 +334,13 @@ CrewForm supports **14 providers**: OpenAI, Anthropic, Google Gemini, Groq, Mist
 <details>
 <summary><strong>What integrations are available?</strong></summary>
 
-CrewForm integrates with **Zapier** (7,000+ apps), messaging channels (**Discord**, **Slack**, **Telegram**, **Email**, **Trello**), and output routes (**webhooks**, **MS Teams**, **Asana**, **Trello**, and more). You can trigger agents from external events and deliver results anywhere.
+CrewForm integrates with **Zapier** (7,000+ apps), messaging channels (**Discord**, **Slack**, **Telegram**, **Email**, **Trello**), output routes (**webhooks**, **MS Teams**, **Asana**, **Trello**, and more), and the **MCP protocol** for connecting to thousands of external tool servers. You can trigger agents from external events and deliver results anywhere.
 </details>
 
 <details>
 <summary><strong>How does CrewForm differ from CrewAI or LangGraph?</strong></summary>
 
-CrewForm is a **visual, UI-first platform** — you create agents, teams, and tasks through a web interface with no Python required. CrewAI and LangGraph are code-first libraries. CrewForm also includes built-in billing, RBAC, marketplace, messaging channels, and a production-ready self-hosted deployment. See the [comparison table](#how-it-compares) above.
+CrewForm is a **visual, UI-first platform** — you create agents, teams, and tasks through a web interface with no Python required. CrewAI and LangGraph are code-first libraries. CrewForm also includes built-in billing, RBAC, marketplace, messaging channels, MCP protocol support, RAG knowledge base, and a production-ready self-hosted deployment. See the [comparison table](#how-it-compares) above.
 </details>
 
 ## License
