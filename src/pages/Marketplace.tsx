@@ -31,6 +31,7 @@ export function Marketplace() {
   const [search, setSearch] = useState('')
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [sort, setSort] = useState<MarketplaceSortOption>('installs')
+  const [category, setCategory] = useState<string | null>(null)
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null)
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
@@ -42,6 +43,7 @@ export function Marketplace() {
   const { agents, isLoading, error, refetch } = useMarketplaceAgents({
     search: deferredSearch,
     tags: selectedTags.length > 0 ? selectedTags : undefined,
+    category: category ?? undefined,
     sort,
   })
   const { tags: availableTags } = useMarketplaceTags()
@@ -124,6 +126,8 @@ export function Marketplace() {
               availableTags={availableTags}
               sort={sort}
               onSortChange={setSort}
+              category={category}
+              onCategoryChange={setCategory}
             />
           </div>
 

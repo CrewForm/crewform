@@ -10,8 +10,9 @@ import {
     fetchCostOverTime,
     fetchTimeSaved,
     fetchTokenBreakdown,
+    fetchModelPerformance,
 } from '@/db/analytics'
-import type { DailyCompletion, AgentCost, StatusCount, ModelUsage, DailyCost, TimeSavedData, AgentTokenBreakdown } from '@/db/analytics'
+import type { DailyCompletion, AgentCost, StatusCount, ModelUsage, DailyCost, TimeSavedData, AgentTokenBreakdown, ModelPerformance } from '@/db/analytics'
 
 const STALE_TIME = 60 * 1000 // 60 seconds
 
@@ -92,6 +93,18 @@ export function useTokenBreakdown(workspaceId: string | null, startDate: string,
     const { data = [], isLoading, error } = useQuery<AgentTokenBreakdown[]>({
         queryKey: ['analytics-token-breakdown', workspaceId, startDate, endDate],
         queryFn: () => fetchTokenBreakdown(workspaceId ?? '', startDate, endDate),
+        enabled: !!workspaceId,
+        staleTime: STALE_TIME,
+        refetchOnWindowFocus: true,
+    })
+    return { data, isLoading, error }
+}
+
+/** Model performance comparison (speed vs cost vs tokens) */
+export function useModelPerformance(workspaceId: string | null, startDate: string, endDate: string) {
+    const { data = [], isLoading, error } = useQuery<ModelPerformance[]>({
+        queryKey: ['analytics-model-perf', workspaceId, startDate, endDate],
+        queryFn: () => fetchModelPerformance(workspaceId ?? '', startDate, endDate),
         enabled: !!workspaceId,
         staleTime: STALE_TIME,
         refetchOnWindowFocus: true,

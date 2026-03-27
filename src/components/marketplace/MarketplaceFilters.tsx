@@ -12,6 +12,8 @@ interface MarketplaceFiltersProps {
     availableTags: string[]
     sort: MarketplaceSortOption
     onSortChange: (sort: MarketplaceSortOption) => void
+    category: string | null
+    onCategoryChange: (category: string | null) => void
 }
 
 const sortLabels: Record<MarketplaceSortOption, string> = {
@@ -19,6 +21,17 @@ const sortLabels: Record<MarketplaceSortOption, string> = {
     rating: 'Top Rated',
     newest: 'Newest',
 }
+
+const CATEGORY_GROUPS = [
+    { label: 'Customer Support', tag: 'customer-support' },
+    { label: 'Content Creation', tag: 'content-creation' },
+    { label: 'Data Analysis', tag: 'data-analysis' },
+    { label: 'Code Assistant', tag: 'code-assistant' },
+    { label: 'Research', tag: 'research' },
+    { label: 'Sales & Marketing', tag: 'sales-marketing' },
+    { label: 'DevOps', tag: 'devops' },
+    { label: 'Education', tag: 'education' },
+] as const
 
 export function MarketplaceFilters({
     search,
@@ -28,6 +41,8 @@ export function MarketplaceFilters({
     availableTags,
     sort,
     onSortChange,
+    category,
+    onCategoryChange,
 }: MarketplaceFiltersProps) {
     return (
         <div className="space-y-4">
@@ -57,6 +72,29 @@ export function MarketplaceFilters({
                             <option key={value} value={value}>{label}</option>
                         ))}
                     </select>
+                </div>
+            </div>
+
+            {/* Category groups */}
+            <div>
+                <p className="mb-2 text-xs font-medium uppercase tracking-wider text-gray-500">Categories</p>
+                <div className="flex flex-wrap gap-2">
+                    {CATEGORY_GROUPS.map(({ label, tag }) => {
+                        const isActive = category === tag
+                        return (
+                            <button
+                                key={tag}
+                                type="button"
+                                onClick={() => onCategoryChange(isActive ? null : tag)}
+                                className={`rounded-full px-3 py-1 text-xs font-medium transition-all ${isActive
+                                    ? 'bg-brand-primary text-black shadow-sm'
+                                    : 'bg-surface-overlay text-gray-400 hover:bg-surface-overlay/80 hover:text-gray-300'
+                                    }`}
+                            >
+                                {label}
+                            </button>
+                        )
+                    })}
                 </div>
             </div>
 

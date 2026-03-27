@@ -4,6 +4,14 @@ All notable changes to CrewForm will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.5.0] - 2026-03-27
+
+### Added
+
+- **Model Performance Comparison** — New analytics chart comparing models by speed, cost/run, and tokens/run with inline mini-bars
+- **Marketplace Category Filters** — Preset category groups (Customer Support, Content Creation, Data Analysis, Code Assistant, Research, Sales & Marketing, DevOps, Education) for browsing marketplace agents
+- **Marketplace Category Query** — Category filter plumbed through to Supabase query layer for server-side filtering
+
 ## [1.4.1] - 2026-03-27
 
 ### Added

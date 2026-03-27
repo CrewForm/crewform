@@ -12,6 +12,7 @@ import {
     useCostOverTime,
     useTimeSaved,
     useTokenBreakdown,
+    useModelPerformance,
 } from '@/hooks/useAnalytics'
 import { DateRangePicker, DATE_PRESETS } from '@/components/analytics/DateRangePicker'
 import type { DateRange } from '@/components/analytics/DateRangePicker'
@@ -25,6 +26,7 @@ import { TimeSavedCard } from '@/components/analytics/TimeSavedCard'
 import { CsvExportButton } from '@/components/analytics/CsvExportButton'
 import { TokenBreakdownChart } from '@/components/analytics/TokenBreakdownChart'
 import { CostForecastCard } from '@/components/analytics/CostForecastCard'
+import { ModelPerformanceChart } from '@/components/analytics/ModelPerformanceChart'
 import { useUsageSummary } from '@/hooks/useUsage'
 import { ErrorState } from '@/components/shared/ErrorState'
 
@@ -57,6 +59,9 @@ export function Analytics() {
         workspaceId, range.startDate, range.endDate,
     )
     const { data: tokenData, isLoading: isLoadingTokens } = useTokenBreakdown(
+        workspaceId, range.startDate, range.endDate,
+    )
+    const { data: modelPerfData, isLoading: isLoadingModelPerf } = useModelPerformance(
         workspaceId, range.startDate, range.endDate,
     )
 
@@ -109,6 +114,11 @@ export function Analytics() {
                     Cost Over Time
                 </h2>
                 <CostOverTimeChart data={costTimeData} isLoading={isLoadingCostTime} />
+            </div>
+
+            {/* Model Performance — full width */}
+            <div className="mb-6">
+                <ModelPerformanceChart data={modelPerfData} isLoading={isLoadingModelPerf} />
             </div>
 
             {/* Charts grid — 2×2 */}

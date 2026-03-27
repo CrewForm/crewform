@@ -670,3 +670,99 @@ export function computeCostForecast(historicalData: DailyCost[]): CostForecast {
 
     return { forecastDays, monthlyEstimate, trend, trendPercent, avgDailyCost }
 }
+
+// ─── Model Performance Comparison ────────────────────────────────────────────
+
+export interface ModelPerformance {
+    model: string
+    runCount: number
+    avgSpeedMs: number
+    avgCostPerRun: number
+    avgTokensPerRun: number
+    totalCost: number
+    totalTokens: number
+}
+
+/**
+ * Compare model performance across speed, cost, and token efficiency.
+ * Speed is derived from created_at → completed_at on agent_tasks + team_runs.
+ * Cost and tokens are from usage_records.
+ */
+export async function fetchModelPerformance(
+    workspaceId: string,
+    startDate: string,
+    endDate: string,
+): Promise<ModelPerformance[]> {
+    // 1. Cost & token data from usage_records per model
+    const usageResult = await supabase
+        .from('usage_records')
+        .select('model, cost_usd, tokens_used')
+        .eq('workspace_id', workspaceId)
+        .gte('recorded_at', startDate)
+        .lte('recorded_at', endDate)
+        .not('model', 'is', null)
+
+    if (usageResult.error) throw usageResult.error
+
+    // 2. Speed data from agent_tasks (completed only)
+    const taskResult = await supabase
+        .from('agent_tasks')
+        .select('model, created_at, completed_at')
+        .eq('workspace_id', workspaceId)
+        .eq('status', 'completed')
+        .gte('created_at', startDate)
+        .lte('created_at', endDate)
+        .not('model', 'is', null)
+        .not('completed_at', 'is', null)
+
+    if (taskResult.error) throw taskResult.error
+
+    // Aggregate usage by model
+    const modelMap = new Map<string, {
+        costTotal: number
+        tokensTotal: number
+        usageCount: number
+        speedSumMs: number
+        speedCount: number
+    }>()
+
+    const getOrCreate = (model: string) => {
+        let entry = modelMap.get(model)
+        if (!entry) {
+            entry = { costTotal: 0, tokensTotal: 0, usageCount: 0, speedSumMs: 0, speedCount: 0 }
+            modelMap.set(model, entry)
+        }
+        return entry
+    }
+
+    for (const row of usageResult.data as Array<{ model: string; cost_usd: number; tokens_used: number }>) {
+        if (!row.model) continue
+        const entry = getOrCreate(row.model)
+        entry.costTotal += row.cost_usd
+        entry.tokensTotal += row.tokens_used
+        entry.usageCount++
+    }
+
+    // Aggregate speed by model
+    for (const row of taskResult.data as Array<{ model: string; created_at: string; completed_at: string }>) {
+        if (!row.model || !row.created_at || !row.completed_at) continue
+        const durationMs = new Date(row.completed_at).getTime() - new Date(row.created_at).getTime()
+        if (durationMs <= 0) continue
+        const entry = getOrCreate(row.model)
+        entry.speedSumMs += durationMs
+        entry.speedCount++
+    }
+
+    return Array.from(modelMap.entries())
+        .map(([model, data]) => ({
+            model,
+            runCount: data.usageCount,
+            avgSpeedMs: data.speedCount > 0 ? Math.round(data.speedSumMs / data.speedCount) : 0,
+            avgCostPerRun: data.usageCount > 0 ? data.costTotal / data.usageCount : 0,
+            avgTokensPerRun: data.usageCount > 0 ? Math.round(data.tokensTotal / data.usageCount) : 0,
+            totalCost: data.costTotal,
+            totalTokens: data.tokensTotal,
+        }))
+        .sort((a, b) => b.runCount - a.runCount)
+}
+

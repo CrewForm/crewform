@@ -9,6 +9,7 @@ export type MarketplaceSortOption = 'installs' | 'rating' | 'newest'
 export interface MarketplaceQueryOptions {
     search?: string
     tags?: string[]
+    category?: string
     sort?: MarketplaceSortOption
 }
 
@@ -41,6 +42,11 @@ export async function fetchMarketplaceAgents(
     // Filter by tags (agents must contain ALL selected tags)
     if (options.tags && options.tags.length > 0) {
         query = query.contains('marketplace_tags', options.tags)
+    }
+
+    // Filter by category (agents must contain the category tag)
+    if (options.category) {
+        query = query.contains('marketplace_tags', [options.category])
     }
 
     // Sort
