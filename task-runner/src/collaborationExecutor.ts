@@ -149,6 +149,8 @@ export async function processCollaborationRun(run: TeamRun): Promise<void> {
                 stepIndex: turn,
                 stepName: `Turn ${turn + 1}: ${speaker.name}`,
                 tokensUsed: result.usage.totalTokens,
+                promptTokens: result.usage.promptTokens,
+                completionTokens: result.usage.completionTokens,
                 costEstimateUsd: result.usage.costEstimateUSD,
             });
 

@@ -115,6 +115,8 @@ export async function processPipelineRun(run: TeamRun): Promise<void> {
                     stepIndex: i,
                     stepName: step.step_name,
                     tokensUsed: stepOutput.usage.totalTokens,
+                    promptTokens: stepOutput.usage.promptTokens,
+                    completionTokens: stepOutput.usage.completionTokens,
                     costEstimateUsd: stepOutput.usage.costEstimateUSD,
                 });
             }

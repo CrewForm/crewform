@@ -36,6 +36,8 @@ interface TaskUsageInput {
     provider: string;
     model: string;
     tokensUsed: number;
+    promptTokens?: number;
+    completionTokens?: number;
     costEstimateUsd: number;
 }
 
@@ -49,6 +51,8 @@ export async function writeTaskUsageRecord(input: TaskUsageInput): Promise<void>
         workspace_id: input.workspaceId,
         event_type: 'task_execution',
         tokens_used: input.tokensUsed,
+        prompt_tokens: input.promptTokens ?? 0,
+        completion_tokens: input.completionTokens ?? 0,
         cost_usd: billingModel === 'per-token' ? input.costEstimateUsd : 0,
         agent_id: input.agentId,
         task_id: input.taskId,
@@ -75,6 +79,8 @@ interface TeamRunUsageInput {
     stepIndex: number;
     stepName: string;
     tokensUsed: number;
+    promptTokens?: number;
+    completionTokens?: number;
     costEstimateUsd: number;
 }
 
@@ -88,6 +94,8 @@ export async function writeTeamRunUsageRecord(input: TeamRunUsageInput): Promise
         workspace_id: input.workspaceId,
         event_type: 'team_run',
         tokens_used: input.tokensUsed,
+        prompt_tokens: input.promptTokens ?? 0,
+        completion_tokens: input.completionTokens ?? 0,
         cost_usd: billingModel === 'per-token' ? input.costEstimateUsd : 0,
         agent_id: input.agentId,
         team_run_id: input.teamRunId,

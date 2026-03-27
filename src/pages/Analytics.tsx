@@ -11,6 +11,7 @@ import {
     useTopModels,
     useCostOverTime,
     useTimeSaved,
+    useTokenBreakdown,
 } from '@/hooks/useAnalytics'
 import { DateRangePicker, DATE_PRESETS } from '@/components/analytics/DateRangePicker'
 import type { DateRange } from '@/components/analytics/DateRangePicker'
@@ -22,6 +23,8 @@ import { CostOverTimeChart } from '@/components/analytics/CostOverTimeChart'
 import { UsageSummaryCards } from '@/components/analytics/UsageSummaryCards'
 import { TimeSavedCard } from '@/components/analytics/TimeSavedCard'
 import { CsvExportButton } from '@/components/analytics/CsvExportButton'
+import { TokenBreakdownChart } from '@/components/analytics/TokenBreakdownChart'
+import { CostForecastCard } from '@/components/analytics/CostForecastCard'
 import { useUsageSummary } from '@/hooks/useUsage'
 import { ErrorState } from '@/components/shared/ErrorState'
 
@@ -51,6 +54,9 @@ export function Analytics() {
         workspaceId, range.startDate, range.endDate,
     )
     const { summary, isLoading: isLoadingUsage } = useUsageSummary(
+        workspaceId, range.startDate, range.endDate,
+    )
+    const { data: tokenData, isLoading: isLoadingTokens } = useTokenBreakdown(
         workspaceId, range.startDate, range.endDate,
     )
 
@@ -91,15 +97,18 @@ export function Analytics() {
                 <UsageSummaryCards summary={summary} isLoading={isLoadingUsage} />
             </div>
 
-            {/* Time Saved + Cost Over Time — side by side */}
+            {/* Time Saved + Cost Forecast — side by side */}
             <div className="mb-6 grid gap-6 lg:grid-cols-2">
                 <TimeSavedCard data={timeSavedData} isLoading={isLoadingTimeSaved} />
-                <div className="rounded-xl border border-border bg-surface-card p-5">
-                    <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500">
-                        Cost Over Time
-                    </h2>
-                    <CostOverTimeChart data={costTimeData} isLoading={isLoadingCostTime} />
-                </div>
+                <CostForecastCard historicalData={costTimeData} isLoading={isLoadingCostTime} />
+            </div>
+
+            {/* Cost Over Time — full width */}
+            <div className="mb-6 rounded-xl border border-border bg-surface-card p-5">
+                <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500">
+                    Cost Over Time
+                </h2>
+                <CostOverTimeChart data={costTimeData} isLoading={isLoadingCostTime} />
             </div>
 
             {/* Charts grid — 2×2 */}
@@ -134,6 +143,14 @@ export function Analytics() {
                         Top Models By Usage
                     </h2>
                     <TopModelsChart data={modelData} isLoading={isLoadingModels} />
+                </div>
+
+                {/* Token Breakdown */}
+                <div className="rounded-xl border border-border bg-surface-card p-5">
+                    <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500">
+                        Token Breakdown (Prompt vs Completion)
+                    </h2>
+                    <TokenBreakdownChart data={tokenData} isLoading={isLoadingTokens} />
                 </div>
             </div>
         </div>

@@ -9,8 +9,9 @@ import {
     fetchTopModels,
     fetchCostOverTime,
     fetchTimeSaved,
+    fetchTokenBreakdown,
 } from '@/db/analytics'
-import type { DailyCompletion, AgentCost, StatusCount, ModelUsage, DailyCost, TimeSavedData } from '@/db/analytics'
+import type { DailyCompletion, AgentCost, StatusCount, ModelUsage, DailyCost, TimeSavedData, AgentTokenBreakdown } from '@/db/analytics'
 
 const STALE_TIME = 60 * 1000 // 60 seconds
 
@@ -79,6 +80,18 @@ export function useTimeSaved(workspaceId: string | null, startDate: string, endD
     const { data, isLoading, error } = useQuery<TimeSavedData>({
         queryKey: ['analytics-time-saved', workspaceId, startDate, endDate],
         queryFn: () => fetchTimeSaved(workspaceId ?? '', startDate, endDate),
+        enabled: !!workspaceId,
+        staleTime: STALE_TIME,
+        refetchOnWindowFocus: true,
+    })
+    return { data, isLoading, error }
+}
+
+/** Token breakdown by agent (prompt vs completion) */
+export function useTokenBreakdown(workspaceId: string | null, startDate: string, endDate: string) {
+    const { data = [], isLoading, error } = useQuery<AgentTokenBreakdown[]>({
+        queryKey: ['analytics-token-breakdown', workspaceId, startDate, endDate],
+        queryFn: () => fetchTokenBreakdown(workspaceId ?? '', startDate, endDate),
         enabled: !!workspaceId,
         staleTime: STALE_TIME,
         refetchOnWindowFocus: true,

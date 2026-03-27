@@ -387,6 +387,8 @@ export async function processTask(task: Task) {
             provider: provider,
             model: effectiveModel,
             tokensUsed: executionResult.usage.totalTokens,
+            promptTokens: executionResult.usage.promptTokens,
+            completionTokens: executionResult.usage.completionTokens,
             costEstimateUsd: executionResult.usage.costEstimateUSD,
         });
 

@@ -531,3 +531,142 @@ export async function fetchTasksForExport(
 
     return [...taskRows, ...teamRunRows].sort((a, b) => a.date.localeCompare(b.date))
 }
+
+// ─── Token Breakdown (Prompt vs Completion) ──────────────────────────────────
+
+export interface AgentTokenBreakdown {
+    agentName: string
+    promptTokens: number
+    completionTokens: number
+    totalTokens: number
+    costUsd: number
+}
+
+/** Fetch prompt vs completion token split per agent for the date range */
+export async function fetchTokenBreakdown(
+    workspaceId: string,
+    startDate: string,
+    endDate: string,
+): Promise<AgentTokenBreakdown[]> {
+    const [usageResult, agentResult] = await Promise.all([
+        supabase
+            .from('usage_records')
+            .select('agent_id, prompt_tokens, completion_tokens, tokens_used, cost_usd')
+            .eq('workspace_id', workspaceId)
+            .gte('recorded_at', startDate)
+            .lte('recorded_at', endDate)
+            .not('agent_id', 'is', null),
+        supabase
+            .from('agents')
+            .select('id, name')
+            .eq('workspace_id', workspaceId),
+    ])
+
+    if (usageResult.error) throw usageResult.error
+    if (agentResult.error) throw agentResult.error
+
+    const agentMap = new Map<string, string>()
+    for (const a of agentResult.data as Array<{ id: string; name: string }>) {
+        agentMap.set(a.id, a.name)
+    }
+
+    const breakdownMap = new Map<string, AgentTokenBreakdown>()
+
+    for (const row of usageResult.data as Array<{
+        agent_id: string
+        prompt_tokens: number | null
+        completion_tokens: number | null
+        tokens_used: number
+        cost_usd: number
+    }>) {
+        if (!row.agent_id) continue
+        let entry = breakdownMap.get(row.agent_id)
+        if (!entry) {
+            entry = {
+                agentName: agentMap.get(row.agent_id) ?? 'Unknown',
+                promptTokens: 0,
+                completionTokens: 0,
+                totalTokens: 0,
+                costUsd: 0,
+            }
+            breakdownMap.set(row.agent_id, entry)
+        }
+        entry.promptTokens += row.prompt_tokens ?? 0
+        entry.completionTokens += row.completion_tokens ?? 0
+        entry.totalTokens += row.tokens_used
+        entry.costUsd += row.cost_usd
+    }
+
+    return Array.from(breakdownMap.values()).sort((a, b) => b.totalTokens - a.totalTokens)
+}
+
+// ─── Cost Forecast ───────────────────────────────────────────────────────────
+
+export interface CostForecast {
+    forecastDays: Array<{ date: string; projectedCost: number; cumulative: number }>
+    monthlyEstimate: number
+    trend: 'up' | 'down' | 'flat'
+    trendPercent: number
+    avgDailyCost: number
+}
+
+/**
+ * Project future spend from historical DailyCost data using linear regression.
+ * Uses the last 14–30 days of history to compute slope and projects 30 days forward.
+ */
+export function computeCostForecast(historicalData: DailyCost[]): CostForecast {
+    // Use non-zero cost days for the regression
+    const data = historicalData.filter(d => d.cost > 0)
+
+    if (data.length < 2) {
+        return {
+            forecastDays: [],
+            monthlyEstimate: 0,
+            trend: 'flat',
+            trendPercent: 0,
+            avgDailyCost: 0,
+        }
+    }
+
+    // Simple linear regression: y = mx + b where x is day index, y is daily cost
+    const n = data.length
+    let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0
+
+    for (let i = 0; i < n; i++) {
+        sumX += i
+        sumY += data[i].cost
+        sumXY += i * data[i].cost
+        sumXX += i * i
+    }
+
+    const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX)
+    const intercept = (sumY - slope * sumX) / n
+    const avgDailyCost = sumY / n
+
+    // Determine trend
+    const trendPercent = avgDailyCost > 0 ? (slope / avgDailyCost) * 100 : 0
+    let trend: 'up' | 'down' | 'flat' = 'flat'
+    if (trendPercent > 5) trend = 'up'
+    else if (trendPercent < -5) trend = 'down'
+
+    // Generate 30-day forecast from the last historical date
+    const lastDate = new Date(data[data.length - 1].date)
+    const forecastDays: Array<{ date: string; projectedCost: number; cumulative: number }> = []
+    let cumulative = 0
+
+    for (let i = 1; i <= 30; i++) {
+        const forecastDate = new Date(lastDate)
+        forecastDate.setDate(forecastDate.getDate() + i)
+        const projectedCost = Math.max(0, intercept + slope * (n + i - 1))
+        cumulative += projectedCost
+        forecastDays.push({
+            date: forecastDate.toISOString().slice(0, 10),
+            projectedCost,
+            cumulative,
+        })
+    }
+
+    const monthlyEstimate = cumulative
+
+    return { forecastDays, monthlyEstimate, trend, trendPercent, avgDailyCost }
+}
