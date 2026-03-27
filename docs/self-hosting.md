@@ -39,7 +39,7 @@ The frontend will be available at **http://localhost:3000**.
 │  │  postgres   │  │ migrate  │  │   task-runner   │  │
 │  │  (PG 15)   │←─│ (17 SQL) │  │  (Node + tsx)   │  │
 │  │  :5432     │  │ one-shot │  │  polling loop   │  │
-│  └────────────┘  └──────────┘  └────────────────┘  │
+│  └────────────┘  └──────────┘  └───────┬────────┘  │
 │         │                              │            │
 │         └──────────┬───────────────────┘            │
 │                    │                                │
@@ -47,7 +47,13 @@ The frontend will be available at **http://localhost:3000**.
 │  │            frontend (nginx)                  │    │
 │  │          Vite build → :3000                  │    │
 │  └──────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────┘
+└───────────────────────┬─────────────────────────────┘
+                        │ (optional)
+                ┌───────▼────────┐
+                │    Ollama       │
+                │  :11434 (local) │
+                │  Local LLMs     │
+                └────────────────┘
 ```
 
 ## Services
@@ -186,6 +192,113 @@ docker compose run --rm migrate
 - Verify `POSTGRES_PASSWORD` matches across services
 - Check postgres health: `docker compose exec postgres pg_isready`
 
+## Ollama Integration (Local AI)
+
+Run AI models **entirely on your own hardware** — no API keys, no external calls, complete data sovereignty.
+
+### 1. Install Ollama
+
+```bash
+# macOS / Linux
+curl -fsSL https://ollama.com/install.sh | sh
+
+# Or via Docker (recommended for servers)
+docker run -d --name ollama -p 11434:11434 -v ollama:/root/.ollama ollama/ollama
+```
+
+### 2. Pull Models
+
+```bash
+# Pull one or more models
+ollama pull llama3.3
+ollama pull qwen2.5
+ollama pull deepseek-r1:8b
+ollama pull mixtral
+ollama pull phi4
+ollama pull gemma2
+
+# Verify
+ollama list
+```
+
+### 3. Configure in CrewForm
+
+1. Go to **Settings → LLM Setup**
+2. Find **Ollama (Local)** in the provider list
+3. Enter any placeholder value as the API key (e.g. `ollama`) — Ollama doesn't need one
+4. Save and start creating agents with your local models
+
+> **💡** No API key is actually sent to Ollama. The task runner connects to `http://localhost:11434/v1` using the OpenAI-compatible API.
+
+### Docker Networking
+
+If both CrewForm and Ollama run in Docker, the task runner can't reach `localhost:11434`. Use one of these approaches:
+
+**Option A: Host networking (simplest)**
+
+```yaml
+# In docker-compose.yml, add to the task-runner service:
+task-runner:
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+```
+
+Then Ollama is reachable at `http://host.docker.internal:11434/v1`.
+
+**Option B: Add Ollama to docker-compose**
+
+```yaml
+# Add as a new service in docker-compose.yml:
+ollama:
+  image: ollama/ollama
+  ports:
+    - "11434:11434"
+  volumes:
+    - ollama_data:/root/.ollama
+  deploy:
+    resources:
+      reservations:
+        devices:
+          - driver: nvidia
+            count: all
+            capabilities: [gpu]  # Remove if no GPU
+
+volumes:
+  ollama_data:
+```
+
+Then Ollama is reachable at `http://ollama:11434/v1` from the task runner.
+
+### Air-Gapped Setup
+
+For fully offline / air-gapped deployments:
+
+1. Pull models on a machine with internet: `ollama pull llama3.3`
+2. Copy the model directory (`~/.ollama/models/`) to the target machine
+3. Start Ollama on the target: `ollama serve`
+4. Deploy CrewForm with Docker Compose — no external API keys needed
+5. All AI inference stays on-premises
+
+### Supported Models
+
+CrewForm ships with 11 pre-configured Ollama models:
+
+| Model | Size | Best For |
+|-------|------|----------|
+| Llama 3.3 70B | 40 GB | General reasoning |
+| Qwen 2.5 32B | 18 GB | Code + multilingual |
+| DeepSeek R1 8B | 5 GB | Chain-of-thought reasoning |
+| Mixtral 8x7B | 26 GB | Multi-expert tasks |
+| Phi-4 14B | 8 GB | Compact but capable |
+| Gemma 2 9B | 5 GB | Google's efficient model |
+| Mistral Small 24B | 13 GB | Fast inference |
+| Command R 35B | 20 GB | RAG + retrieval |
+| Llama 3.2 3B | 2 GB | Edge / low-resource |
+| Qwen 2.5 Coder 7B | 4 GB | Code generation |
+| DeepSeek R1 1.5B | 1 GB | Ultralight tasks |
+
+> **RAM Guide:** Plan for ~1.2× the model file size in available RAM. A 5 GB model needs ~6 GB free.
+
 ## Production Considerations
 
 - **HTTPS**: Put a reverse proxy (Caddy, Traefik, or nginx) in front with TLS
@@ -193,3 +306,4 @@ docker compose run --rm migrate
 - **Monitoring**: Add health check endpoints and uptime monitoring
 - **Secrets**: Use Docker secrets or a vault for sensitive values
 - **Memory**: Monitor task-runner memory usage with AI provider calls
+- **GPU**: For Ollama, add GPU passthrough for significantly faster inference
