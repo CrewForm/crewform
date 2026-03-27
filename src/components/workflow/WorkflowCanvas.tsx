@@ -3,10 +3,10 @@
 
 /**
  * Visual workflow canvas using React Flow.
- * Renders the team's config as an interactive node graph.
+ * Phase 2: Supports interactive editing — add, remove, reorder agents on the canvas.
  */
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState, useRef, type DragEvent } from 'react'
 import {
     ReactFlow,
     Background,
@@ -16,18 +16,20 @@ import {
     useEdgesState,
     BackgroundVariant,
     Panel,
+    addEdge,
 } from '@xyflow/react'
-import type { Node, NodeTypes } from '@xyflow/react'
+import type { Node, Edge, NodeTypes, Connection } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import './workflow.css'
 
 import { AgentNode } from './nodes/AgentNode'
 import { StartNode } from './nodes/StartNode'
 import { EndNode } from './nodes/EndNode'
-import { useWorkflowGraph } from './useWorkflowGraph'
+import { useWorkflowGraph, graphToConfig, validateConfig } from './useWorkflowGraph'
 import { WorkflowSidebar } from './WorkflowSidebar'
-import type { Agent, Team } from '@/types'
-import { Bot } from 'lucide-react'
+import type { Agent, Team, PipelineConfig, OrchestratorConfig, CollaborationConfig } from '@/types'
+import type { AgentNodeData } from './nodes/AgentNode'
+import { Bot, AlertCircle } from 'lucide-react'
 
 const NODE_TYPES: NodeTypes = {
     agentNode: AgentNode,
@@ -35,23 +37,72 @@ const NODE_TYPES: NodeTypes = {
     endNode: EndNode,
 }
 
+type TeamConfig = PipelineConfig | OrchestratorConfig | CollaborationConfig
+
 interface WorkflowCanvasProps {
     team: Team
     agents: Agent[]
+    onSaveConfig: (config: TeamConfig) => Promise<void>
+    onCanvasError?: (message: string) => void
 }
 
-export function WorkflowCanvas({ team, agents }: WorkflowCanvasProps) {
+export function WorkflowCanvas({ team, agents, onSaveConfig, onCanvasError }: WorkflowCanvasProps) {
     const { nodes: initialNodes, edges: initialEdges } = useWorkflowGraph(team, agents)
     const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
     const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
     const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
+    const [canvasError, setCanvasError] = useState<string | null>(null)
+    const [isSaving, setIsSaving] = useState(false)
 
-    // Sync graph when team config changes
+    // Snapshot for rollback
+    const snapshotRef = useRef<{ nodes: Node[]; edges: Edge[] }>({ nodes: initialNodes, edges: initialEdges })
+
+    // Sync graph when team config changes externally (e.g. from form view)
     useMemo(() => {
         setNodes(initialNodes)
         setEdges(initialEdges)
+        snapshotRef.current = { nodes: initialNodes, edges: initialEdges }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [initialNodes, initialEdges])
+
+    // ─── Save logic ──────────────────────────────────────────────────────────
+
+    const saveGraph = useCallback(async (updatedNodes: Node[], updatedEdges: Edge[]) => {
+        setCanvasError(null)
+        try {
+            const config = graphToConfig(
+                updatedNodes,
+                updatedEdges,
+                team.mode,
+                agents,
+                team.config,
+            )
+            const validation = validateConfig(config, team.mode)
+            if (!validation.valid) {
+                setCanvasError(validation.error ?? 'Invalid configuration')
+                // Revert
+                setNodes(snapshotRef.current.nodes)
+                setEdges(snapshotRef.current.edges)
+                return
+            }
+
+            setIsSaving(true)
+            await onSaveConfig(config)
+            // Update snapshot on success
+            snapshotRef.current = { nodes: updatedNodes, edges: updatedEdges }
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : 'Failed to save'
+            setCanvasError(msg)
+            // Revert on DB failure
+            setNodes(snapshotRef.current.nodes)
+            setEdges(snapshotRef.current.edges)
+            onCanvasError?.(msg)
+        } finally {
+            setIsSaving(false)
+        }
+    }, [team, agents, onSaveConfig, onCanvasError, setNodes, setEdges])
+
+    // ─── Node interactions ───────────────────────────────────────────────────
 
     const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
         setSelectedNodeId(node.id)
@@ -61,10 +112,199 @@ export function WorkflowCanvas({ team, agents }: WorkflowCanvasProps) {
         setSelectedNodeId(null)
     }, [])
 
-    // Find the selected agent info for the sidebar
-    const selectedNode = nodes.find((n) => n.id === selectedNodeId)
+    // ─── Edge creation (pipeline mode) ───────────────────────────────────────
 
-    // Mode label
+    const onConnect = useCallback((connection: Connection) => {
+        if (team.mode !== 'pipeline') return // Only pipeline supports manual edge creation
+
+        setEdges((eds) => {
+            const updated = addEdge(
+                {
+                    ...connection,
+                    animated: true,
+                    style: { stroke: '#6bedb9', strokeWidth: 2 },
+                },
+                eds,
+            )
+            // Get latest nodes from state for save
+            setNodes((currentNodes) => {
+                void saveGraph(currentNodes, updated)
+                return currentNodes
+            })
+            return updated
+        })
+    }, [team.mode, setEdges, setNodes, saveGraph])
+
+    // ─── Node deletion ───────────────────────────────────────────────────────
+
+    const onNodesDelete = useCallback((deletedNodes: Node[]) => {
+        // Prevent deleting start/end nodes
+        const protectedIds = ['start', 'end']
+        const actualDeleted = deletedNodes.filter((n) => !protectedIds.includes(n.id))
+
+        if (actualDeleted.length === 0) return
+
+        // Prevent deleting brain in orchestrator
+        if (team.mode === 'orchestrator') {
+            const brainDeleted = actualDeleted.find((n) => {
+                const role = (n.data as AgentNodeData).role
+                return role === 'brain' || role === 'orchestrator'
+            })
+            if (brainDeleted) {
+                setCanvasError('Cannot remove the brain agent from an orchestrator team.')
+                // Revert
+                setNodes(snapshotRef.current.nodes)
+                setEdges(snapshotRef.current.edges)
+                return
+            }
+        }
+
+        // Save after deletion
+        setNodes((currentNodes) => {
+            const remaining = currentNodes.filter(
+                (n) => !actualDeleted.some((d) => d.id === n.id),
+            )
+            setEdges((currentEdges) => {
+                // Remove edges connected to deleted nodes
+                const deletedIds = new Set(actualDeleted.map((n) => n.id))
+                const remainingEdges = currentEdges.filter(
+                    (e) => !deletedIds.has(e.source) && !deletedIds.has(e.target),
+                )
+                void saveGraph(remaining, remainingEdges)
+                return remainingEdges
+            })
+            return remaining
+        })
+    }, [team.mode, setNodes, setEdges, saveGraph])
+
+    // ─── Drag & Drop from sidebar ────────────────────────────────────────────
+
+    const onDragOver = useCallback((event: DragEvent) => {
+        event.preventDefault()
+        event.dataTransfer.dropEffect = 'move'
+    }, [])
+
+    const onDrop = useCallback((event: DragEvent) => {
+        event.preventDefault()
+
+        const agentId = event.dataTransfer.getData('application/crewform-agent')
+        if (!agentId) return
+
+        const agent = agents.find((a) => a.id === agentId)
+        if (!agent) return
+
+        // Get drop position relative to the canvas
+        const bounds = (event.target as HTMLElement).closest('.react-flow')?.getBoundingClientRect()
+        if (!bounds) return
+
+        const position = {
+            x: event.clientX - bounds.left,
+            y: event.clientY - bounds.top,
+        }
+
+        const nodeId = `agent-${Date.now()}`
+        const role = team.mode === 'orchestrator' ? 'worker' : 'worker'
+
+        const newNode: Node = {
+            id: nodeId,
+            type: 'agentNode',
+            position,
+            data: {
+                label: agent.name,
+                model: agent.model,
+                role,
+                avatarUrl: agent.avatar_url ?? null,
+                agentId: agent.id,
+            } satisfies AgentNodeData & { agentId: string },
+            draggable: true,
+        }
+
+        setNodes((currentNodes) => {
+            const updated = [...currentNodes, newNode]
+
+            // For pipeline mode, auto-connect to the last agent or start
+            if (team.mode === 'pipeline') {
+                setEdges((currentEdges) => {
+                    // Find the node that currently connects to 'end'
+                    const endEdgeIdx = currentEdges.findIndex((e) => e.target === 'end')
+                    let updatedEdges = [...currentEdges]
+
+                    if (endEdgeIdx >= 0) {
+                        const previousSource = currentEdges[endEdgeIdx].source
+                        // Remove old edge to end
+                        updatedEdges.splice(endEdgeIdx, 1)
+                        // Connect previous → new node → end
+                        updatedEdges = [
+                            ...updatedEdges,
+                            {
+                                id: `e-${previousSource}-${nodeId}`,
+                                source: previousSource,
+                                target: nodeId,
+                                animated: true,
+                                style: { stroke: '#6bedb9', strokeWidth: 2 },
+                            },
+                            {
+                                id: `e-${nodeId}-end`,
+                                source: nodeId,
+                                target: 'end',
+                                animated: true,
+                                style: { stroke: '#6bedb9', strokeWidth: 2 },
+                            },
+                        ]
+                    }
+                    void saveGraph(updated, updatedEdges)
+                    return updatedEdges
+                })
+            } else if (team.mode === 'orchestrator') {
+                setEdges((currentEdges) => {
+                    // Connect brain to new worker
+                    const updatedEdges = [
+                        ...currentEdges,
+                        {
+                            id: `e-brain-${nodeId}`,
+                            source: 'brain',
+                            target: nodeId,
+                            animated: true,
+                            style: { stroke: '#a78bfa', strokeWidth: 1.5, strokeDasharray: '6 3' },
+                            label: 'delegates',
+                            labelStyle: { fill: '#6b7280', fontSize: 10 },
+                        },
+                    ]
+                    void saveGraph(updated, updatedEdges)
+                    return updatedEdges
+                })
+            } else {
+                // Collaboration: add edges to all existing agent nodes
+                setEdges((currentEdges) => {
+                    const existingAgentNodes = currentNodes.filter((n) => n.type === 'agentNode')
+                    const newEdges = existingAgentNodes.map((an) => ({
+                        id: `e-collab-${an.id}-${nodeId}`,
+                        source: an.id,
+                        target: nodeId,
+                        style: { stroke: '#f59e0b', strokeWidth: 1, strokeDasharray: '4 4' },
+                    }))
+                    const updatedEdges = [...currentEdges, ...newEdges]
+                    void saveGraph(updated, updatedEdges)
+                    return updatedEdges
+                })
+            }
+
+            return updated
+        })
+    }, [agents, team.mode, setNodes, setEdges, saveGraph])
+
+    // ─── Sidebar callbacks ───────────────────────────────────────────────────
+
+    const handleDeleteNode = useCallback((nodeId: string) => {
+        const node = nodes.find((n) => n.id === nodeId)
+        if (node) {
+            onNodesDelete([node])
+        }
+    }, [nodes, onNodesDelete])
+
+    // ─── Render ──────────────────────────────────────────────────────────────
+
+    const selectedNode = nodes.find((n) => n.id === selectedNodeId)
     const modeLabel = team.mode.charAt(0).toUpperCase() + team.mode.slice(1)
     const stepCount = nodes.filter((n) => n.type === 'agentNode').length
 
@@ -77,14 +317,19 @@ export function WorkflowCanvas({ team, agents }: WorkflowCanvasProps) {
                     edges={edges}
                     onNodesChange={onNodesChange}
                     onEdgesChange={onEdgesChange}
+                    onConnect={onConnect}
                     onNodeClick={onNodeClick}
                     onPaneClick={onPaneClick}
+                    onNodesDelete={onNodesDelete}
+                    onDragOver={onDragOver}
+                    onDrop={onDrop}
                     nodeTypes={NODE_TYPES}
                     fitView
                     fitViewOptions={{ padding: 0.3 }}
                     proOptions={{ hideAttribution: true }}
                     minZoom={0.3}
                     maxZoom={2}
+                    deleteKeyCode="Delete"
                     className="workflow-flow"
                 >
                     <Background
@@ -113,8 +358,30 @@ export function WorkflowCanvas({ team, agents }: WorkflowCanvasProps) {
                             <span className="text-[10px] text-gray-500">
                                 {stepCount} agent{stepCount !== 1 ? 's' : ''}
                             </span>
+                            {isSaving && (
+                                <span className="text-[10px] text-brand-primary animate-pulse">
+                                    Saving…
+                                </span>
+                            )}
                         </div>
                     </Panel>
+
+                    {/* Canvas error toast */}
+                    {canvasError && (
+                        <Panel position="top-center" className="workflow-error-panel">
+                            <div className="flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 backdrop-blur-sm">
+                                <AlertCircle className="h-3.5 w-3.5 text-red-400 shrink-0" />
+                                <span className="text-xs text-red-400">{canvasError}</span>
+                                <button
+                                    type="button"
+                                    onClick={() => setCanvasError(null)}
+                                    className="ml-2 text-[10px] text-gray-500 hover:text-gray-300"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+                        </Panel>
+                    )}
                 </ReactFlow>
             </div>
 
@@ -123,6 +390,8 @@ export function WorkflowCanvas({ team, agents }: WorkflowCanvasProps) {
                 team={team}
                 agents={agents}
                 selectedNode={selectedNode ?? null}
+                onDeleteNode={handleDeleteNode}
+                draggable
             />
         </div>
     )

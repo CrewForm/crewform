@@ -14,6 +14,7 @@ import type {
     Agent,
     Team,
     PipelineConfig,
+    PipelineStep,
     OrchestratorConfig,
     CollaborationConfig,
 } from '@/types'
@@ -249,3 +250,195 @@ export function useWorkflowGraph(team: Team | null, agents: Agent[]) {
         }
     }, [team, agents])
 }
+
+// ─── Validation ──────────────────────────────────────────────────────────────
+
+export interface ConfigValidation {
+    valid: boolean
+    error?: string
+}
+
+export function validateConfig(
+    config: PipelineConfig | OrchestratorConfig | CollaborationConfig,
+    mode: string,
+): ConfigValidation {
+    switch (mode) {
+        case 'pipeline': {
+            const pc = config as PipelineConfig
+            if (pc.steps.length < 1) {
+                return { valid: false, error: 'Pipeline must have at least one step.' }
+            }
+            const missing = pc.steps.find((s) => !s.agent_id)
+            if (missing) {
+                return { valid: false, error: `Step "${missing.step_name || 'unnamed'}" needs an agent assigned.` }
+            }
+            return { valid: true }
+        }
+        case 'orchestrator': {
+            const oc = config as OrchestratorConfig
+            if (!oc.brain_agent_id) {
+                return { valid: false, error: 'Orchestrator must have a brain agent.' }
+            }
+            return { valid: true }
+        }
+        case 'collaboration': {
+            const cc = config as CollaborationConfig
+            if (cc.agent_ids.length < 2) {
+                return { valid: false, error: 'Collaboration needs at least 2 agents.' }
+            }
+            return { valid: true }
+        }
+        default:
+            return { valid: false, error: `Unknown mode: ${mode}` }
+    }
+}
+
+// ─── Graph → Config (reverse) ────────────────────────────────────────────────
+
+/**
+ * Resolves the agent ID from a node's data, looking up the agent by name
+ * if the data doesn't carry the original ID.
+ */
+function resolveAgentId(node: Node, agents: Agent[]): string {
+    // agentId stored in node data during drag-from-sidebar
+    const dataAgentId = node.data.agentId
+    if (typeof dataAgentId === 'string' && dataAgentId) return dataAgentId
+
+    // Fallback: look up by name
+    const label = (node.data as AgentNodeData).label
+    const agent = agents.find((a) => a.name === label)
+    return agent?.id ?? ''
+}
+
+/**
+ * Walk edges from 'start' to 'end' to determine the pipeline step order.
+ * Falls back to y-position ordering if edges don't form a clean chain.
+ */
+function resolvePipelineOrder(nodes: Node[], edges: Edge[]): Node[] {
+    const agentNodes = nodes.filter((n) => n.type === 'agentNode')
+
+    // Build adjacency from source → target
+    const edgeMap = new Map<string, string>()
+    for (const e of edges) {
+        edgeMap.set(e.source, e.target)
+    }
+
+    // Walk from 'start'
+    const ordered: Node[] = []
+    let currentId = edgeMap.get('start')
+    const visited = new Set<string>()
+
+    while (currentId && currentId !== 'end' && !visited.has(currentId)) {
+        visited.add(currentId)
+        const node = agentNodes.find((n) => n.id === currentId)
+        if (node) ordered.push(node)
+        currentId = edgeMap.get(currentId)
+    }
+
+    // If walk didn't capture all agents, fall back to y-position sort
+    if (ordered.length !== agentNodes.length) {
+        return [...agentNodes].sort((a, b) => a.position.y - b.position.y)
+    }
+
+    return ordered
+}
+
+export function graphToPipelineConfig(
+    nodes: Node[],
+    edges: Edge[],
+    agents: Agent[],
+    existingConfig: PipelineConfig,
+): PipelineConfig {
+    const orderedNodes = resolvePipelineOrder(nodes, edges)
+
+    const steps: PipelineStep[] = orderedNodes.map((node, idx) => {
+        const agentId = resolveAgentId(node, agents)
+
+        // Preserve existing step config if this agent was already in the pipeline
+        const existingStep = existingConfig.steps.find((s) => s.agent_id === agentId)
+
+        return {
+            agent_id: agentId,
+            step_name: existingStep?.step_name ?? `Step ${idx + 1}`,
+            instructions: existingStep?.instructions ?? '',
+            expected_output: existingStep?.expected_output ?? '',
+            on_failure: existingStep?.on_failure ?? 'stop',
+            max_retries: existingStep?.max_retries ?? 1,
+        }
+    })
+
+    return {
+        ...existingConfig,
+        steps,
+    }
+}
+
+export function graphToOrchestratorConfig(
+    nodes: Node[],
+    agents: Agent[],
+    existingConfig: OrchestratorConfig,
+): OrchestratorConfig {
+    const agentNodes = nodes.filter((n) => n.type === 'agentNode')
+
+    // The brain is the node with role 'brain' or 'orchestrator'
+    const brainNode = agentNodes.find((n) => {
+        const role = (n.data as AgentNodeData).role
+        return role === 'brain' || role === 'orchestrator'
+    })
+
+    const brainAgentId = brainNode ? resolveAgentId(brainNode, agents) : existingConfig.brain_agent_id
+
+    // Workers are all non-brain agent nodes
+    const workerIds = agentNodes
+        .filter((n) => n.id !== brainNode?.id)
+        .map((n) => resolveAgentId(n, agents))
+        .filter(Boolean)
+
+    return {
+        ...existingConfig,
+        brain_agent_id: brainAgentId,
+        worker_agent_ids: workerIds,
+    }
+}
+
+export function graphToCollaborationConfig(
+    nodes: Node[],
+    agents: Agent[],
+    existingConfig: CollaborationConfig,
+): CollaborationConfig {
+    const agentNodes = nodes.filter((n) => n.type === 'agentNode')
+
+    const agentIds = agentNodes
+        .map((n) => resolveAgentId(n, agents))
+        .filter(Boolean)
+
+    // Preserve facilitator if still present
+    const facilitatorId = existingConfig.facilitator_agent_id
+    const facilitatorStillPresent = facilitatorId ? agentIds.includes(facilitatorId) : false
+
+    return {
+        ...existingConfig,
+        agent_ids: agentIds,
+        facilitator_agent_id: facilitatorStillPresent ? facilitatorId : undefined,
+    }
+}
+
+export function graphToConfig(
+    nodes: Node[],
+    edges: Edge[],
+    mode: string,
+    agents: Agent[],
+    existingConfig: PipelineConfig | OrchestratorConfig | CollaborationConfig,
+): PipelineConfig | OrchestratorConfig | CollaborationConfig {
+    switch (mode) {
+        case 'pipeline':
+            return graphToPipelineConfig(nodes, edges, agents, existingConfig as PipelineConfig)
+        case 'orchestrator':
+            return graphToOrchestratorConfig(nodes, agents, existingConfig as OrchestratorConfig)
+        case 'collaboration':
+            return graphToCollaborationConfig(nodes, agents, existingConfig as CollaborationConfig)
+        default:
+            return existingConfig
+    }
+}
+
