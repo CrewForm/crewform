@@ -113,6 +113,36 @@ This is step 3 in a multi-step pipeline. 2 previous steps have completed.
 5. **Use stop for critical steps** — If step 1 fails, there's no point running step 2
 6. **Monitor costs** — Each step uses tokens; longer pipelines cost more
 
+## Visual Workflow Builder (Canvas)
+
+Pipeline teams include a **Visual Workflow Builder** — a drag-and-drop canvas for designing and managing your pipeline graph.
+
+### Canvas Features
+
+- **Drag agents** from the sidebar onto the canvas to add them as steps
+- **Connect nodes** by dragging edges to define execution order
+- **Delete nodes** to remove agents from the pipeline
+- **Drag to rearrange** — reposition nodes freely; positions are saved automatically
+
+### Undo / Redo
+
+Every canvas action (add, delete, connect, auto-layout) is tracked in a 30-entry history stack.
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+Z` (`⌘Z` on Mac) | Undo |
+| `Ctrl+Shift+Z` (`⌘⇧Z`) | Redo |
+
+You can also use the **⟲ Undo** and **⟳ Redo** buttons in the canvas toolbar.
+
+### Auto-Layout
+
+Click the **Auto-Layout** button in the canvas toolbar to automatically arrange your nodes using the [dagre](https://github.com/dagrejs/dagre) layout algorithm. Pipeline teams use a **top-to-bottom** layout for clear sequential flow.
+
+### Position Persistence
+
+Node positions are saved as part of the team configuration. When you reload the page or revisit the team, your canvas layout is exactly as you left it. No database migration is needed — positions are stored in the existing `teams.config` JSONB column.
+
 ## Output Routes
 
 Like individual agents, pipeline teams support targeted output delivery. By default, team run results are broadcast to all active output routes.

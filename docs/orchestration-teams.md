@@ -168,6 +168,36 @@ A three-worker orchestration team for producing research reports:
 4. Brain delegates "Final editorial review" → Smith
 5. Brain calls `final_answer` with synthesised report
 
+## Visual Workflow Builder (Canvas)
+
+Orchestration teams include a **Visual Workflow Builder** — a drag-and-drop canvas for designing your brain + worker graph.
+
+### Canvas Features
+
+- **Drag agents** from the sidebar onto the canvas to add them as workers
+- **Connect nodes** by dragging edges to define delegation relationships
+- **Delete nodes** to remove agents from the team
+- **Drag to rearrange** — reposition nodes freely; positions are saved automatically
+
+### Undo / Redo
+
+Every canvas action is tracked in a 30-entry history stack.
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+Z` (`⌘Z` on Mac) | Undo |
+| `Ctrl+Shift+Z` (`⌘⇧Z`) | Redo |
+
+You can also use the toolbar buttons.
+
+### Auto-Layout
+
+Click the **Auto-Layout** button to automatically arrange your brain and worker nodes using a **top-to-bottom** layout. The brain agent sits at the top with workers fanning out below.
+
+### Position Persistence
+
+Node positions are saved automatically and restored when you revisit the team — stored in the existing `teams.config` JSONB column.
+
 ## Monitoring
 
 The run detail page shows the full delegation tree:

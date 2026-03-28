@@ -146,6 +146,36 @@ A 3-agent collaboration team for reviewing technical architecture proposals:
 5. Jordan: "rate limiting noted, adding to non-functional requirements — I approve this architecture"
 6. Sam: "I approve this architecture" → **Consensus reached, discussion ends**
 
+## Visual Workflow Builder (Canvas)
+
+Collaboration teams include a **Visual Workflow Builder** — a drag-and-drop canvas for designing your discussion participant graph.
+
+### Canvas Features
+
+- **Drag agents** from the sidebar onto the canvas to add participants
+- **Connect nodes** by dragging edges to define speaking relationships
+- **Delete nodes** to remove agents from the discussion
+- **Drag to rearrange** — reposition nodes freely; positions are saved automatically
+
+### Undo / Redo
+
+Every canvas action is tracked in a 30-entry history stack.
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+Z` (`⌘Z` on Mac) | Undo |
+| `Ctrl+Shift+Z` (`⌘⇧Z`) | Redo |
+
+You can also use the toolbar buttons.
+
+### Auto-Layout
+
+Click the **Auto-Layout** button to automatically arrange your participants using a **left-to-right** layout — reflecting the peer-to-peer discussion flow.
+
+### Position Persistence
+
+Node positions are saved automatically and restored when you revisit the team — stored in the existing `teams.config` JSONB column.
+
 ## Tips
 
 - **Give agents distinct perspectives.** The discussion is only valuable if agents genuinely disagree and challenge each other. Agents with identical system prompts will produce repetitive turns.
