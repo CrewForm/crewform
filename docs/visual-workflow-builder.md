@@ -188,3 +188,5 @@ All canvas overlays — popups, context menus, panels — follow a consistent **
 - `border-white/5` subtle borders
 - Smooth entry animations with scale + opacity transitions
 - Consistent with CrewForm's dark theme aesthetic
+
+<!-- v1.7.0 -->
