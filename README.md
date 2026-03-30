@@ -440,6 +440,22 @@ CrewForm uses a **dual-license** model:
 
 You can use, modify, and distribute the Community Edition freely. Enterprise features require a valid license key. See [LICENSING.md](LICENSING.md) for full details.
 
+## ⭐ Star History
+
+<div align="center">
+
+[![Star History Chart](https://api.star-history.com/svg?repos=CrewForm/crewform&type=Date)](https://star-history.com/#CrewForm/crewform&Date)
+
+</div>
+
+## 🏢 Who's Using CrewForm
+
+> Using CrewForm in production? [Open an issue](https://github.com/CrewForm/crewform/issues/new?labels=showcase&title=Add+my+company+to+Who%27s+Using+CrewForm) and we'll add you here!
+
+<!-- Add your company/project below -->
+
+*Be the first to showcase your team here!*
+
 ---
 
 <div align="center">
