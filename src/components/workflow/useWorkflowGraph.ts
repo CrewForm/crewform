@@ -495,16 +495,26 @@ export function graphToConfig(
     mode: string,
     agents: Agent[],
     existingConfig: PipelineConfig | OrchestratorConfig | CollaborationConfig,
+    layoutDirection?: 'TB' | 'LR',
 ): PipelineConfig | OrchestratorConfig | CollaborationConfig {
+    let config: PipelineConfig | OrchestratorConfig | CollaborationConfig
     switch (mode) {
         case 'pipeline':
-            return graphToPipelineConfig(nodes, edges, agents, existingConfig as PipelineConfig)
+            config = graphToPipelineConfig(nodes, edges, agents, existingConfig as PipelineConfig)
+            break
         case 'orchestrator':
-            return graphToOrchestratorConfig(nodes, agents, existingConfig as OrchestratorConfig)
+            config = graphToOrchestratorConfig(nodes, agents, existingConfig as OrchestratorConfig)
+            break
         case 'collaboration':
-            return graphToCollaborationConfig(nodes, agents, existingConfig as CollaborationConfig)
+            config = graphToCollaborationConfig(nodes, agents, existingConfig as CollaborationConfig)
+            break
         default:
-            return existingConfig
+            config = existingConfig
     }
+    // Persist layout direction preference in config
+    if (layoutDirection) {
+        (config as unknown as Record<string, unknown>).layout_direction = layoutDirection
+    }
+    return config
 }
 
