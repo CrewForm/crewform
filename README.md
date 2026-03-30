@@ -28,8 +28,8 @@
 ---
 
 <div align="center">
-  <img src=".github/assets/dashboard-hero.png" alt="CrewForm Dashboard" width="800" />
-  <p><em>The CrewForm dashboard — manage agents, track tasks, monitor performance, all in one place.</em></p>
+  <img src=".github/assets/pipeline-run-hero.gif" alt="CrewForm Visual Workflow Builder" width="800" />
+  <p><em>Build AI agent pipelines visually — drag, connect, and watch them execute in real-time.</em></p>
 </div>
 
 <details>
