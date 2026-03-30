@@ -12,21 +12,28 @@
  * Uses glassmorphism styling matching the detail popup.
  */
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
     Trash2,
     ExternalLink,
     Maximize2,
     LayoutGrid,
     Brain,
+    Plus,
+    Bot,
 } from 'lucide-react'
 import type { Node } from '@xyflow/react'
 import type { AgentNodeData } from './nodes/AgentNode'
+import type { Agent } from '@/types'
 
 export interface ContextMenuState {
     x: number
     y: number
     nodeId: string | null
+    /** Edge right-click context data (pipeline step insertion) */
+    edgeId?: string | null
+    edgeSource?: string
+    edgeTarget?: string
 }
 
 interface CanvasContextMenuProps {
@@ -39,6 +46,9 @@ interface CanvasContextMenuProps {
     onAutoLayout: () => void
     onGoToAgent?: (agentId: string) => void
     onSetAsBrain?: (nodeId: string) => void
+    /** For edge context menu: insert agent between two nodes */
+    agents?: Agent[]
+    onInsertAgent?: (sourceId: string, targetId: string, agent: Agent) => void
 }
 
 interface MenuItem {
@@ -60,8 +70,11 @@ export function CanvasContextMenu({
     onAutoLayout,
     onGoToAgent,
     onSetAsBrain,
+    agents,
+    onInsertAgent,
 }: CanvasContextMenuProps) {
     const menuRef = useRef<HTMLDivElement>(null)
+    const [showAgentPicker, setShowAgentPicker] = useState(false)
 
     // Close on outside click
     useEffect(() => {
@@ -150,6 +163,19 @@ export function CanvasContextMenu({
             icon: Maximize2,
             onClick: () => { onFitView(); onClose() },
         })
+    } else if (!node && state.edgeId && state.edgeSource && state.edgeTarget && onInsertAgent && agents) {
+        // Edge context menu (pipeline step insertion)
+        items.push({
+            label: 'Insert Agent Here',
+            icon: Plus,
+            onClick: () => { setShowAgentPicker(true) },
+        })
+        items.push('separator')
+        items.push({
+            label: 'Fit View',
+            icon: Maximize2,
+            onClick: () => { onFitView(); onClose() },
+        })
     } else {
         // Pane (canvas background) context menu
         items.push({
@@ -202,6 +228,35 @@ export function CanvasContextMenu({
                     </button>
                 )
             })}
+
+            {/* Inline agent picker for edge insertion */}
+            {showAgentPicker && agents && state.edgeSource && state.edgeTarget && onInsertAgent && (
+                <>
+                    <hr className="my-1 border-white/5" />
+                    <div className="px-2 py-1">
+                        <div className="text-[10px] text-gray-500 uppercase tracking-wide px-1 mb-1">Select Agent</div>
+                        <div className="max-h-[200px] overflow-y-auto">
+                            {agents.map((agent) => (
+                                <button
+                                    key={agent.id}
+                                    type="button"
+                                    onClick={() => {
+                                        if (state.edgeSource && state.edgeTarget) {
+                                            onInsertAgent(state.edgeSource, state.edgeTarget, agent)
+                                        }
+                                        onClose()
+                                    }}
+                                    className="workflow-context-menu-item flex w-full items-center gap-2 px-2 py-1.5 text-left text-[11px] text-gray-300 rounded"
+                                >
+                                    <Bot className="h-3 w-3 text-brand-primary shrink-0" />
+                                    <span className="truncate flex-1">{agent.name}</span>
+                                    <span className="text-[9px] text-gray-600 shrink-0">{agent.model}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </>
+            )}
         </div>
     )
 }

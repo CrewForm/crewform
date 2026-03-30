@@ -66,7 +66,9 @@ function AgentNodeComponent({ data, selected }: NodeProps) {
             className={`workflow-agent-node workflow-glass-node rounded-xl border-2 px-4 py-3 shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl ${borderClass} ${selected ? 'ring-2 ring-brand-primary/50' : ''}`}
             style={{ minWidth: 180 }}
         >
-            <Handle type="target" position={Position.Top} className="workflow-handle" />
+            {/* Multi-directional handles — React Flow picks the closest pair */}
+            <Handle type="target" position={Position.Top} id="top-target" className="workflow-handle" />
+            <Handle type="target" position={Position.Left} id="left-target" className="workflow-handle workflow-handle-side" />
 
             <div className="flex items-center gap-2.5">
                 {nodeData.avatarUrl ? (
@@ -148,7 +150,8 @@ function AgentNodeComponent({ data, selected }: NodeProps) {
                 )}
             </div>
 
-            <Handle type="source" position={Position.Bottom} className="workflow-handle" />
+            <Handle type="source" position={Position.Bottom} id="bottom-source" className="workflow-handle" />
+            <Handle type="source" position={Position.Right} id="right-source" className="workflow-handle workflow-handle-side" />
         </div>
     )
 }

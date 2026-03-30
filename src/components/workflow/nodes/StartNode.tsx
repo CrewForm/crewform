@@ -12,7 +12,8 @@ function StartNodeComponent() {
                 <Play className="h-3.5 w-3.5 text-green-400 workflow-idle-pulse" />
             </div>
             <span className="text-sm font-semibold text-green-400">Start</span>
-            <Handle type="source" position={Position.Bottom} className="workflow-handle" />
+            <Handle type="source" position={Position.Bottom} id="bottom-source" className="workflow-handle" />
+            <Handle type="source" position={Position.Right} id="right-source" className="workflow-handle workflow-handle-side" />
         </div>
     )
 }

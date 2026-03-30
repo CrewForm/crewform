@@ -33,6 +33,17 @@
     height: 10px !important;
 }
 
+/* Side handles (left/right) — hidden until node hover for cleaner look */
+.workflow-handle-side {
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.react-flow__node:hover .workflow-handle-side,
+.react-flow__node.selected .workflow-handle-side {
+    opacity: 1;
+}
+
 /* ─── Controls ─── */
 
 .workflow-controls {

@@ -20,8 +20,9 @@ import {
     addEdge,
     useReactFlow,
     ReactFlowProvider,
+    MarkerType,
 } from '@xyflow/react'
-import type { Node, Edge, NodeTypes, Connection } from '@xyflow/react'
+import type { Node, Edge, NodeTypes, Connection, EdgeMouseHandler } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import './workflow.css'
 
@@ -43,7 +44,22 @@ import { ToolActivityPanel } from './ToolActivityPanel'
 import { KeyboardShortcutsOverlay } from './KeyboardShortcutsOverlay'
 import type { Agent, Team, PipelineConfig, OrchestratorConfig, CollaborationConfig, TeamRun, TeamMessage } from '@/types'
 import type { AgentNodeData } from './nodes/AgentNode'
-import { Bot, AlertCircle, Undo2, Redo2, LayoutGrid, Navigation, MessageSquare, Activity, Keyboard } from 'lucide-react'
+import { Bot, AlertCircle, Undo2, Redo2, LayoutGrid, Navigation, MessageSquare, Activity, Keyboard, ArrowDownUp, ArrowRightLeft } from 'lucide-react'
+
+/** Arrow marker for dynamically-created edges */
+const ARROW_MARKER_GREEN = {
+    type: MarkerType.ArrowClosed,
+    width: 16,
+    height: 16,
+    color: '#6bedb9',
+}
+
+const ARROW_MARKER_PURPLE = {
+    type: MarkerType.ArrowClosed,
+    width: 16,
+    height: 16,
+    color: '#a78bfa',
+}
 
 const NODE_TYPES: NodeTypes = {
     agentNode: AgentNode,
@@ -77,6 +93,9 @@ function WorkflowCanvasInner({ team, agents, onSaveConfig, onCanvasError, active
     const [showTranscript, setShowTranscript] = useState(false)
     const [showToolActivity, setShowToolActivity] = useState(false)
     const [showShortcuts, setShowShortcuts] = useState(false)
+    const [layoutDirection, setLayoutDirection] = useState<'TB' | 'LR'>(
+        team.mode === 'collaboration' ? 'LR' : 'TB'
+    )
 
     const reactFlowInstance = useReactFlow()
 
@@ -233,6 +252,7 @@ function WorkflowCanvasInner({ team, agents, onSaveConfig, onCanvasError, active
                     ...connection,
                     animated: true,
                     style: { stroke: '#6bedb9', strokeWidth: 2 },
+                    markerEnd: ARROW_MARKER_GREEN,
                 },
                 eds,
             )
@@ -245,6 +265,86 @@ function WorkflowCanvasInner({ team, agents, onSaveConfig, onCanvasError, active
             return updated
         })
     }, [team.mode, setEdges, setNodes, saveGraph, pushState])
+
+    // ─── Edge context menu (for pipeline step insertion) ─────────────────────
+
+    const onEdgeContextMenu: EdgeMouseHandler = useCallback((event, edge) => {
+        event.preventDefault()
+        if (team.mode !== 'pipeline') return
+        setContextMenu({
+            x: event.clientX,
+            y: event.clientY,
+            nodeId: null,
+            edgeId: edge.id,
+            edgeSource: edge.source,
+            edgeTarget: edge.target,
+        })
+    }, [team.mode])
+
+    // ─── Insert agent between two nodes (pipeline) ───────────────────────────
+
+    const insertAgentBetween = useCallback((sourceId: string, targetId: string, agent: Agent) => {
+        const nodeId = `agent-${Date.now()}`
+
+        // Position new node between source and target
+        const sourceNode = nodes.find((n) => n.id === sourceId)
+        const targetNode = nodes.find((n) => n.id === targetId)
+        const midX = ((sourceNode?.position.x ?? 300) + (targetNode?.position.x ?? 300)) / 2
+        const midY = ((sourceNode?.position.y ?? 0) + (targetNode?.position.y ?? 120)) / 2
+
+        const newNode: Node = {
+            id: nodeId,
+            type: 'agentNode',
+            position: { x: midX, y: midY },
+            data: {
+                label: agent.name,
+                model: agent.model,
+                role: 'worker',
+                avatarUrl: agent.avatar_url ?? null,
+                agentId: agent.id,
+            } satisfies AgentNodeData & { agentId: string },
+            draggable: true,
+        }
+
+        setNodes((currentNodes) => {
+            const updated = [...currentNodes, newNode]
+            setEdges((currentEdges) => {
+                pushState(currentNodes, currentEdges)
+                // Remove the old edge between source → target
+                const filteredEdges = currentEdges.filter(
+                    (e) => !(e.source === sourceId && e.target === targetId)
+                )
+                // Add source → new_node and new_node → target
+                const newEdges = [
+                    ...filteredEdges,
+                    {
+                        id: `e-${sourceId}-${nodeId}`,
+                        source: sourceId,
+                        target: nodeId,
+                        animated: true,
+                        style: { stroke: '#6bedb9', strokeWidth: 2 },
+                        markerEnd: ARROW_MARKER_GREEN,
+                    },
+                    {
+                        id: `e-${nodeId}-${targetId}`,
+                        source: nodeId,
+                        target: targetId,
+                        animated: true,
+                        style: { stroke: '#6bedb9', strokeWidth: 2 },
+                        markerEnd: ARROW_MARKER_GREEN,
+                    },
+                ]
+                // Auto-layout after insertion to shift subsequent steps
+                const direction = layoutDirection
+                const layoutedNodes = applyAutoLayout(updated, newEdges, { direction })
+                setNodes(layoutedNodes)
+                void saveGraph(layoutedNodes, newEdges)
+                return newEdges
+            })
+            return updated
+        })
+        setContextMenu(null)
+    }, [nodes, setNodes, setEdges, pushState, saveGraph, applyAutoLayout, layoutDirection])
 
     // ─── Node drag stop (persist position) ────────────────────────────────────
 
@@ -367,6 +467,7 @@ function WorkflowCanvasInner({ team, agents, onSaveConfig, onCanvasError, active
                                 target: nodeId,
                                 animated: true,
                                 style: { stroke: '#6bedb9', strokeWidth: 2 },
+                                markerEnd: ARROW_MARKER_GREEN,
                             },
                             {
                                 id: `e-${nodeId}-end`,
@@ -374,6 +475,7 @@ function WorkflowCanvasInner({ team, agents, onSaveConfig, onCanvasError, active
                                 target: 'end',
                                 animated: true,
                                 style: { stroke: '#6bedb9', strokeWidth: 2 },
+                                markerEnd: ARROW_MARKER_GREEN,
                             },
                         ]
                     }
@@ -393,6 +495,7 @@ function WorkflowCanvasInner({ team, agents, onSaveConfig, onCanvasError, active
                             style: { stroke: '#a78bfa', strokeWidth: 1.5, strokeDasharray: '6 3' },
                             label: 'delegates',
                             labelStyle: { fill: '#6b7280', fontSize: 10 },
+                            markerEnd: ARROW_MARKER_PURPLE,
                         },
                     ]
                     void saveGraph(updated, updatedEdges)
@@ -425,15 +528,14 @@ function WorkflowCanvasInner({ team, agents, onSaveConfig, onCanvasError, active
         setNodes((currentNodes) => {
             setEdges((currentEdges) => {
                 pushState(currentNodes, currentEdges)
-                const direction = team.mode === 'collaboration' ? 'LR' : 'TB'
-                const layoutedNodes = applyAutoLayout(currentNodes, currentEdges, { direction })
+                const layoutedNodes = applyAutoLayout(currentNodes, currentEdges, { direction: layoutDirection })
                 setNodes(layoutedNodes)
                 void saveGraph(layoutedNodes, currentEdges)
                 return currentEdges
             })
             return currentNodes
         })
-    }, [setNodes, setEdges, pushState, applyAutoLayout, team.mode, saveGraph])
+    }, [setNodes, setEdges, pushState, applyAutoLayout, layoutDirection, saveGraph])
 
     // ─── Sidebar callbacks ───────────────────────────────────────────────────
 
@@ -484,6 +586,7 @@ function WorkflowCanvasInner({ team, agents, onSaveConfig, onCanvasError, active
                         onDrop={onDrop}
                         onNodeContextMenu={onNodeContextMenu}
                         onPaneContextMenu={onPaneContextMenu}
+                        onEdgeContextMenu={onEdgeContextMenu}
                         nodeTypes={NODE_TYPES}
                         fitView
                         fitViewOptions={{ padding: 0.3 }}
@@ -550,6 +653,31 @@ function WorkflowCanvasInner({ team, agents, onSaveConfig, onCanvasError, active
                                     title="Auto-layout"
                                 >
                                     <LayoutGrid className="h-3.5 w-3.5" />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const next = layoutDirection === 'TB' ? 'LR' : 'TB'
+                                        setLayoutDirection(next)
+                                        // Re-layout with new direction
+                                        setNodes((currentNodes) => {
+                                            setEdges((currentEdges) => {
+                                                pushState(currentNodes, currentEdges)
+                                                const layoutedNodes = applyAutoLayout(currentNodes, currentEdges, { direction: next })
+                                                setNodes(layoutedNodes)
+                                                void saveGraph(layoutedNodes, currentEdges)
+                                                return currentEdges
+                                            })
+                                            return currentNodes
+                                        })
+                                    }}
+                                    className="rounded p-0.5 text-gray-400 hover:text-gray-200"
+                                    title={layoutDirection === 'TB' ? 'Switch to Left-Right' : 'Switch to Top-Bottom'}
+                                >
+                                    {layoutDirection === 'TB'
+                                        ? <ArrowRightLeft className="h-3.5 w-3.5" />
+                                        : <ArrowDownUp className="h-3.5 w-3.5" />
+                                    }
                                 </button>
                                 {hasActiveRun && (
                                     <>
@@ -665,6 +793,8 @@ function WorkflowCanvasInner({ team, agents, onSaveConfig, onCanvasError, active
                     onFitView={handleFitView}
                     onAutoLayout={handleAutoLayout}
                     onGoToAgent={handleGoToAgent}
+                    agents={agents}
+                    onInsertAgent={insertAgentBetween}
                 />
             )}
 

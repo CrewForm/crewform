@@ -9,6 +9,7 @@
  */
 
 import { useMemo } from 'react'
+import { MarkerType } from '@xyflow/react'
 import type { Node, Edge } from '@xyflow/react'
 import type {
     Agent,
@@ -22,6 +23,28 @@ import type { AgentNodeData } from './nodes/AgentNode'
 
 const Y_SPACING = 120
 const X_CENTER = 300
+
+/** Standard arrow marker for directional edge flow */
+const ARROW_MARKER = {
+    type: MarkerType.ArrowClosed,
+    width: 16,
+    height: 16,
+    color: '#6bedb9',
+}
+
+const ARROW_MARKER_PURPLE = {
+    type: MarkerType.ArrowClosed,
+    width: 16,
+    height: 16,
+    color: '#a78bfa',
+}
+
+const ARROW_MARKER_AMBER = {
+    type: MarkerType.ArrowClosed,
+    width: 14,
+    height: 14,
+    color: '#f59e0b',
+}
 
 function agentById(agents: Agent[], id: string): Agent | undefined {
     return agents.find((a) => a.id === id)
@@ -71,6 +94,7 @@ function pipelineToGraph(config: PipelineConfig, agents: Agent[]): { nodes: Node
             target: nodeId,
             animated: true,
             style: { stroke: '#6bedb9', strokeWidth: 2 },
+            markerEnd: ARROW_MARKER,
         })
     })
 
@@ -92,6 +116,7 @@ function pipelineToGraph(config: PipelineConfig, agents: Agent[]): { nodes: Node
             target: 'end',
             animated: true,
             style: { stroke: '#6bedb9', strokeWidth: 2 },
+            markerEnd: ARROW_MARKER,
         })
     } else {
         edges.push({
@@ -100,6 +125,7 @@ function pipelineToGraph(config: PipelineConfig, agents: Agent[]): { nodes: Node
             target: 'end',
             animated: true,
             style: { stroke: '#6bedb9', strokeWidth: 2 },
+            markerEnd: ARROW_MARKER,
         })
     }
 
@@ -137,6 +163,7 @@ function orchestratorToGraph(config: OrchestratorConfig, agents: Agent[]): { nod
         target: 'brain',
         animated: true,
         style: { stroke: '#a78bfa', strokeWidth: 2 },
+        markerEnd: ARROW_MARKER_PURPLE,
     })
 
     // Worker agents (radial)
@@ -166,6 +193,7 @@ function orchestratorToGraph(config: OrchestratorConfig, agents: Agent[]): { nod
             style: { stroke: '#a78bfa', strokeWidth: 1.5, strokeDasharray: '6 3' },
             label: 'delegates',
             labelStyle: { fill: '#6b7280', fontSize: 10 },
+            markerEnd: ARROW_MARKER_PURPLE,
         })
     })
 
@@ -185,6 +213,7 @@ function orchestratorToGraph(config: OrchestratorConfig, agents: Agent[]): { nod
         target: 'end',
         animated: true,
         style: { stroke: '#a78bfa', strokeWidth: 2 },
+        markerEnd: ARROW_MARKER_PURPLE,
     })
 
     return { nodes, edges }
@@ -225,6 +254,7 @@ function collaborationToGraph(config: CollaborationConfig, agents: Agent[]): { n
                 source: `collab-${i}`,
                 target: `collab-${j}`,
                 style: { stroke: '#f59e0b', strokeWidth: 1, strokeDasharray: '4 4' },
+                markerEnd: ARROW_MARKER_AMBER,
             })
         }
     }
