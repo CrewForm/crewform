@@ -4,6 +4,12 @@
 /*
  * Dark theme overrides for React Flow canvas.
  * Matches CrewForm's surface-card / border design tokens.
+ *
+ * Includes:
+ *  - Canvas background
+ *  - Node execution state animations (running pulse, completed glow, failed glow)
+ *  - Glassmorphism utility classes (popups, context menus)
+ *  - Handles, controls, minimap, edges
  */
 
 /* ─── Canvas background ─── */
@@ -92,4 +98,137 @@
 
 .workflow-canvas-container {
     transition: height 0.2s ease;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   Node Execution State Animations
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* Running: pulsing border glow */
+@keyframes node-pulse {
+    0%, 100% {
+        box-shadow:
+            0 0 0 0 rgba(59, 130, 246, 0),
+            0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+    50% {
+        box-shadow:
+            0 0 0 4px rgba(59, 130, 246, 0.15),
+            0 0 24px rgba(59, 130, 246, 0.2),
+            0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+}
+
+.workflow-node-running {
+    animation: node-pulse 2s ease-in-out infinite;
+}
+
+/* Completed: subtle green glow */
+.workflow-node-completed {
+    box-shadow:
+        0 0 0 1px rgba(34, 197, 94, 0.2),
+        0 0 12px rgba(34, 197, 94, 0.15),
+        0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Failed: subtle red glow */
+.workflow-node-failed {
+    box-shadow:
+        0 0 0 1px rgba(239, 68, 68, 0.2),
+        0 0 12px rgba(239, 68, 68, 0.15),
+        0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   Glassmorphism Utilities
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+.workflow-glass {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    background: rgba(26, 26, 26, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.workflow-glass-popup {
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    background: rgba(20, 20, 20, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.5),
+        0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   Context Menu
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+.workflow-context-menu {
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    background: rgba(20, 20, 20, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow:
+        0 12px 40px rgba(0, 0, 0, 0.6),
+        0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+}
+
+.workflow-context-menu-item {
+    transition: background-color 0.1s ease, color 0.1s ease;
+}
+
+.workflow-context-menu-item:hover:not(:disabled) {
+    background: rgba(107, 237, 185, 0.08);
+}
+
+.workflow-context-menu-item:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   Execution Timeline
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+@keyframes timeline-progress {
+    0% { width: 0%; }
+    100% { width: 100%; }
+}
+
+.workflow-timeline {
+    border-top: 1px solid var(--color-border, #2a2a2a);
+    background: var(--color-surface-card, #1a1a1a);
+}
+
+.workflow-timeline-step {
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.workflow-timeline-step:hover {
+    transform: scale(1.05);
+}
+
+.workflow-timeline-connector {
+    transition: background-color 0.3s ease;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   Detail Popup
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+@keyframes popup-enter {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(4px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.workflow-popup-enter {
+    animation: popup-enter 0.15s ease-out;
 }

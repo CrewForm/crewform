@@ -23,6 +23,7 @@ import { useWorkspace } from '@/hooks/useWorkspace'
 import { useUpdateTeam } from '@/hooks/useUpdateTeam'
 import { useDeleteTeam } from '@/hooks/useDeleteTeam'
 import { useTeamRuns } from '@/hooks/useTeamRuns'
+import { useTeamRun } from '@/hooks/useTeamRun'
 import { useApiKeys } from '@/hooks/useApiKeys'
 import { PipelineConfigPanel } from '@/components/teams/PipelineConfigPanel'
 import { OrchestratorConfigPanel } from '@/components/teams/OrchestratorConfig'
@@ -82,6 +83,13 @@ export function TeamDetail() {
     const orchestratorConfig = team?.mode === 'orchestrator' ? (team.config as OrchestratorConfig) : undefined
     const collaborationConfig = team?.mode === 'collaboration' ? (team.config as CollaborationConfig) : undefined
     const stepCount = pipelineConfig?.steps.length ?? 0
+
+    // Find the most recent active run for canvas visualization
+    const latestActiveRun = runs.find((r) => r.status === 'running') ?? (runs.length > 0 ? runs[0] : undefined)
+    const latestActiveRunId = latestActiveRun?.id ?? null
+    const { run: activeRun, messages: runMessages } = useTeamRun(
+        view === 'canvas' ? latestActiveRunId : null,
+    )
 
     // Initialize output_route_ids from team once loaded
     if (team && !channelInitialized) {
@@ -405,6 +413,8 @@ export function TeamDetail() {
                                 onCanvasError={() => {
                                     setView('form')
                                 }}
+                                activeRun={activeRun}
+                                runMessages={runMessages}
                             />
                         </CanvasErrorBoundary>
                     )}

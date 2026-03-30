@@ -3,7 +3,8 @@
 
 /**
  * Visual workflow canvas using React Flow.
- * Phase 2: Supports interactive editing — add, remove, reorder agents on the canvas.
+ * Phase 3: Enhanced with execution state visualization, detail popups,
+ * context menus, execution timeline, and camera following.
  */
 
 import { useCallback, useMemo, useState, useRef, useEffect, type DragEvent } from 'react'
@@ -17,6 +18,8 @@ import {
     BackgroundVariant,
     Panel,
     addEdge,
+    useReactFlow,
+    ReactFlowProvider,
 } from '@xyflow/react'
 import type { Node, Edge, NodeTypes, Connection } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
@@ -28,10 +31,15 @@ import { EndNode } from './nodes/EndNode'
 import { useWorkflowGraph, graphToConfig, validateConfig } from './useWorkflowGraph'
 import { useCanvasHistory } from './useCanvasHistory'
 import { useAutoLayout } from './useAutoLayout'
+import { useExecutionState } from './useExecutionState'
+import { useCanvasCamera, usePanToNode } from './useCanvasCamera'
 import { WorkflowSidebar } from './WorkflowSidebar'
-import type { Agent, Team, PipelineConfig, PipelineStep, OrchestratorConfig, CollaborationConfig } from '@/types'
+import { NodeDetailPopup } from './NodeDetailPopup'
+import { CanvasContextMenu, type ContextMenuState } from './CanvasContextMenu'
+import { ExecutionTimeline } from './ExecutionTimeline'
+import type { Agent, Team, PipelineConfig, OrchestratorConfig, CollaborationConfig, TeamRun, TeamMessage } from '@/types'
 import type { AgentNodeData } from './nodes/AgentNode'
-import { Bot, AlertCircle, Undo2, Redo2, LayoutGrid } from 'lucide-react'
+import { Bot, AlertCircle, Undo2, Redo2, LayoutGrid, Navigation } from 'lucide-react'
 
 const NODE_TYPES: NodeTypes = {
     agentNode: AgentNode,
@@ -46,21 +54,44 @@ interface WorkflowCanvasProps {
     agents: Agent[]
     onSaveConfig: (config: TeamConfig) => Promise<void>
     onCanvasError?: (message: string) => void
+    /** Active team run for execution visualization */
+    activeRun?: TeamRun | null
+    /** Messages from the active run */
+    runMessages?: TeamMessage[]
 }
 
-export function WorkflowCanvas({ team, agents, onSaveConfig, onCanvasError }: WorkflowCanvasProps) {
+function WorkflowCanvasInner({ team, agents, onSaveConfig, onCanvasError, activeRun, runMessages = [] }: WorkflowCanvasProps) {
     const { nodes: initialNodes, edges: initialEdges } = useWorkflowGraph(team, agents)
     const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
     const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
     const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
+    const [showPopup, setShowPopup] = useState(false)
     const [canvasError, setCanvasError] = useState<string | null>(null)
     const [isSaving, setIsSaving] = useState(false)
+    const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
+    const [cameraFollowEnabled, setCameraFollowEnabled] = useState(true)
+
+    const reactFlowInstance = useReactFlow()
 
     // Undo/redo history
     const { pushState, undo, redo, canUndo, canRedo, resetHistory } = useCanvasHistory(setNodes, setEdges)
 
     // Auto-layout
     const { applyAutoLayout } = useAutoLayout()
+
+    // Execution state
+    const executionStates = useExecutionState({
+        run: activeRun,
+        messages: runMessages,
+        mode: team.mode,
+        teamConfig: team.config as PipelineConfig,
+    })
+
+    // Camera follow
+    useCanvasCamera(executionStates, cameraFollowEnabled && !!activeRun)
+
+    // Pan to node (for timeline clicks)
+    const panToNode = usePanToNode()
 
     // Snapshot for rollback
     const snapshotRef = useRef<{ nodes: Node[]; edges: Edge[] }>({ nodes: initialNodes, edges: initialEdges })
@@ -73,6 +104,23 @@ export function WorkflowCanvas({ team, agents, onSaveConfig, onCanvasError }: Wo
         resetHistory()
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [initialNodes, initialEdges])
+
+    // Apply execution states to node data
+    useMemo(() => {
+        if (!executionStates) return
+        setNodes((currentNodes) =>
+            currentNodes.map((node) => {
+                const execState = executionStates.get(node.id)
+                if (execState && node.type === 'agentNode') {
+                    return {
+                        ...node,
+                        data: { ...node.data, executionState: execState },
+                    }
+                }
+                return node
+            }),
+        )
+    }, [executionStates, setNodes])
 
     // Listen for undo/redo keyboard events
     useEffect(() => {
@@ -126,11 +174,34 @@ export function WorkflowCanvas({ team, agents, onSaveConfig, onCanvasError }: Wo
     // ─── Node interactions ───────────────────────────────────────────────────
 
     const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
-        setSelectedNodeId(node.id)
-    }, [])
+        if (selectedNodeId === node.id && showPopup) {
+            // Toggle popup off
+            setShowPopup(false)
+            setSelectedNodeId(null)
+        } else {
+            setSelectedNodeId(node.id)
+            setShowPopup(true)
+        }
+        setContextMenu(null)
+    }, [selectedNodeId, showPopup])
 
     const onPaneClick = useCallback(() => {
         setSelectedNodeId(null)
+        setShowPopup(false)
+        setContextMenu(null)
+    }, [])
+
+    // ─── Context menu ────────────────────────────────────────────────────────
+
+    const onNodeContextMenu = useCallback((event: React.MouseEvent, node: Node) => {
+        event.preventDefault()
+        setContextMenu({ x: event.clientX, y: event.clientY, nodeId: node.id })
+        setShowPopup(false)
+    }, [])
+
+    const onPaneContextMenu = useCallback((event: React.MouseEvent | MouseEvent) => {
+        event.preventDefault()
+        setContextMenu({ x: (event as React.MouseEvent).clientX, y: (event as React.MouseEvent).clientY, nodeId: null })
     }, [])
 
     // ─── Edge creation (pipeline mode) ───────────────────────────────────────
@@ -352,150 +423,211 @@ export function WorkflowCanvas({ team, agents, onSaveConfig, onCanvasError }: Wo
         const node = nodes.find((n) => n.id === nodeId)
         if (node) {
             onNodesDelete([node])
+            setSelectedNodeId(null)
+            setShowPopup(false)
         }
     }, [nodes, onNodesDelete])
 
-    const handleStepUpdate = useCallback(async (stepIndex: number, updates: Partial<PipelineStep>) => {
-        if (team.mode !== 'pipeline') return
+    // ─── Fit view ────────────────────────────────────────────────────────────
 
-        const config = team.config as PipelineConfig
-        const updatedSteps = config.steps.map((step, idx) =>
-            idx === stepIndex ? { ...step, ...updates } : step,
-        )
-        const updatedConfig: PipelineConfig = { ...config, steps: updatedSteps }
+    const handleFitView = useCallback(() => {
+        void reactFlowInstance.fitView({ duration: 400, padding: 0.3 })
+    }, [reactFlowInstance])
 
-        setCanvasError(null)
-        setIsSaving(true)
-        try {
-            await onSaveConfig(updatedConfig)
-        } catch (err) {
-            const msg = err instanceof Error ? err.message : 'Failed to save step config'
-            setCanvasError(msg)
-        } finally {
-            setIsSaving(false)
-        }
-    }, [team, onSaveConfig])
+    // ─── Navigate to agent ───────────────────────────────────────────────────
+
+    const handleGoToAgent = useCallback((agentId: string) => {
+        window.location.href = `/agents/${agentId}`
+    }, [])
 
     // ─── Render ──────────────────────────────────────────────────────────────
 
     const selectedNode = nodes.find((n) => n.id === selectedNodeId)
     const modeLabel = team.mode.charAt(0).toUpperCase() + team.mode.slice(1)
     const stepCount = nodes.filter((n) => n.type === 'agentNode').length
+    const hasActiveRun = activeRun && (activeRun.status === 'running' || activeRun.status === 'completed' || activeRun.status === 'failed')
 
     return (
-        <div className="workflow-canvas-container flex rounded-xl border border-border bg-surface-card overflow-hidden" style={{ height: 560 }}>
-            {/* Canvas */}
-            <div className="flex-1 relative">
-                <ReactFlow
-                    nodes={nodes}
-                    edges={edges}
-                    onNodesChange={onNodesChange}
-                    onEdgesChange={onEdgesChange}
-                    onConnect={onConnect}
-                    onNodeClick={onNodeClick}
-                    onPaneClick={onPaneClick}
-                    onNodesDelete={onNodesDelete}
-                    onNodeDragStop={onNodeDragStop}
-                    onDragOver={onDragOver}
-                    onDrop={onDrop}
-                    nodeTypes={NODE_TYPES}
-                    fitView
-                    fitViewOptions={{ padding: 0.3 }}
-                    proOptions={{ hideAttribution: true }}
-                    minZoom={0.3}
-                    maxZoom={2}
-                    deleteKeyCode="Delete"
-                    className="workflow-flow"
-                >
-                    <Background
-                        variant={BackgroundVariant.Dots}
-                        gap={20}
-                        size={1}
-                        color="rgba(255,255,255,0.05)"
-                    />
-                    <Controls
-                        className="workflow-controls"
-                        showInteractive={false}
-                    />
-                    <MiniMap
-                        className="workflow-minimap"
-                        nodeColor="#6bedb9"
-                        maskColor="rgba(0,0,0,0.7)"
-                    />
+        <div className="workflow-canvas-container flex flex-col rounded-xl border border-border bg-surface-card overflow-hidden">
+            <div className="flex flex-1" style={{ height: hasActiveRun ? 480 : 560 }}>
+                {/* Canvas */}
+                <div className="flex-1 relative">
+                    <ReactFlow
+                        nodes={nodes}
+                        edges={edges}
+                        onNodesChange={onNodesChange}
+                        onEdgesChange={onEdgesChange}
+                        onConnect={onConnect}
+                        onNodeClick={onNodeClick}
+                        onPaneClick={onPaneClick}
+                        onNodesDelete={onNodesDelete}
+                        onNodeDragStop={onNodeDragStop}
+                        onDragOver={onDragOver}
+                        onDrop={onDrop}
+                        onNodeContextMenu={onNodeContextMenu}
+                        onPaneContextMenu={onPaneContextMenu}
+                        nodeTypes={NODE_TYPES}
+                        fitView
+                        fitViewOptions={{ padding: 0.3 }}
+                        proOptions={{ hideAttribution: true }}
+                        minZoom={0.3}
+                        maxZoom={2}
+                        deleteKeyCode="Delete"
+                        className="workflow-flow"
+                    >
+                        <Background
+                            variant={BackgroundVariant.Dots}
+                            gap={20}
+                            size={1}
+                            color="rgba(255,255,255,0.05)"
+                        />
+                        <Controls
+                            className="workflow-controls"
+                            showInteractive={false}
+                        />
+                        <MiniMap
+                            className="workflow-minimap"
+                            nodeColor="#6bedb9"
+                            maskColor="rgba(0,0,0,0.7)"
+                        />
 
-                    {/* Info panel */}
-                    <Panel position="top-left" className="workflow-info-panel">
-                        <div className="flex items-center gap-2 rounded-lg border border-border bg-surface-card/90 px-3 py-1.5 backdrop-blur-sm">
-                            <Bot className="h-3.5 w-3.5 text-brand-primary" />
-                            <span className="text-xs font-medium text-gray-300">
-                                {modeLabel}
-                            </span>
-                            <span className="text-[10px] text-gray-500">
-                                {stepCount} agent{stepCount !== 1 ? 's' : ''}
-                            </span>
-                            {isSaving && (
-                                <span className="text-[10px] text-brand-primary animate-pulse">
-                                    Saving…
+                        {/* Info panel */}
+                        <Panel position="top-left" className="workflow-info-panel">
+                            <div className="flex items-center gap-2 rounded-lg border border-border bg-surface-card/90 px-3 py-1.5 backdrop-blur-sm">
+                                <Bot className="h-3.5 w-3.5 text-brand-primary" />
+                                <span className="text-xs font-medium text-gray-300">
+                                    {modeLabel}
                                 </span>
-                            )}
-                            <span className="mx-1 text-gray-600">|</span>
-                            <button
-                                type="button"
-                                onClick={() => { undo(nodes, edges) }}
-                                disabled={!canUndo}
-                                className="rounded p-0.5 text-gray-400 hover:text-gray-200 disabled:opacity-30 disabled:cursor-not-allowed"
-                                title="Undo (Ctrl+Z)"
-                            >
-                                <Undo2 className="h-3.5 w-3.5" />
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => { redo(nodes, edges) }}
-                                disabled={!canRedo}
-                                className="rounded p-0.5 text-gray-400 hover:text-gray-200 disabled:opacity-30 disabled:cursor-not-allowed"
-                                title="Redo (Ctrl+Shift+Z)"
-                            >
-                                <Redo2 className="h-3.5 w-3.5" />
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleAutoLayout}
-                                className="rounded p-0.5 text-gray-400 hover:text-gray-200"
-                                title="Auto-layout"
-                            >
-                                <LayoutGrid className="h-3.5 w-3.5" />
-                            </button>
-                        </div>
-                    </Panel>
-
-                    {/* Canvas error toast */}
-                    {canvasError && (
-                        <Panel position="top-center" className="workflow-error-panel">
-                            <div className="flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 backdrop-blur-sm">
-                                <AlertCircle className="h-3.5 w-3.5 text-red-400 shrink-0" />
-                                <span className="text-xs text-red-400">{canvasError}</span>
+                                <span className="text-[10px] text-gray-500">
+                                    {stepCount} agent{stepCount !== 1 ? 's' : ''}
+                                </span>
+                                {isSaving && (
+                                    <span className="text-[10px] text-brand-primary animate-pulse">
+                                        Saving…
+                                    </span>
+                                )}
+                                <span className="mx-1 text-gray-600">|</span>
                                 <button
                                     type="button"
-                                    onClick={() => setCanvasError(null)}
-                                    className="ml-2 text-[10px] text-gray-500 hover:text-gray-300"
+                                    onClick={() => { undo(nodes, edges) }}
+                                    disabled={!canUndo}
+                                    className="rounded p-0.5 text-gray-400 hover:text-gray-200 disabled:opacity-30 disabled:cursor-not-allowed"
+                                    title="Undo (Ctrl+Z)"
                                 >
-                                    ✕
+                                    <Undo2 className="h-3.5 w-3.5" />
                                 </button>
+                                <button
+                                    type="button"
+                                    onClick={() => { redo(nodes, edges) }}
+                                    disabled={!canRedo}
+                                    className="rounded p-0.5 text-gray-400 hover:text-gray-200 disabled:opacity-30 disabled:cursor-not-allowed"
+                                    title="Redo (Ctrl+Shift+Z)"
+                                >
+                                    <Redo2 className="h-3.5 w-3.5" />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleAutoLayout}
+                                    className="rounded p-0.5 text-gray-400 hover:text-gray-200"
+                                    title="Auto-layout"
+                                >
+                                    <LayoutGrid className="h-3.5 w-3.5" />
+                                </button>
+                                {hasActiveRun && (
+                                    <>
+                                        <span className="mx-1 text-gray-600">|</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => setCameraFollowEnabled(!cameraFollowEnabled)}
+                                            className={`rounded p-0.5 transition-colors ${
+                                                cameraFollowEnabled
+                                                    ? 'text-brand-primary'
+                                                    : 'text-gray-500 hover:text-gray-300'
+                                            }`}
+                                            title={cameraFollowEnabled ? 'Camera follow: ON' : 'Camera follow: OFF'}
+                                        >
+                                            <Navigation className="h-3.5 w-3.5" />
+                                        </button>
+                                    </>
+                                )}
                             </div>
                         </Panel>
-                    )}
-                </ReactFlow>
+
+                        {/* Canvas error toast */}
+                        {canvasError && (
+                            <Panel position="top-center" className="workflow-error-panel">
+                                <div className="flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 backdrop-blur-sm">
+                                    <AlertCircle className="h-3.5 w-3.5 text-red-400 shrink-0" />
+                                    <span className="text-xs text-red-400">{canvasError}</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => setCanvasError(null)}
+                                        className="ml-2 text-[10px] text-gray-500 hover:text-gray-300"
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
+                            </Panel>
+                        )}
+                    </ReactFlow>
+                </div>
+
+                {/* Sidebar */}
+                <WorkflowSidebar
+                    agents={agents}
+                    draggable
+                />
             </div>
 
-            {/* Sidebar */}
-            <WorkflowSidebar
-                team={team}
-                agents={agents}
-                selectedNode={selectedNode ?? null}
-                onDeleteNode={handleDeleteNode}
-                onStepUpdate={(idx, updates) => { void handleStepUpdate(idx, updates) }}
-                draggable
-            />
+            {/* Execution Timeline */}
+            {hasActiveRun && (
+                <ExecutionTimeline
+                    run={activeRun}
+                    mode={team.mode}
+                    agents={agents}
+                    teamConfig={team.config}
+                    executionStates={executionStates}
+                    onStepClick={panToNode}
+                />
+            )}
+
+            {/* Detail Popup (portal-style, positioned via fixed) */}
+            {showPopup && selectedNode && selectedNode.type === 'agentNode' && (
+                <NodeDetailPopup
+                    node={selectedNode}
+                    team={team}
+                    agents={agents}
+                    executionStates={executionStates}
+                    onDelete={handleDeleteNode}
+                    onClose={() => { setShowPopup(false); setSelectedNodeId(null) }}
+                />
+            )}
+
+            {/* Context Menu */}
+            {contextMenu && (
+                <CanvasContextMenu
+                    state={contextMenu}
+                    nodes={nodes}
+                    teamMode={team.mode}
+                    onClose={() => setContextMenu(null)}
+                    onDeleteNode={handleDeleteNode}
+                    onFitView={handleFitView}
+                    onAutoLayout={handleAutoLayout}
+                    onGoToAgent={handleGoToAgent}
+                />
+            )}
         </div>
+    )
+}
+
+/**
+ * Wrapped component that provides ReactFlowProvider.
+ * Required for hooks like useReactFlow() to work inside the canvas.
+ */
+export function WorkflowCanvas(props: WorkflowCanvasProps) {
+    return (
+        <ReactFlowProvider>
+            <WorkflowCanvasInner {...props} />
+        </ReactFlowProvider>
     )
 }
