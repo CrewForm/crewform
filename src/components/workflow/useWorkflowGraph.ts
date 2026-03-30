@@ -46,6 +46,29 @@ const ARROW_MARKER_AMBER = {
     color: '#f59e0b',
 }
 
+/**
+ * Returns the correct handle IDs for a given layout direction.
+ * TB (top-to-bottom): source from bottom, target to top
+ * LR (left-to-right): source from right, target to left
+ */
+export function getHandleIds(direction: 'TB' | 'LR') {
+    return direction === 'LR'
+        ? { sourceHandle: 'right-source', targetHandle: 'left-target' }
+        : { sourceHandle: 'bottom-source', targetHandle: 'top-target' }
+}
+
+/**
+ * Update all edges in an array to use the correct handle IDs for a given direction.
+ */
+export function updateEdgeHandles(edges: Edge[], direction: 'TB' | 'LR'): Edge[] {
+    const { sourceHandle, targetHandle } = getHandleIds(direction)
+    return edges.map((edge) => ({
+        ...edge,
+        sourceHandle,
+        targetHandle,
+    }))
+}
+
 function agentById(agents: Agent[], id: string): Agent | undefined {
     return agents.find((a) => a.id === id)
 }

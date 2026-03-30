@@ -29,7 +29,7 @@ import './workflow.css'
 import { AgentNode } from './nodes/AgentNode'
 import { StartNode } from './nodes/StartNode'
 import { EndNode } from './nodes/EndNode'
-import { useWorkflowGraph, graphToConfig, validateConfig } from './useWorkflowGraph'
+import { useWorkflowGraph, graphToConfig, validateConfig, getHandleIds, updateEdgeHandles } from './useWorkflowGraph'
 import { useCanvasHistory } from './useCanvasHistory'
 import { useAutoLayout } from './useAutoLayout'
 import { useExecutionState } from './useExecutionState'
@@ -125,7 +125,8 @@ function WorkflowCanvasInner({ team, agents, onSaveConfig, onCanvasError, active
     // Sync graph when team config changes externally (e.g. from form view)
     useMemo(() => {
         setNodes(initialNodes)
-        setEdges(initialEdges)
+        // Apply correct handle IDs based on layout direction
+        setEdges(updateEdgeHandles(initialEdges, team.mode === 'collaboration' ? 'LR' : 'TB'))
         snapshotRef.current = { nodes: initialNodes, edges: initialEdges }
         resetHistory()
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -253,6 +254,8 @@ function WorkflowCanvasInner({ team, agents, onSaveConfig, onCanvasError, active
                     animated: true,
                     style: { stroke: '#6bedb9', strokeWidth: 2 },
                     markerEnd: ARROW_MARKER_GREEN,
+                    sourceHandle: connection.sourceHandle ?? getHandleIds(layoutDirection).sourceHandle,
+                    targetHandle: connection.targetHandle ?? getHandleIds(layoutDirection).targetHandle,
                 },
                 eds,
             )
@@ -264,7 +267,7 @@ function WorkflowCanvasInner({ team, agents, onSaveConfig, onCanvasError, active
             })
             return updated
         })
-    }, [team.mode, setEdges, setNodes, saveGraph, pushState])
+    }, [team.mode, setEdges, setNodes, saveGraph, pushState, layoutDirection])
 
     // ─── Edge context menu (for pipeline step insertion) ─────────────────────
 
@@ -324,6 +327,7 @@ function WorkflowCanvasInner({ team, agents, onSaveConfig, onCanvasError, active
                         animated: true,
                         style: { stroke: '#6bedb9', strokeWidth: 2 },
                         markerEnd: ARROW_MARKER_GREEN,
+                        ...getHandleIds(layoutDirection),
                     },
                     {
                         id: `e-${nodeId}-${targetId}`,
@@ -332,6 +336,7 @@ function WorkflowCanvasInner({ team, agents, onSaveConfig, onCanvasError, active
                         animated: true,
                         style: { stroke: '#6bedb9', strokeWidth: 2 },
                         markerEnd: ARROW_MARKER_GREEN,
+                        ...getHandleIds(layoutDirection),
                     },
                 ]
                 // Auto-layout after insertion to shift subsequent steps
@@ -468,6 +473,7 @@ function WorkflowCanvasInner({ team, agents, onSaveConfig, onCanvasError, active
                                 animated: true,
                                 style: { stroke: '#6bedb9', strokeWidth: 2 },
                                 markerEnd: ARROW_MARKER_GREEN,
+                                ...getHandleIds(layoutDirection),
                             },
                             {
                                 id: `e-${nodeId}-end`,
@@ -476,6 +482,7 @@ function WorkflowCanvasInner({ team, agents, onSaveConfig, onCanvasError, active
                                 animated: true,
                                 style: { stroke: '#6bedb9', strokeWidth: 2 },
                                 markerEnd: ARROW_MARKER_GREEN,
+                                ...getHandleIds(layoutDirection),
                             },
                         ]
                     }
@@ -496,6 +503,7 @@ function WorkflowCanvasInner({ team, agents, onSaveConfig, onCanvasError, active
                             label: 'delegates',
                             labelStyle: { fill: '#6b7280', fontSize: 10 },
                             markerEnd: ARROW_MARKER_PURPLE,
+                            ...getHandleIds(layoutDirection),
                         },
                     ]
                     void saveGraph(updated, updatedEdges)
@@ -520,7 +528,7 @@ function WorkflowCanvasInner({ team, agents, onSaveConfig, onCanvasError, active
 
             return updated
         })
-    }, [agents, team.mode, setNodes, setEdges, saveGraph, pushState])
+    }, [agents, team.mode, setNodes, setEdges, saveGraph, pushState, layoutDirection])
 
     // ─── Auto-layout ─────────────────────────────────────────────────────────
 
@@ -659,14 +667,16 @@ function WorkflowCanvasInner({ team, agents, onSaveConfig, onCanvasError, active
                                     onClick={() => {
                                         const next = layoutDirection === 'TB' ? 'LR' : 'TB'
                                         setLayoutDirection(next)
-                                        // Re-layout with new direction
+                                        // Re-layout with new direction and update edge handles
                                         setNodes((currentNodes) => {
                                             setEdges((currentEdges) => {
                                                 pushState(currentNodes, currentEdges)
-                                                const layoutedNodes = applyAutoLayout(currentNodes, currentEdges, { direction: next })
+                                                // Switch edge connection points to match new direction
+                                                const rehandledEdges = updateEdgeHandles(currentEdges, next)
+                                                const layoutedNodes = applyAutoLayout(currentNodes, rehandledEdges, { direction: next })
                                                 setNodes(layoutedNodes)
-                                                void saveGraph(layoutedNodes, currentEdges)
-                                                return currentEdges
+                                                void saveGraph(layoutedNodes, rehandledEdges)
+                                                return rehandledEdges
                                             })
                                             return currentNodes
                                         })
