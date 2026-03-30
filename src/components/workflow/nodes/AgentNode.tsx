@@ -63,7 +63,7 @@ function AgentNodeComponent({ data, selected }: NodeProps) {
 
     return (
         <div
-            className={`workflow-agent-node rounded-xl border-2 bg-surface-card px-4 py-3 shadow-lg transition-all ${borderClass} ${selected ? 'ring-2 ring-brand-primary/50' : ''}`}
+            className={`workflow-agent-node workflow-glass-node rounded-xl border-2 px-4 py-3 shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl ${borderClass} ${selected ? 'ring-2 ring-brand-primary/50' : ''}`}
             style={{ minWidth: 180 }}
         >
             <Handle type="target" position={Position.Top} className="workflow-handle" />

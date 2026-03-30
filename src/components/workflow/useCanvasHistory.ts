@@ -8,7 +8,7 @@
  * Max 30 entries. Supports Ctrl+Z / Ctrl+Shift+Z keyboard shortcuts.
  */
 
-import { useCallback, useRef, useEffect, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import type { Node, Edge } from '@xyflow/react'
 
 interface Snapshot {
@@ -85,26 +85,6 @@ export function useCanvasHistory(
         redoStack.current = []
         updateFlags()
     }, [updateFlags])
-
-    // Keyboard shortcuts
-    useEffect(() => {
-        // We need the latest nodes/edges when the shortcut fires,
-        // so we read them from the DOM via a custom event approach.
-        // The canvas component will dispatch these.
-        const handleKeyDown = (e: KeyboardEvent) => {
-            const isUndo = (e.metaKey || e.ctrlKey) && !e.shiftKey && e.key === 'z'
-            const isRedo = (e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'z'
-
-            if (isUndo || isRedo) {
-                e.preventDefault()
-                // Dispatch custom event — canvas will handle with current state
-                window.dispatchEvent(new CustomEvent(isUndo ? 'canvas:undo' : 'canvas:redo'))
-            }
-        }
-
-        window.addEventListener('keydown', handleKeyDown)
-        return () => window.removeEventListener('keydown', handleKeyDown)
-    }, [])
 
     return { pushState, undo, redo, canUndo, canRedo, resetHistory }
 }

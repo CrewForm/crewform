@@ -3,11 +3,11 @@
 
 /**
  * Visual workflow canvas using React Flow.
- * Phase 3: Enhanced with execution state visualization, detail popups,
- * context menus, execution timeline, and camera following.
+ * Phase 4: Enhanced with transcript panel, tool activity heatmap,
+ * keyboard shortcuts, and glassmorphism node styling.
  */
 
-import { useCallback, useMemo, useState, useRef, useEffect, type DragEvent } from 'react'
+import { useCallback, useMemo, useState, useRef, type DragEvent } from 'react'
 import {
     ReactFlow,
     Background,
@@ -33,13 +33,17 @@ import { useCanvasHistory } from './useCanvasHistory'
 import { useAutoLayout } from './useAutoLayout'
 import { useExecutionState } from './useExecutionState'
 import { useCanvasCamera, usePanToNode } from './useCanvasCamera'
+import { useCanvasKeyboard } from './useCanvasKeyboard'
 import { WorkflowSidebar } from './WorkflowSidebar'
 import { NodeDetailPopup } from './NodeDetailPopup'
 import { CanvasContextMenu, type ContextMenuState } from './CanvasContextMenu'
 import { ExecutionTimeline } from './ExecutionTimeline'
+import { TranscriptPanel } from './TranscriptPanel'
+import { ToolActivityPanel } from './ToolActivityPanel'
+import { KeyboardShortcutsOverlay } from './KeyboardShortcutsOverlay'
 import type { Agent, Team, PipelineConfig, OrchestratorConfig, CollaborationConfig, TeamRun, TeamMessage } from '@/types'
 import type { AgentNodeData } from './nodes/AgentNode'
-import { Bot, AlertCircle, Undo2, Redo2, LayoutGrid, Navigation } from 'lucide-react'
+import { Bot, AlertCircle, Undo2, Redo2, LayoutGrid, Navigation, MessageSquare, Activity, Keyboard } from 'lucide-react'
 
 const NODE_TYPES: NodeTypes = {
     agentNode: AgentNode,
@@ -70,6 +74,9 @@ function WorkflowCanvasInner({ team, agents, onSaveConfig, onCanvasError, active
     const [isSaving, setIsSaving] = useState(false)
     const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
     const [cameraFollowEnabled, setCameraFollowEnabled] = useState(true)
+    const [showTranscript, setShowTranscript] = useState(false)
+    const [showToolActivity, setShowToolActivity] = useState(false)
+    const [showShortcuts, setShowShortcuts] = useState(false)
 
     const reactFlowInstance = useReactFlow()
 
@@ -122,17 +129,28 @@ function WorkflowCanvasInner({ team, agents, onSaveConfig, onCanvasError, active
         )
     }, [executionStates, setNodes])
 
-    // Listen for undo/redo keyboard events
-    useEffect(() => {
-        const handleUndo = () => { undo(nodes, edges) }
-        const handleRedo = () => { redo(nodes, edges) }
-        window.addEventListener('canvas:undo', handleUndo)
-        window.addEventListener('canvas:redo', handleRedo)
-        return () => {
-            window.removeEventListener('canvas:undo', handleUndo)
-            window.removeEventListener('canvas:redo', handleRedo)
-        }
-    }, [undo, redo, nodes, edges])
+    // Centralized keyboard shortcuts
+    useCanvasKeyboard({
+        onUndo: () => { undo(nodes, edges) },
+        onRedo: () => { redo(nodes, edges) },
+        onFitView: () => { void reactFlowInstance.fitView({ duration: 400, padding: 0.3 }) },
+        onAutoLayout: () => {
+            pushState(nodes, edges)
+            const layoutedNodes = applyAutoLayout(nodes, edges)
+            setNodes(layoutedNodes)
+        },
+        onToggleTranscript: () => setShowTranscript((v) => !v),
+        onToggleShortcuts: () => setShowShortcuts((v) => !v),
+        onEscape: () => {
+            setShowPopup(false)
+            setSelectedNodeId(null)
+            setContextMenu(null)
+            setShowShortcuts(false)
+        },
+        onSelectAll: () => {
+            setNodes((nds) => nds.map((n) => ({ ...n, selected: true })))
+        },
+    })
 
     // ─── Save logic ──────────────────────────────────────────────────────────
 
@@ -548,8 +566,41 @@ function WorkflowCanvasInner({ team, agents, onSaveConfig, onCanvasError, active
                                         >
                                             <Navigation className="h-3.5 w-3.5" />
                                         </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowTranscript(!showTranscript)}
+                                            className={`rounded p-0.5 transition-colors ${
+                                                showTranscript
+                                                    ? 'text-brand-primary'
+                                                    : 'text-gray-500 hover:text-gray-300'
+                                            }`}
+                                            title="Transcript (T)"
+                                        >
+                                            <MessageSquare className="h-3.5 w-3.5" />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowToolActivity(!showToolActivity)}
+                                            className={`rounded p-0.5 transition-colors ${
+                                                showToolActivity
+                                                    ? 'text-brand-primary'
+                                                    : 'text-gray-500 hover:text-gray-300'
+                                            }`}
+                                            title="Tool activity"
+                                        >
+                                            <Activity className="h-3.5 w-3.5" />
+                                        </button>
                                     </>
                                 )}
+                                <span className="mx-1 text-gray-600">|</span>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowShortcuts(!showShortcuts)}
+                                    className="rounded p-0.5 text-gray-500 hover:text-gray-300 transition-colors"
+                                    title="Keyboard shortcuts (?)"
+                                >
+                                    <Keyboard className="h-3.5 w-3.5" />
+                                </button>
                             </div>
                         </Panel>
 
@@ -615,6 +666,33 @@ function WorkflowCanvasInner({ team, agents, onSaveConfig, onCanvasError, active
                     onAutoLayout={handleAutoLayout}
                     onGoToAgent={handleGoToAgent}
                 />
+            )}
+
+            {/* Transcript Panel */}
+            {showTranscript && hasActiveRun && (
+                <div className="fixed right-72 top-24 z-50">
+                    <TranscriptPanel
+                        messages={runMessages}
+                        agents={agents}
+                        isLive={activeRun.status === 'running'}
+                        onClose={() => setShowTranscript(false)}
+                    />
+                </div>
+            )}
+
+            {/* Tool Activity Panel */}
+            {showToolActivity && hasActiveRun && (
+                <div className="fixed right-72 top-24 z-50">
+                    <ToolActivityPanel
+                        messages={runMessages}
+                        onClose={() => setShowToolActivity(false)}
+                    />
+                </div>
+            )}
+
+            {/* Keyboard Shortcuts Overlay */}
+            {showShortcuts && (
+                <KeyboardShortcutsOverlay onClose={() => setShowShortcuts(false)} />
             )}
         </div>
     )

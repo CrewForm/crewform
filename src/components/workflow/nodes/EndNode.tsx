@@ -7,7 +7,7 @@ import { Square } from 'lucide-react'
 
 function EndNodeComponent() {
     return (
-        <div className="workflow-end-node flex items-center gap-2 rounded-xl border-2 border-red-500/50 bg-red-500/5 px-4 py-2.5 shadow-lg shadow-red-500/10">
+        <div className="workflow-end-node workflow-glass-node flex items-center gap-2 rounded-xl border-2 border-red-500/50 px-4 py-2.5 shadow-lg shadow-red-500/10 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red-500/15">
             <Handle type="target" position={Position.Top} className="workflow-handle" />
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-red-500/15">
                 <Square className="h-3.5 w-3.5 text-red-400" />
