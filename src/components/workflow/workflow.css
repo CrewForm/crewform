@@ -101,6 +101,46 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
+   Glassmorphism Node Styles
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+.workflow-glass-node {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    background: rgba(26, 26, 26, 0.75);
+    box-shadow:
+        0 4px 16px rgba(0, 0, 0, 0.3),
+        0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+}
+
+.workflow-glass-node:hover {
+    background: rgba(30, 30, 30, 0.85);
+    box-shadow:
+        0 8px 24px rgba(0, 0, 0, 0.4),
+        0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+}
+
+/* Idle pulse on start node icon */
+@keyframes idle-pulse {
+    0%, 100% { opacity: 0.8; }
+    50% { opacity: 1; }
+}
+
+.workflow-idle-pulse {
+    animation: idle-pulse 2.5s ease-in-out infinite;
+}
+
+/* Animated edge glow during execution */
+.react-flow__edge.animated path {
+    stroke-dasharray: 8 4;
+    animation: edge-flow 1s linear infinite;
+}
+
+@keyframes edge-flow {
+    to { stroke-dashoffset: -12; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
    Node Execution State Animations
    ═══════════════════════════════════════════════════════════════════════════════ */
 

@@ -3,13 +3,13 @@
 
 /**
  * Sidebar for the workflow canvas.
- * Phase 3: Always shows the draggable agent palette.
- * Agent properties are now shown via the on-canvas detail popup (NodeDetailPopup).
+ * Always shows the draggable agent palette with search/filter.
+ * Agent properties are shown via the on-canvas detail popup (NodeDetailPopup).
  */
 
-import type { DragEvent } from 'react'
+import { useState, type DragEvent } from 'react'
 import type { Agent } from '@/types'
-import { Bot, Layers, GripVertical } from 'lucide-react'
+import { Bot, Layers, GripVertical, Search, X } from 'lucide-react'
 
 interface WorkflowSidebarProps {
     agents: Agent[]
@@ -17,6 +17,8 @@ interface WorkflowSidebarProps {
 }
 
 export function WorkflowSidebar({ agents, draggable }: WorkflowSidebarProps) {
+    const [searchQuery, setSearchQuery] = useState('')
+
     // ─── Drag handlers for sidebar palette ────────────────────────────────────
 
     function handleDragStart(event: DragEvent, agentId: string) {
@@ -24,16 +26,56 @@ export function WorkflowSidebar({ agents, draggable }: WorkflowSidebarProps) {
         event.dataTransfer.effectAllowed = 'move'
     }
 
+    // ─── Filter agents ────────────────────────────────────────────────────────
+
+    const filteredAgents = searchQuery.trim()
+        ? agents.filter((agent) => {
+            const q = searchQuery.toLowerCase()
+            return (
+                agent.name.toLowerCase().includes(q) ||
+                agent.model.toLowerCase().includes(q)
+            )
+        })
+        : agents
+
     return (
         <div className="w-64 shrink-0 border-l border-border bg-surface-elevated/50 overflow-y-auto">
             {/* Agent Palette */}
             <div className="p-4">
-                <div className="mb-4 flex items-center gap-2">
-                    <Layers className="h-3.5 w-3.5 text-brand-primary" />
-                    <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                        Agents
+                <div className="mb-3 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <Layers className="h-3.5 w-3.5 text-brand-primary" />
+                        <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                            Agents
+                        </span>
+                    </div>
+                    <span className="text-[10px] text-gray-600 tabular-nums">
+                        {filteredAgents.length}/{agents.length}
                     </span>
                 </div>
+
+                {/* Search input */}
+                {agents.length > 5 && (
+                    <div className="relative mb-3">
+                        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-600" />
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Filter agents…"
+                            className="w-full rounded-lg border border-border bg-surface-card pl-7 pr-7 py-1.5 text-xs text-gray-300 placeholder:text-gray-600 focus:outline-none focus:border-brand-primary/40"
+                        />
+                        {searchQuery && (
+                            <button
+                                type="button"
+                                onClick={() => setSearchQuery('')}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-600 hover:text-gray-400"
+                            >
+                                <X className="h-3 w-3" />
+                            </button>
+                        )}
+                    </div>
+                )}
 
                 <p className="mb-3 text-[11px] text-gray-500 leading-relaxed">
                     {draggable
@@ -43,7 +85,7 @@ export function WorkflowSidebar({ agents, draggable }: WorkflowSidebarProps) {
                 </p>
 
                 <div className="space-y-1.5">
-                    {agents.map((agent) => (
+                    {filteredAgents.map((agent) => (
                         <div
                             key={agent.id}
                             draggable={draggable}
@@ -70,6 +112,12 @@ export function WorkflowSidebar({ agents, draggable }: WorkflowSidebarProps) {
                             </div>
                         </div>
                     ))}
+
+                    {filteredAgents.length === 0 && searchQuery && (
+                        <p className="text-center text-xs text-gray-600 py-4">
+                            No agents matching &ldquo;{searchQuery}&rdquo;
+                        </p>
+                    )}
 
                     {agents.length === 0 && (
                         <p className="text-center text-xs text-gray-600 py-4">
