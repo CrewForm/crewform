@@ -93,9 +93,16 @@ function WorkflowCanvasInner({ team, agents, onSaveConfig, onCanvasError, active
     const [showTranscript, setShowTranscript] = useState(false)
     const [showToolActivity, setShowToolActivity] = useState(false)
     const [showShortcuts, setShowShortcuts] = useState(false)
+
+    // Read saved layout direction from team config, fallback to mode default
+    const savedDirection = (team.config as unknown as Record<string, unknown>).layout_direction as 'TB' | 'LR' | undefined
     const [layoutDirection, setLayoutDirection] = useState<'TB' | 'LR'>(
-        team.mode === 'collaboration' ? 'LR' : 'TB'
+        savedDirection ?? (team.mode === 'collaboration' ? 'LR' : 'TB')
     )
+
+    // Ref so the sync useMemo always applies the current direction
+    const layoutDirectionRef = useRef(layoutDirection)
+    layoutDirectionRef.current = layoutDirection
 
     const reactFlowInstance = useReactFlow()
 
@@ -125,8 +132,8 @@ function WorkflowCanvasInner({ team, agents, onSaveConfig, onCanvasError, active
     // Sync graph when team config changes externally (e.g. from form view)
     useMemo(() => {
         setNodes(initialNodes)
-        // Apply correct handle IDs based on layout direction
-        setEdges(updateEdgeHandles(initialEdges, team.mode === 'collaboration' ? 'LR' : 'TB'))
+        // Apply correct handle IDs based on current layout direction (via ref to avoid dep)
+        setEdges(updateEdgeHandles(initialEdges, layoutDirectionRef.current))
         snapshotRef.current = { nodes: initialNodes, edges: initialEdges }
         resetHistory()
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -183,6 +190,7 @@ function WorkflowCanvasInner({ team, agents, onSaveConfig, onCanvasError, active
                 team.mode,
                 agents,
                 team.config,
+                layoutDirectionRef.current,
             )
             const validation = validateConfig(config, team.mode)
             if (!validation.valid) {
