@@ -46,6 +46,13 @@ const ARROW_MARKER_AMBER = {
     color: '#f59e0b',
 }
 
+const ARROW_MARKER_AMBER_DASHED = {
+    type: MarkerType.ArrowClosed,
+    width: 14,
+    height: 14,
+    color: '#f59e0b',
+}
+
 /**
  * Returns the correct handle IDs for a given layout direction.
  * TB (top-to-bottom): source from bottom, target to top
@@ -97,60 +104,126 @@ function pipelineToGraph(config: PipelineConfig, agents: Agent[]): { nodes: Node
         draggable: true,
     })
 
-    // Agent nodes
-    config.steps.forEach((step, idx) => {
-        const agent = agentById(agents, step.agent_id)
-        const nodeId = `agent-${idx}`
-        nodes.push({
-            id: nodeId,
-            type: 'agentNode',
-            position: config.node_positions?.[nodeId] ?? { x: X_CENTER, y: (idx + 1) * Y_SPACING },
-            data: makeAgentNodeData(agent, 'worker'),
-            draggable: true,
-        })
+    let yOffset = Y_SPACING
+    let lastNodeId = 'start'
 
-        // Edge from previous
-        const sourceId = idx === 0 ? 'start' : `agent-${idx - 1}`
-        edges.push({
-            id: `e-${sourceId}-${nodeId}`,
-            source: sourceId,
-            target: nodeId,
-            animated: true,
-            style: { stroke: '#6bedb9', strokeWidth: 2 },
-            markerEnd: ARROW_MARKER,
-        })
+    config.steps.forEach((step, idx) => {
+        if (step.type === 'fan_out' && step.parallel_agents && step.parallel_agents.length > 0) {
+            // ── Fan-Out Step: render parallel agents + merge node ──
+            const parallelIds = step.parallel_agents
+            const count = parallelIds.length
+            const spreadWidth = Math.max(count * 220, 400)
+            const startX = X_CENTER - spreadWidth / 2 + 110
+
+            // Parallel agent nodes
+            parallelIds.forEach((agentId, pIdx) => {
+                const agent = agentById(agents, agentId)
+                const nodeId = `fanout-${idx}-branch-${pIdx}`
+                const x = count === 1 ? X_CENTER : startX + pIdx * (spreadWidth / Math.max(count - 1, 1))
+
+                nodes.push({
+                    id: nodeId,
+                    type: 'agentNode',
+                    position: config.node_positions?.[nodeId] ?? { x, y: yOffset },
+                    data: makeAgentNodeData(agent, 'worker'),
+                    draggable: true,
+                })
+
+                // Edge from previous step to each parallel branch
+                edges.push({
+                    id: `e-${lastNodeId}-${nodeId}`,
+                    source: lastNodeId,
+                    target: nodeId,
+                    animated: true,
+                    style: { stroke: '#f59e0b', strokeWidth: 1.5, strokeDasharray: '6 3' },
+                    label: pIdx === 0 ? 'fan-out' : undefined,
+                    labelStyle: { fill: '#f59e0b', fontSize: 10 },
+                    markerEnd: ARROW_MARKER_AMBER_DASHED,
+                })
+            })
+
+            yOffset += Y_SPACING
+
+            // Merge node (if merge_agent_id is set, or a synthetic merge point)
+            const mergeNodeId = `fanout-${idx}-merge`
+            if (step.merge_agent_id) {
+                const mergeAgent = agentById(agents, step.merge_agent_id)
+                nodes.push({
+                    id: mergeNodeId,
+                    type: 'agentNode',
+                    position: config.node_positions?.[mergeNodeId] ?? { x: X_CENTER, y: yOffset },
+                    data: makeAgentNodeData(mergeAgent, 'brain'),
+                    draggable: true,
+                })
+            } else {
+                // Synthetic merge point (no dedicated agent)
+                nodes.push({
+                    id: mergeNodeId,
+                    type: 'startNode', // reuse start node style as a junction
+                    position: config.node_positions?.[mergeNodeId] ?? { x: X_CENTER, y: yOffset },
+                    data: {},
+                    draggable: true,
+                })
+            }
+
+            // Edges from each parallel branch to merge
+            parallelIds.forEach((_agentId, pIdx) => {
+                const branchNodeId = `fanout-${idx}-branch-${pIdx}`
+                edges.push({
+                    id: `e-${branchNodeId}-${mergeNodeId}`,
+                    source: branchNodeId,
+                    target: mergeNodeId,
+                    animated: true,
+                    style: { stroke: '#f59e0b', strokeWidth: 1.5 },
+                    markerEnd: ARROW_MARKER_AMBER,
+                })
+            })
+
+            lastNodeId = mergeNodeId
+            yOffset += Y_SPACING
+        } else {
+            // ── Sequential Step ──
+            const agent = agentById(agents, step.agent_id)
+            const nodeId = `agent-${idx}`
+            nodes.push({
+                id: nodeId,
+                type: 'agentNode',
+                position: config.node_positions?.[nodeId] ?? { x: X_CENTER, y: yOffset },
+                data: makeAgentNodeData(agent, 'worker'),
+                draggable: true,
+            })
+
+            edges.push({
+                id: `e-${lastNodeId}-${nodeId}`,
+                source: lastNodeId,
+                target: nodeId,
+                animated: true,
+                style: { stroke: '#6bedb9', strokeWidth: 2 },
+                markerEnd: ARROW_MARKER,
+            })
+
+            lastNodeId = nodeId
+            yOffset += Y_SPACING
+        }
     })
 
     // End node
-    const endY = (config.steps.length + 1) * Y_SPACING
     nodes.push({
         id: 'end',
         type: 'endNode',
-        position: config.node_positions?.end ?? { x: X_CENTER, y: endY },
+        position: config.node_positions?.end ?? { x: X_CENTER, y: yOffset },
         data: {},
         draggable: true,
     })
 
-    if (config.steps.length > 0) {
-        const lastAgentId = `agent-${config.steps.length - 1}`
-        edges.push({
-            id: `e-${lastAgentId}-end`,
-            source: lastAgentId,
-            target: 'end',
-            animated: true,
-            style: { stroke: '#6bedb9', strokeWidth: 2 },
-            markerEnd: ARROW_MARKER,
-        })
-    } else {
-        edges.push({
-            id: 'e-start-end',
-            source: 'start',
-            target: 'end',
-            animated: true,
-            style: { stroke: '#6bedb9', strokeWidth: 2 },
-            markerEnd: ARROW_MARKER,
-        })
-    }
+    edges.push({
+        id: `e-${lastNodeId}-end`,
+        source: lastNodeId,
+        target: 'end',
+        animated: true,
+        style: { stroke: '#6bedb9', strokeWidth: 2 },
+        markerEnd: ARROW_MARKER,
+    })
 
     return { nodes, edges }
 }
@@ -427,6 +500,14 @@ export function graphToPipelineConfig(
             expected_output: existingStep?.expected_output ?? '',
             on_failure: existingStep?.on_failure ?? 'stop',
             max_retries: existingStep?.max_retries ?? 1,
+            // Preserve fan-out config
+            ...(existingStep?.type === 'fan_out' ? {
+                type: 'fan_out' as const,
+                parallel_agents: existingStep.parallel_agents,
+                merge_agent_id: existingStep.merge_agent_id,
+                fan_out_failure: existingStep.fan_out_failure,
+                merge_instructions: existingStep.merge_instructions,
+            } : {}),
         }
     })
 

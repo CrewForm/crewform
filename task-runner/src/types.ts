@@ -81,6 +81,11 @@ export interface PipelineStep {
     expected_output: string;
     on_failure: 'retry' | 'stop' | 'skip';
     max_retries: number;
+    type?: 'sequential' | 'fan_out';
+    parallel_agents?: string[];
+    merge_agent_id?: string;
+    fan_out_failure?: 'fail_fast' | 'continue_on_partial';
+    merge_instructions?: string;
 }
 
 export interface PipelineConfig {
@@ -121,6 +126,16 @@ export interface TeamHandoffContext {
     step_name: string;
     accumulated_outputs: string[];
     team_memories?: string[];
+    fan_out_results?: FanOutBranchResult[];
+}
+
+export interface FanOutBranchResult {
+    agent_id: string;
+    agent_name: string;
+    status: 'completed' | 'failed';
+    output: string | null;
+    error?: string;
+    usage: TokenUsage;
 }
 
 // ─── Orchestrator Types ──────────────────────────────────────────────────────

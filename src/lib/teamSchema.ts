@@ -14,6 +14,11 @@ export const pipelineStepSchema = z.object({
     expected_output: z.string().max(2000).default(''),
     on_failure: z.enum(['retry', 'stop', 'skip']).default('stop'),
     max_retries: z.number().int().min(0).max(5).default(1),
+    type: z.enum(['sequential', 'fan_out']).default('sequential'),
+    parallel_agents: z.array(z.string()).optional(),
+    merge_agent_id: z.string().optional(),
+    fan_out_failure: z.enum(['fail_fast', 'continue_on_partial']).default('fail_fast'),
+    merge_instructions: z.string().max(5000).default(''),
 })
 
 export const teamSchema = z.object({

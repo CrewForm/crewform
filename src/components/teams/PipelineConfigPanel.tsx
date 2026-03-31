@@ -15,7 +15,7 @@ import {
     verticalListSortingStrategy,
     arrayMove,
 } from '@dnd-kit/sortable'
-import { Plus, Save, Loader2, AlertCircle } from 'lucide-react'
+import { Plus, Save, Loader2, AlertCircle, GitBranch } from 'lucide-react'
 import { PipelineStepCard } from '@/components/teams/PipelineStepCard'
 import { ChannelSelector } from '@/components/shared/ChannelSelector'
 import { useUpdateTeam } from '@/hooks/useUpdateTeam'
@@ -45,6 +45,11 @@ function hydrate(steps: PipelineStep[]): StepWithId[] {
         expected_output: s.expected_output,
         on_failure: s.on_failure,
         max_retries: s.max_retries,
+        type: s.type ?? 'sequential',
+        parallel_agents: s.parallel_agents,
+        merge_agent_id: s.merge_agent_id,
+        fan_out_failure: s.fan_out_failure ?? 'fail_fast',
+        merge_instructions: s.merge_instructions ?? '',
     }))
 }
 
@@ -57,6 +62,13 @@ function dehydrate(steps: StepWithId[]): PipelineStep[] {
         expected_output: s.expected_output,
         on_failure: s.on_failure,
         max_retries: s.max_retries,
+        ...(s.type === 'fan_out' ? {
+            type: 'fan_out' as const,
+            parallel_agents: s.parallel_agents,
+            merge_agent_id: s.merge_agent_id,
+            fan_out_failure: s.fan_out_failure,
+            merge_instructions: s.merge_instructions,
+        } : {}),
     }))
 }
 
@@ -88,6 +100,29 @@ export function PipelineConfigPanel({ team, agents }: PipelineConfigPanelProps) 
             expected_output: '',
             on_failure: 'stop',
             max_retries: 1,
+            type: 'sequential',
+            fan_out_failure: 'fail_fast',
+            merge_instructions: '',
+        }
+        setSteps([...steps, newStep])
+        setHasChanges(true)
+        setValidationError('')
+    }
+
+    function addFanOutStep() {
+        const newStep: StepWithId = {
+            _id: genStepId(),
+            agent_id: 'fan_out_placeholder',
+            step_name: `Fan-Out ${steps.length + 1}`,
+            instructions: '',
+            expected_output: '',
+            on_failure: 'stop',
+            max_retries: 1,
+            type: 'fan_out',
+            parallel_agents: [],
+            merge_agent_id: '',
+            fan_out_failure: 'fail_fast',
+            merge_instructions: '',
         }
         setSteps([...steps, newStep])
         setHasChanges(true)
@@ -131,9 +166,16 @@ export function PipelineConfigPanel({ team, agents }: PipelineConfigPanelProps) 
             return
         }
 
-        const missingAgent = steps.find((s) => !s.agent_id)
+        const missingAgent = steps.find((s) => s.type !== 'fan_out' && !s.agent_id)
         if (missingAgent) {
             setValidationError(`Step "${missingAgent.step_name || 'unnamed'}" needs an agent assigned.`)
+            return
+        }
+
+        // Validate fan-out steps
+        const invalidFanOut = steps.find((s) => s.type === 'fan_out' && (!s.parallel_agents || s.parallel_agents.length < 2))
+        if (invalidFanOut) {
+            setValidationError(`Fan-out step "${invalidFanOut.step_name || 'unnamed'}" needs at least 2 parallel agents.`)
             return
         }
 
@@ -177,6 +219,14 @@ export function PipelineConfigPanel({ team, agents }: PipelineConfigPanelProps) 
                     >
                         <Plus className="h-3.5 w-3.5" />
                         Add Step
+                    </button>
+                    <button
+                        type="button"
+                        onClick={addFanOutStep}
+                        className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-amber-400/80 transition-colors hover:border-amber-400 hover:text-amber-400"
+                    >
+                        <GitBranch className="h-3.5 w-3.5" />
+                        Add Fan-Out
                     </button>
                     {hasChanges && (
                         <button

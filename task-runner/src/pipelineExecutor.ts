@@ -9,7 +9,7 @@ import { loadInputFiles, buildFileContext, extractAndSaveArtifacts } from './fil
 import { storeTeamMemory, retrieveRelevantMemories, buildMemoryContext } from './teamMemory';
 import { executeWithToolLoop, getToolDefinitions } from './toolExecutor';
 import type { CustomToolConfig, ToolCallLog } from './toolExecutor';
-import type { TeamRun, Agent, ApiKey, PipelineConfig, PipelineStep, TeamHandoffContext, TokenUsage } from './types';
+import type { TeamRun, Agent, ApiKey, PipelineConfig, PipelineStep, TeamHandoffContext, TokenUsage, FanOutBranchResult } from './types';
 
 /**
  * PipelineExecutor — processes a team run by executing pipeline steps sequentially.
@@ -82,43 +82,81 @@ export async function processPipelineRun(run: TeamRun): Promise<void> {
             console.warn(`[PipelineExecutor] Memory retrieval failed (non-fatal): ${msg}`);
         }
 
-        // 3. Execute each step sequentially
+        // 3. Execute each step (sequential or fan-out)
         const accumulatedOutputs: string[] = [];
         let previousOutput: string | null = null;
 
         for (let i = 0; i < steps.length; i++) {
             const step = steps[i];
-            const stepOutput = await executeStep({
-                run,
-                step,
-                stepIndex: i,
-                inputTask: run.input_task,
-                previousOutput,
-                accumulatedOutputs,
-                fileContextBlock: i === 0 ? fileContextBlock : '',
-                teamMemories: i === 0 ? teamMemories : [],
-            });
 
-            if (stepOutput !== null) {
-                accumulatedOutputs.push(stepOutput.output);
-                previousOutput = stepOutput.output;
-                totalTokens += stepOutput.usage.totalTokens;
-                totalCost += stepOutput.usage.costEstimateUSD;
-
-                // Write usage record for this step
-                await writeTeamRunUsageRecord({
-                    workspaceId: run.workspace_id,
-                    teamRunId: run.id,
-                    agentId: step.agent_id,
-                    provider: stepOutput.agentProvider,
-                    model: stepOutput.agentModel,
+            if (step.type === 'fan_out' && step.parallel_agents && step.parallel_agents.length > 0) {
+                // ── Fan-Out Step ──
+                const fanOutResult = await executeFanOutStep({
+                    run,
+                    step,
                     stepIndex: i,
-                    stepName: step.step_name,
-                    tokensUsed: stepOutput.usage.totalTokens,
-                    promptTokens: stepOutput.usage.promptTokens,
-                    completionTokens: stepOutput.usage.completionTokens,
-                    costEstimateUsd: stepOutput.usage.costEstimateUSD,
+                    inputTask: run.input_task,
+                    previousOutput,
+                    accumulatedOutputs,
+                    fileContextBlock: i === 0 ? fileContextBlock : '',
+                    teamMemories: i === 0 ? teamMemories : [],
                 });
+
+                if (fanOutResult !== null) {
+                    accumulatedOutputs.push(fanOutResult.output);
+                    previousOutput = fanOutResult.output;
+                    totalTokens += fanOutResult.usage.totalTokens;
+                    totalCost += fanOutResult.usage.costEstimateUSD;
+
+                    // Write usage record for fan-out step (aggregated)
+                    await writeTeamRunUsageRecord({
+                        workspaceId: run.workspace_id,
+                        teamRunId: run.id,
+                        agentId: step.agent_id, // fan-out step agent (trigger agent)
+                        provider: fanOutResult.agentProvider,
+                        model: fanOutResult.agentModel,
+                        stepIndex: i,
+                        stepName: step.step_name,
+                        tokensUsed: fanOutResult.usage.totalTokens,
+                        promptTokens: fanOutResult.usage.promptTokens,
+                        completionTokens: fanOutResult.usage.completionTokens,
+                        costEstimateUsd: fanOutResult.usage.costEstimateUSD,
+                    });
+                }
+            } else {
+                // ── Sequential Step ──
+                const stepOutput = await executeStep({
+                    run,
+                    step,
+                    stepIndex: i,
+                    inputTask: run.input_task,
+                    previousOutput,
+                    accumulatedOutputs,
+                    fileContextBlock: i === 0 ? fileContextBlock : '',
+                    teamMemories: i === 0 ? teamMemories : [],
+                });
+
+                if (stepOutput !== null) {
+                    accumulatedOutputs.push(stepOutput.output);
+                    previousOutput = stepOutput.output;
+                    totalTokens += stepOutput.usage.totalTokens;
+                    totalCost += stepOutput.usage.costEstimateUSD;
+
+                    // Write usage record for this step
+                    await writeTeamRunUsageRecord({
+                        workspaceId: run.workspace_id,
+                        teamRunId: run.id,
+                        agentId: step.agent_id,
+                        provider: stepOutput.agentProvider,
+                        model: stepOutput.agentModel,
+                        stepIndex: i,
+                        stepName: step.step_name,
+                        tokensUsed: stepOutput.usage.totalTokens,
+                        promptTokens: stepOutput.usage.promptTokens,
+                        completionTokens: stepOutput.usage.completionTokens,
+                        costEstimateUsd: stepOutput.usage.costEstimateUSD,
+                    });
+                }
             }
 
             // Update run totals progressively
@@ -198,6 +236,7 @@ interface StepInput {
     accumulatedOutputs: string[];
     fileContextBlock?: string;
     teamMemories?: string[];
+    fanOutResults?: FanOutBranchResult[];
 }
 
 interface StepResult {
@@ -208,7 +247,7 @@ interface StepResult {
 }
 
 async function executeStep(input: StepInput): Promise<StepResult | null> {
-    const { run, step, stepIndex, inputTask, previousOutput, accumulatedOutputs, fileContextBlock, teamMemories } = input;
+    const { run, step, stepIndex, inputTask, previousOutput, accumulatedOutputs, fileContextBlock, teamMemories, fanOutResults } = input;
     let attempts = 0;
     const maxAttempts = step.on_failure === 'retry' ? step.max_retries + 1 : 1;
 
@@ -232,6 +271,7 @@ async function executeStep(input: StepInput): Promise<StepResult | null> {
                 step_name: step.step_name,
                 accumulated_outputs: accumulatedOutputs,
                 team_memories: teamMemories,
+                fan_out_results: fanOutResults,
             };
 
             // Record handoff
@@ -517,6 +557,25 @@ function buildStepPrompt(step: PipelineStep, context: TeamHandoffContext): strin
         parts.push(`## Previous Step Output\nThe previous step in this pipeline produced the following output:\n\n${context.previous_output}`);
     }
 
+    // Fan-out merge context — format all parallel branch results for the merge agent
+    if (context.fan_out_results && context.fan_out_results.length > 0) {
+        const branchParts = context.fan_out_results.map((branch, idx) => {
+            if (branch.status === 'completed') {
+                return `### Branch ${idx + 1} — ${branch.agent_name} ✅\n${branch.output}`;
+            }
+            return `### Branch ${idx + 1} — ${branch.agent_name} ❌ (Failed)\nError: ${branch.error ?? 'Unknown error'}`;
+        });
+
+        const completedCount = context.fan_out_results.filter(b => b.status === 'completed').length;
+        const totalCount = context.fan_out_results.length;
+
+        parts.push(
+            `## Fan-Out Results (${completedCount}/${totalCount} branches completed)\n` +
+            `The following agents processed the task in parallel. Review and aggregate their outputs.\n\n` +
+            branchParts.join('\n\n')
+        );
+    }
+
     if (step.instructions) {
         parts.push(`## Your Instructions\n${step.instructions}`);
     }
@@ -535,4 +594,213 @@ function buildStepPrompt(step: PipelineStep, context: TeamHandoffContext): strin
     }
 
     return parts.join('\n\n');
+}
+
+// ─── Fan-Out Execution ───────────────────────────────────────────────────────
+
+async function executeFanOutStep(input: StepInput): Promise<StepResult | null> {
+    const { run, step, stepIndex, inputTask, previousOutput, accumulatedOutputs, fileContextBlock, teamMemories } = input;
+
+    const parallelAgentIds = step.parallel_agents ?? [];
+    const mergeAgentId = step.merge_agent_id;
+    const failureMode = step.fan_out_failure ?? 'fail_fast';
+
+    console.log(`[PipelineExecutor] Fan-out step ${stepIndex + 1}/${step.step_name}: dispatching ${parallelAgentIds.length} parallel agents`);
+
+    // Update current step on the run
+    await supabase
+        .from('team_runs')
+        .update({ current_step_idx: stepIndex })
+        .eq('id', run.id);
+
+    // Record fan-out delegation message
+    await supabase.from('team_messages').insert({
+        run_id: run.id,
+        sender_agent_id: null,
+        receiver_agent_id: null,
+        message_type: 'delegation',
+        content: `Fan-out: dispatching ${parallelAgentIds.length} parallel agents`,
+        metadata: { step_index: stepIndex, fan_out: true, parallel_agents: parallelAgentIds },
+        step_idx: stepIndex,
+        tokens_used: 0,
+    });
+
+    // ── Execute all parallel agents ──
+    const branchPromises = parallelAgentIds.map((agentId, branchIdx) => {
+        const branchStep: PipelineStep = {
+            agent_id: agentId,
+            step_name: `${step.step_name} [Branch ${branchIdx + 1}]`,
+            instructions: step.instructions,
+            expected_output: step.expected_output,
+            on_failure: 'stop', // Individual branches don't retry — handled at fan-out level
+            max_retries: 0,
+        };
+
+        return executeStep({
+            run,
+            step: branchStep,
+            stepIndex,
+            inputTask,
+            previousOutput,
+            accumulatedOutputs,
+            fileContextBlock: fileContextBlock,
+            teamMemories: teamMemories,
+        });
+    });
+
+    // Execute branches based on failure mode
+    const branchResults: FanOutBranchResult[] = [];
+    let totalBranchTokens = 0;
+    let totalBranchCost = 0;
+
+    if (failureMode === 'fail_fast') {
+        // Fail-fast: use Promise.all — abort everything on first failure
+        try {
+            const results = await Promise.all(branchPromises);
+            for (let i = 0; i < results.length; i++) {
+                const result = results[i];
+                // Look up agent name
+                const { data: agentData } = await supabase.from('agents').select('name').eq('id', parallelAgentIds[i]).single();
+                const agentName = (agentData as { name: string } | null)?.name ?? `Agent ${i + 1}`;
+
+                if (result) {
+                    branchResults.push({
+                        agent_id: parallelAgentIds[i],
+                        agent_name: agentName,
+                        status: 'completed',
+                        output: result.output,
+                        usage: result.usage,
+                    });
+                    totalBranchTokens += result.usage.totalTokens;
+                    totalBranchCost += result.usage.costEstimateUSD;
+                } else {
+                    branchResults.push({
+                        agent_id: parallelAgentIds[i],
+                        agent_name: agentName,
+                        status: 'failed',
+                        output: null,
+                        error: 'Step returned no output',
+                        usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0, costEstimateUSD: 0 },
+                    });
+                }
+            }
+        } catch (error: unknown) {
+            const errMsg = error instanceof Error ? error.message : String(error);
+            throw new Error(`Fan-out step "${step.step_name}" failed (fail_fast): ${errMsg}`);
+        }
+    } else {
+        // Continue-on-partial: use Promise.allSettled — collect all results
+        const settledResults = await Promise.allSettled(branchPromises);
+        for (let i = 0; i < settledResults.length; i++) {
+            const settled = settledResults[i];
+            const { data: agentData } = await supabase.from('agents').select('name').eq('id', parallelAgentIds[i]).single();
+            const agentName = (agentData as { name: string } | null)?.name ?? `Agent ${i + 1}`;
+
+            if (settled.status === 'fulfilled' && settled.value) {
+                branchResults.push({
+                    agent_id: parallelAgentIds[i],
+                    agent_name: agentName,
+                    status: 'completed',
+                    output: settled.value.output,
+                    usage: settled.value.usage,
+                });
+                totalBranchTokens += settled.value.usage.totalTokens;
+                totalBranchCost += settled.value.usage.costEstimateUSD;
+            } else {
+                const errMsg = settled.status === 'rejected'
+                    ? (settled.reason instanceof Error ? settled.reason.message : String(settled.reason))
+                    : 'Step returned no output';
+                branchResults.push({
+                    agent_id: parallelAgentIds[i],
+                    agent_name: agentName,
+                    status: 'failed',
+                    output: null,
+                    error: errMsg,
+                    usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0, costEstimateUSD: 0 },
+                });
+            }
+        }
+    }
+
+    const completedBranches = branchResults.filter(b => b.status === 'completed');
+    console.log(`[PipelineExecutor] Fan-out complete: ${completedBranches.length}/${branchResults.length} branches succeeded`);
+
+    // Record fan-out completion message
+    await supabase.from('team_messages').insert({
+        run_id: run.id,
+        sender_agent_id: null,
+        receiver_agent_id: null,
+        message_type: 'system',
+        content: `Fan-out complete: ${completedBranches.length}/${branchResults.length} branches succeeded`,
+        metadata: {
+            step_index: stepIndex,
+            fan_out: true,
+            branches: branchResults.map(b => ({ agent_id: b.agent_id, agent_name: b.agent_name, status: b.status })),
+        },
+        step_idx: stepIndex,
+        tokens_used: totalBranchTokens,
+    });
+
+    // If no branches completed at all, fail
+    if (completedBranches.length === 0) {
+        throw new Error(`Fan-out step "${step.step_name}" failed: all ${branchResults.length} branches failed.`);
+    }
+
+    // ── Merge Step ──
+    if (mergeAgentId) {
+        console.log(`[PipelineExecutor] Executing merge agent for fan-out step ${stepIndex + 1}`);
+
+        const mergeStep: PipelineStep = {
+            agent_id: mergeAgentId,
+            step_name: `${step.step_name} [Merge]`,
+            instructions: step.merge_instructions || 'Review and aggregate the outputs from all parallel branches into a single cohesive result.',
+            expected_output: step.expected_output,
+            on_failure: step.on_failure,
+            max_retries: step.max_retries,
+        };
+
+        const mergeResult = await executeStep({
+            run,
+            step: mergeStep,
+            stepIndex,
+            inputTask,
+            previousOutput: null, // merge agent gets fan_out_results instead
+            accumulatedOutputs,
+            fanOutResults: branchResults,
+        });
+
+        if (mergeResult) {
+            totalBranchTokens += mergeResult.usage.totalTokens;
+            totalBranchCost += mergeResult.usage.costEstimateUSD;
+
+            return {
+                output: mergeResult.output,
+                usage: {
+                    promptTokens: 0, // aggregated
+                    completionTokens: 0,
+                    totalTokens: totalBranchTokens,
+                    costEstimateUSD: totalBranchCost,
+                },
+                agentProvider: mergeResult.agentProvider,
+                agentModel: mergeResult.agentModel,
+            };
+        }
+    }
+
+    // No merge agent — concatenate completed branch outputs
+    const combinedOutput = completedBranches
+        .map((b, idx) => `--- Branch ${idx + 1} (${b.agent_name}) ---\n${b.output}`)
+        .join('\n\n');
+
+    return {
+        output: combinedOutput,
+        usage: {
+            promptTokens: 0,
+            completionTokens: 0,
+            totalTokens: totalBranchTokens,
+            costEstimateUSD: totalBranchCost,
+        },
+        agentProvider: 'mixed',
+        agentModel: 'mixed',
+    };
 }

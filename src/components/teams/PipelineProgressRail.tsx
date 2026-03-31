@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 CrewForm
 
-import { Check, X, Loader2, Minus, Circle } from 'lucide-react'
+import { Check, X, Loader2, Minus, Circle, GitBranch } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { PipelineStep, Agent, TeamRunStatus } from '@/types'
 
@@ -59,6 +59,7 @@ const LINE_COLORS: Record<StepStatus, string> = {
 /**
  * Vertical pipeline progress rail.
  * Shows each step as a node with connecting lines.
+ * For fan-out steps, renders parallel branches and merge node.
  * Updates in real-time via currentStepIdx.
  */
 export function PipelineProgressRail({ steps, currentStepIdx, runStatus, agents }: PipelineProgressRailProps) {
@@ -66,9 +67,23 @@ export function PipelineProgressRail({ steps, currentStepIdx, runStatus, agents 
         <div className="flex flex-col">
             {steps.map((step, index) => {
                 const status = getStepStatus(index, currentStepIdx, runStatus)
+                const isLast = index === steps.length - 1
+                const isFanOut = step.type === 'fan_out'
+
+                if (isFanOut) {
+                    return (
+                        <FanOutProgressNode
+                            key={`fanout-${index}`}
+                            step={step}
+                            status={status}
+                            agents={agents}
+                            isLast={isLast}
+                        />
+                    )
+                }
+
                 const Icon = STEP_ICON[status]
                 const agent = agents.find((a) => a.id === step.agent_id)
-                const isLast = index === steps.length - 1
 
                 return (
                     <div key={`${step.agent_id}-${index}`} className="flex items-start gap-3">
@@ -119,4 +134,90 @@ export function PipelineProgressRail({ steps, currentStepIdx, runStatus, agents 
             })}
         </div>
     )
+}
+
+// ─── Fan-Out Progress Node ───────────────────────────────────────────────────
+
+interface FanOutProgressNodeProps {
+    step: PipelineStep
+    status: StepStatus
+    agents: Agent[]
+    isLast: boolean
+}
+
+function FanOutProgressNode({ step, status, agents }: FanOutProgressNodeProps) {
+    const parallelAgentIds = step.parallel_agents ?? []
+
+    return (
+        <div className="flex items-start gap-3">
+            {/* Rail column */}
+            <div className="flex flex-col items-center">
+                {/* Fan-out node */}
+                <div
+                    className={cn(
+                        'flex h-8 w-8 items-center justify-center rounded-full border-2 transition-all',
+                        status === 'running' ? 'border-amber-500 bg-amber-500/20 text-amber-400' :
+                            status === 'completed' ? 'border-green-500 bg-green-500/20 text-green-400' :
+                                status === 'failed' ? 'border-red-500 bg-red-500/20 text-red-400' :
+                                    'border-amber-500/40 bg-gray-800 text-amber-400/60',
+                    )}
+                >
+                    <GitBranch className={cn('h-4 w-4', status === 'running' && 'animate-pulse')} />
+                </div>
+
+                {/* Branching lines */}
+                <div className="w-0.5 min-h-[8px] bg-amber-500/30" />
+            </div>
+
+            {/* Fan-out info + branches */}
+            <div className="pb-2 pt-1 flex-1">
+                <p className={cn(
+                    'text-sm font-medium',
+                    status === 'running' ? 'text-amber-400' :
+                        status === 'completed' ? 'text-green-400' :
+                            status === 'failed' ? 'text-red-400' :
+                                'text-gray-400',
+                )}>
+                    {step.step_name}
+                </p>
+                <p className="text-xs text-gray-500">
+                    {parallelAgentIds.length} parallel branches
+                </p>
+
+                {/* Parallel branch indicators */}
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                    {parallelAgentIds.map((agentId) => {
+                        const agent = agents.find((a) => a.id === agentId)
+                        return (
+                            <div
+                                key={agentId}
+                                className={cn(
+                                    'flex items-center gap-1.5 rounded-md px-2 py-1 text-xs',
+                                    status === 'completed' ? 'bg-green-500/10 text-green-400' :
+                                        status === 'running' ? 'bg-amber-500/10 text-amber-400' :
+                                            status === 'failed' ? 'bg-red-500/10 text-red-400' :
+                                                'bg-gray-800 text-gray-500',
+                                )}
+                            >
+                                {status === 'running' ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : status === 'completed' ? (
+                                    <Check className="h-3 w-3" />
+                                ) : status === 'failed' ? (
+                                    <X className="h-3 w-3" />
+                                ) : (
+                                    <Circle className="h-3 w-3" />
+                                )}
+                                {agent?.name ?? 'Agent'}
+                            </div>
+                        )
+                    })}
+                </div>
+            </div>
+        </div>
+    )
+
+    // NOTE: The merge node is rendered implicitly as part of the fan-out step.
+    // Since merging happens within the same step index, the progress rail treats
+    // the entire fan-out + merge as one atomic visual unit.
 }
