@@ -364,6 +364,7 @@ export function AgentDetail() {
                     currentProfile={agent.voice_profile ?? null}
                     currentProfileId={agent.voice_profile_id ?? null}
                     onChanged={() => setHasChanges(true)}
+                    onSaved={() => { setHasChanges(false); setSaveSuccess(true); setTimeout(() => setSaveSuccess(false), 2000) }}
                 />
             )}
 
@@ -373,6 +374,7 @@ export function AgentDetail() {
                     workspaceId={workspaceId}
                     currentTemplateId={agent.output_template_id ?? null}
                     onChanged={() => setHasChanges(true)}
+                    onSaved={() => { setHasChanges(false); setSaveSuccess(true); setTimeout(() => setSaveSuccess(false), 2000) }}
                 />
             )}
 

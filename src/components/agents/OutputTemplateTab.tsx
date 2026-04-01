@@ -45,9 +45,11 @@ interface OutputTemplateTabProps {
     currentTemplateId: string | null
     /** Callback when settings change (dirty tracking) */
     onChanged: () => void
+    /** Callback after a successful save to reset parent dirty state */
+    onSaved: () => void
 }
 
-export function OutputTemplateTab({ agentId, workspaceId, currentTemplateId, onChanged }: OutputTemplateTabProps) {
+export function OutputTemplateTab({ agentId, workspaceId, currentTemplateId, onChanged, onSaved }: OutputTemplateTabProps) {
     const [templates, setTemplates] = useState<OutputTemplate[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [isSaving, setIsSaving] = useState(false)
@@ -112,6 +114,7 @@ export function OutputTemplateTab({ agentId, workspaceId, currentTemplateId, onC
 
             if (error) throw error
             toast.success('Output template saved')
+            onSaved()
         } catch (err) {
             console.error('[OutputTemplateTab] Save failed:', err)
             toast.error('Failed to save template')
@@ -135,6 +138,7 @@ export function OutputTemplateTab({ agentId, workspaceId, currentTemplateId, onC
             setTemplateBody('')
             setTemplateType('markdown')
             toast.success('Output template removed')
+            onSaved()
         } catch (err) {
             console.error('[OutputTemplateTab] Remove failed:', err)
             toast.error('Failed to remove template')
@@ -158,7 +162,7 @@ export function OutputTemplateTab({ agentId, workspaceId, currentTemplateId, onC
             setSelectedTemplateId(created.id)
             setShowCreateNew(false)
             setNewTemplateName('')
-            onChanged()
+            onSaved()
             toast.success(`Template "${created.name}" created`)
 
             // Assign to agent

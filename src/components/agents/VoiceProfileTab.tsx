@@ -30,9 +30,11 @@ interface VoiceProfileTabProps {
     currentProfileId: string | null
     /** Callback when voice settings are changed (for dirty tracking) */
     onChanged: () => void
+    /** Callback after a successful save to reset parent dirty state */
+    onSaved: () => void
 }
 
-export function VoiceProfileTab({ agentId, workspaceId, currentProfile, currentProfileId, onChanged }: VoiceProfileTabProps) {
+export function VoiceProfileTab({ agentId, workspaceId, currentProfile, currentProfileId, onChanged, onSaved }: VoiceProfileTabProps) {
     // Local state for the form
     const [tone, setTone] = useState<VoiceProfileTone>(currentProfile?.tone ?? 'casual')
     const [customInstructions, setCustomInstructions] = useState(currentProfile?.custom_instructions ?? '')
@@ -96,6 +98,7 @@ export function VoiceProfileTab({ agentId, workspaceId, currentProfile, currentP
             if (error) throw error
 
             toast.success('Voice profile saved')
+            onSaved()
         } catch (err) {
             console.error('[VoiceProfileTab] Save failed:', err)
             toast.error('Failed to save voice profile')
@@ -121,6 +124,7 @@ export function VoiceProfileTab({ agentId, workspaceId, currentProfile, currentP
             setOutputFormatHints('')
             setSelectedTemplateId(null)
             toast.success('Voice profile removed')
+            onSaved()
         } catch (err) {
             console.error('[VoiceProfileTab] Remove failed:', err)
             toast.error('Failed to remove voice profile')
