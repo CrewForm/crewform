@@ -29,6 +29,7 @@ export interface UpsertApiKeyInput {
     encrypted_key: string
     key_hint: string
     is_valid: boolean
+    base_url?: string | null
 }
 
 export async function upsertApiKey(input: UpsertApiKeyInput): Promise<ApiKey> {
@@ -50,6 +51,7 @@ export async function upsertApiKey(input: UpsertApiKeyInput): Promise<ApiKey> {
                 encrypted_key: input.encrypted_key,
                 key_hint: input.key_hint,
                 is_valid: input.is_valid,
+                ...(input.base_url !== undefined ? { base_url: input.base_url } : {}),
             })
             .eq('id', existing.data.id)
             .select()

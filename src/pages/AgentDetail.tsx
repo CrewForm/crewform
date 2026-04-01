@@ -22,6 +22,7 @@ import { unpublishAgent } from '@/db/marketplace'
 import { StatusIndicator } from '@/components/ui/StatusIndicator'
 import { agentSchema, MODEL_OPTIONS, BUILT_IN_TOOLS, getActiveModelOptions, mergeModelOptions, inferProviderFromModel } from '@/lib/agentSchema'
 import { useOpenRouterModels } from '@/hooks/useOpenRouterModels'
+import { useOllamaModels } from '@/hooks/useOllamaModels'
 import { useApiKeys } from '@/hooks/useApiKeys'
 import { useWorkspace } from '@/hooks/useWorkspace'
 import { useCustomTools, useCreateCustomTool, useUpdateCustomTool, useDeleteCustomTool } from '@/hooks/useCustomTools'
@@ -80,6 +81,12 @@ export function AgentDetail() {
     const isOpenRouterActive = activeProviders.some((p) => p.toLowerCase() === 'openrouter')
     const { models: openRouterModels } = useOpenRouterModels(isOpenRouterActive)
 
+    // Ollama auto-discovery
+    const isOllamaActive = activeProviders.some((p) => p.toLowerCase() === 'ollama')
+    const ollamaKey = keys.find((k) => k.provider === 'ollama' && k.is_active)
+    const ollamaBaseUrl = ollamaKey?.base_url ?? 'http://localhost:11434'
+    const { models: ollamaModels } = useOllamaModels(isOllamaActive, ollamaBaseUrl)
+
     const dynamicModelOptions = useMemo(() => {
         const filtered = activeProviders.length > 0
             ? getActiveModelOptions(activeProviders)
@@ -87,8 +94,9 @@ export function AgentDetail() {
 
         return mergeModelOptions(filtered, [
             { provider: 'OpenRouter', models: openRouterModels },
+            ...(ollamaModels.length > 0 ? [{ provider: 'Ollama', models: ollamaModels }] : []),
         ])
-    }, [activeProviders, openRouterModels])
+    }, [activeProviders, openRouterModels, ollamaModels])
 
     // Populate form when agent loads
     useEffect(() => {

@@ -12,7 +12,7 @@ interface ProviderDetailModalProps {
     provider: ProviderConfig | null
     existingKey: ApiKey | undefined
     onClose: () => void
-    onSave: (key: string) => void
+    onSave: (key: string, baseUrl?: string | null) => void
     onRemove: () => void
     onToggleActive: (isActive: boolean) => void
     isSaving: boolean
@@ -39,6 +39,7 @@ export function ProviderDetailModal({
     const [isRevealed, setIsRevealed] = useState(false)
     const [testResult, setTestResult] = useState<'idle' | 'testing' | 'success' | 'error'>('idle')
     const [testError, setTestError] = useState('')
+    const [baseUrlInput, setBaseUrlInput] = useState('')
 
     if (!provider) return null
 
@@ -47,6 +48,7 @@ export function ProviderDetailModal({
 
     const isConfigured = !!existingKey
     const isActive = existingKey?.is_active ?? false
+    const isOllama = currentProvider.id === 'ollama'
     const maskedKey = existingKey
         ? `${currentProvider.prefix ? currentProvider.prefix : ''}••••••••${existingKey.key_hint}`
         : ''
@@ -69,6 +71,17 @@ export function ProviderDetailModal({
     }
 
     function handleSave() {
+        if (isOllama) {
+            // Ollama doesn't need a real key — use placeholder
+            const key = keyInput.trim() || 'ollama'
+            const url = baseUrlInput.trim() || 'http://localhost:11434'
+            onSave(key, url)
+            setKeyInput('')
+            setBaseUrlInput('')
+            setIsEditing(false)
+            setTestResult('idle')
+            return
+        }
         if (!keyInput.trim() || testResult !== 'success') return
         onSave(keyInput)
         setKeyInput('')
@@ -78,6 +91,7 @@ export function ProviderDetailModal({
 
     function handleCancel() {
         setKeyInput('')
+        setBaseUrlInput('')
         setIsEditing(false)
         setTestResult('idle')
         setTestError('')
@@ -134,14 +148,12 @@ export function ProviderDetailModal({
                     </h3>
 
                     {/* Ollama-specific note */}
-                    {provider.id === 'ollama' && (
+                    {isOllama && (
                         <div className="mb-3 rounded-lg border border-gray-600/30 bg-gray-800/50 px-4 py-3">
                             <p className="text-sm font-medium text-gray-200">🏠 Local Model Provider</p>
                             <p className="mt-1 text-xs text-gray-400">
-                                Ollama runs locally — no API key required. Enter any value (e.g. &quot;ollama&quot;) as a
-                                placeholder. Make sure Ollama is running at{' '}
-                                <code className="rounded bg-gray-700 px-1 py-0.5 text-gray-300">http://localhost:11434</code>
-                                {' '}on the same machine as the task runner.
+                                Ollama runs locally — no API key required. The key field is auto-filled.
+                                Set the base URL to point to your Ollama instance.
                             </p>
                         </div>
                     )}
@@ -198,19 +210,43 @@ export function ProviderDetailModal({
                     {/* Input mode */}
                     {isEditing && (
                         <div className="space-y-3">
+                            {/* Base URL input — shown for Ollama */}
+                            {isOllama && (
+                                <div>
+                                    <label htmlFor="base-url-input" className="mb-1 block text-xs font-medium text-gray-400">
+                                        Base URL
+                                    </label>
+                                    <input
+                                        id="base-url-input"
+                                        type="text"
+                                        value={baseUrlInput}
+                                        onChange={(e) => setBaseUrlInput(e.target.value)}
+                                        placeholder="http://localhost:11434"
+                                        className="w-full rounded-lg border border-border bg-surface-primary px-4 py-3 font-mono text-sm text-gray-200 placeholder-gray-600 outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
+                                    />
+                                    <p className="mt-1 text-xs text-gray-500">
+                                        Leave blank for default (localhost:11434). Change if Ollama runs on another host.
+                                    </p>
+                                </div>
+                            )}
                             <div>
                                 <input
-                                    type="password"
-                                    value={keyInput}
+                                    type={isOllama ? 'text' : 'password'}
+                                    value={isOllama && !keyInput ? 'ollama' : keyInput}
                                     onChange={(e) => {
                                         setKeyInput(e.target.value)
                                         setTestResult('idle')
                                         setTestError('')
                                     }}
-                                    placeholder={`Paste your ${provider.name} API key${provider.prefix ? ` (${provider.prefix}...)` : ''}`}
+                                    placeholder={isOllama ? 'ollama (placeholder)' : `Paste your ${provider.name} API key${provider.prefix ? ` (${provider.prefix}...)` : ''}`}
                                     className="w-full rounded-lg border border-border bg-surface-primary px-4 py-3 font-mono text-sm text-gray-200 placeholder-gray-600 outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
-                                    autoFocus
+                                    autoFocus={!isOllama}
                                 />
+                                {isOllama && (
+                                    <p className="mt-1 text-xs text-gray-500">
+                                        Ollama doesn&apos;t require a real API key. This is a placeholder value.
+                                    </p>
+                                )}
                                 {testError && <p className="mt-1.5 text-xs text-red-400">{testError}</p>}
                             </div>
 
@@ -222,26 +258,28 @@ export function ProviderDetailModal({
                             )}
 
                             <div className="flex items-center gap-2">
-                                <button
-                                    type="button"
-                                    onClick={handleTestConnection}
-                                    disabled={!keyInput.trim() || testResult === 'testing'}
-                                    className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-medium text-gray-300 transition-colors hover:bg-surface-elevated disabled:cursor-not-allowed disabled:opacity-50"
-                                >
-                                    {testResult === 'testing' ? (
-                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                    ) : testResult === 'success' ? (
-                                        <Check className="h-3.5 w-3.5 text-green-400" />
-                                    ) : (
-                                        <span className="h-3.5 w-3.5" />
-                                    )}
-                                    Test Connection
-                                </button>
+                                {!isOllama && (
+                                    <button
+                                        type="button"
+                                        onClick={handleTestConnection}
+                                        disabled={!keyInput.trim() || testResult === 'testing'}
+                                        className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-medium text-gray-300 transition-colors hover:bg-surface-elevated disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                        {testResult === 'testing' ? (
+                                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                        ) : testResult === 'success' ? (
+                                            <Check className="h-3.5 w-3.5 text-green-400" />
+                                        ) : (
+                                            <span className="h-3.5 w-3.5" />
+                                        )}
+                                        Test Connection
+                                    </button>
+                                )}
 
                                 <button
                                     type="button"
                                     onClick={handleSave}
-                                    disabled={testResult !== 'success' || isSaving}
+                                    disabled={!isOllama && (testResult !== 'success' || isSaving)}
                                     className="flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2 text-xs font-medium text-black transition-colors hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
                                 >
                                     {isSaving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}

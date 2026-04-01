@@ -169,7 +169,7 @@ export function ApiKeysSettings() {
 
     const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null)
 
-    function handleSave(provider: string, rawKey: string) {
+    function handleSave(provider: string, rawKey: string, baseUrl?: string | null) {
         if (!workspaceId) return
         const hint = rawKey.slice(-4)
         saveMutation.mutate({
@@ -178,6 +178,7 @@ export function ApiKeysSettings() {
             encrypted_key: rawKey,
             key_hint: hint,
             is_valid: true,
+            base_url: baseUrl ?? null,
         })
     }
 
@@ -290,8 +291,8 @@ export function ApiKeysSettings() {
                 provider={selectedProvider}
                 existingKey={selectedKey}
                 onClose={() => setSelectedProviderId(null)}
-                onSave={(key) => {
-                    if (selectedProviderId) handleSave(selectedProviderId, key)
+                onSave={(key, baseUrl) => {
+                    if (selectedProviderId) handleSave(selectedProviderId, key, baseUrl)
                 }}
                 onRemove={() => {
                     if (selectedKey) handleRemove(selectedKey.id)

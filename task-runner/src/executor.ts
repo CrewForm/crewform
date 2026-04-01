@@ -274,6 +274,7 @@ export async function processTask(task: Task) {
                         ? { workspaceId: task.workspace_id, documentIds: (agent.config?.knowledge_base_ids as string[] | undefined) ?? undefined }
                         : undefined,
                     task.id,
+                    apiKeyData.base_url,
                 );
             } else if (providerLower === 'anthropic') {
                 executionResult = await executeAnthropic(rawKey, effectiveModel, systemPrompt, userPrompt, updateResultStream, agent.max_tokens);
@@ -305,6 +306,11 @@ export async function processTask(task: Task) {
                 executionResult = await executeOpenAI(rawKey, effectiveModel, systemPrompt, userPrompt, updateResultStream, 'https://api.moonshot.cn/v1', agent.max_tokens);
             } else if (providerLower === 'perplexity') {
                 executionResult = await executeOpenAI(rawKey, effectiveModel, systemPrompt, userPrompt, updateResultStream, 'https://api.perplexity.ai', agent.max_tokens);
+            } else if (providerLower === 'ollama') {
+                const ollamaUrl = apiKeyData.base_url
+                    ? `${apiKeyData.base_url.replace(/\/+$/, '')}/v1`
+                    : 'http://localhost:11434/v1';
+                executionResult = await executeOpenAI(rawKey, effectiveModel, systemPrompt, userPrompt, updateResultStream, ollamaUrl, agent.max_tokens);
             } else {
                 throw new Error(`Execution for provider "${provider}" is not yet supported in the standalone runner.`);
             }
@@ -549,6 +555,7 @@ async function executeToolUseTask(
     mcpServers?: McpServerConfig[],
     knowledgeContext?: { workspaceId: string; documentIds?: string[] },
     taskId?: string,
+    customBaseUrl?: string | null,
 ): Promise<{ result: string; usage: TokenUsage; toolCallLogs: ToolCallLog[] }> {
     // Determine base URL for OpenAI-compatible providers
     const baseURLMap: Record<string, string> = {
@@ -565,6 +572,12 @@ async function executeToolUseTask(
         perplexity: 'https://api.perplexity.ai',
         ollama: 'http://localhost:11434/v1',
     };
+
+    // Use custom base_url from the API key record if available (e.g. non-localhost Ollama)
+    if (customBaseUrl) {
+        const cleanUrl = customBaseUrl.replace(/\/+$/, '');
+        baseURLMap[providerLower] = cleanUrl.endsWith('/v1') ? cleanUrl : `${cleanUrl}/v1`;
+    }
 
     // For tool-use, we use the OpenAI SDK for all providers (they're all OpenAI-compatible)
     const baseURL = baseURLMap[providerLower];

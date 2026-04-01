@@ -116,6 +116,12 @@ export async function executeLLMCall(input: LLMCallInput): Promise<LLMCallResult
         ollama: 'http://localhost:11434/v1',
     };
 
+    // Use custom base_url from the API key record if available (e.g. non-localhost Ollama)
+    if (apiKeyData.base_url) {
+        const customUrl = apiKeyData.base_url.replace(/\/+$/, '');
+        baseURLMap[provider] = customUrl.endsWith('/v1') ? customUrl : `${customUrl}/v1`;
+    }
+
     let effectiveModel = agent.model;
     if (provider === 'openrouter') {
         effectiveModel = agent.model.replace(/^openrouter\//, '');

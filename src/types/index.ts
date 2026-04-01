@@ -324,6 +324,7 @@ export interface ApiKey {
   key_hint: string
   is_valid: boolean
   is_active: boolean
+  base_url: string | null
   created_at: string
   updated_at: string
 }

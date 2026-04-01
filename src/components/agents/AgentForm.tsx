@@ -6,6 +6,7 @@ import { AlertCircle, Plus, Pencil, Trash2, X, Plug } from 'lucide-react'
 import type { AgentFormData } from '@/lib/agentSchema'
 import { agentSchema, MODEL_OPTIONS, BUILT_IN_TOOLS, getActiveModelOptions, mergeModelOptions } from '@/lib/agentSchema'
 import { useOpenRouterModels } from '@/hooks/useOpenRouterModels'
+import { useOllamaModels } from '@/hooks/useOllamaModels'
 import { useCustomTools, useCreateCustomTool, useUpdateCustomTool, useDeleteCustomTool } from '@/hooks/useCustomTools'
 import { CustomToolEditor } from '@/components/agents/CustomToolEditor'
 import { cn } from '@/lib/utils'
@@ -51,6 +52,12 @@ export function AgentForm({ initialData, onSubmit, onBack, activeProviders, work
         : true // Show all if no filter
     const { models: openRouterModels, isLoading: isLoadingModels } = useOpenRouterModels(isOpenRouterActive)
 
+    // Fetch live Ollama models when Ollama is active
+    const isOllamaActive = activeProviders
+        ? activeProviders.some((p) => p.toLowerCase() === 'ollama')
+        : true
+    const { models: ollamaModels } = useOllamaModels(isOllamaActive)
+
     // Determine which model groups to show, merging dynamic models
     const modelOptions = useMemo(() => {
         const filtered = activeProviders
@@ -59,8 +66,9 @@ export function AgentForm({ initialData, onSubmit, onBack, activeProviders, work
 
         return mergeModelOptions(filtered, [
             { provider: 'OpenRouter', models: openRouterModels },
+            ...(ollamaModels.length > 0 ? [{ provider: 'Ollama', models: ollamaModels }] : []),
         ])
-    }, [activeProviders, openRouterModels])
+    }, [activeProviders, openRouterModels, ollamaModels])
 
     const [tagInput, setTagInput] = useState('')
 

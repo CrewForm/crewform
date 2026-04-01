@@ -50,6 +50,7 @@ export interface ApiKey {
     workspace_id: string;
     provider: string;
     encrypted_key: string;
+    base_url: string | null;
 }
 
 export interface TokenUsage {
