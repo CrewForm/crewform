@@ -324,7 +324,20 @@ async function executeStep(input: StepInput): Promise<StepResult | null> {
             const rawKey = decryptApiKey(apiKeyData.encrypted_key);
 
             // Build prompt with handoff context
-            const systemPrompt = agent.system_prompt || 'You are a helpful AI assistant.';
+            let systemPrompt = agent.system_prompt || 'You are a helpful AI assistant.';
+
+            // Inject voice profile into system prompt if configured
+            if (agent.voice_profile) {
+                const vp = agent.voice_profile;
+                const voiceSections: string[] = [];
+                if (vp.tone) voiceSections.push(`Tone: ${vp.tone}`);
+                if (vp.custom_instructions) voiceSections.push(vp.custom_instructions);
+                if (vp.output_format_hints) voiceSections.push(`Output format: ${vp.output_format_hints}`);
+                if (voiceSections.length > 0) {
+                    systemPrompt += `\n\n## Voice & Tone\n${voiceSections.join('\n')}`;
+                }
+            }
+
             let userPrompt = buildStepPrompt(step, handoffContext);
 
             // Append file context for the first step

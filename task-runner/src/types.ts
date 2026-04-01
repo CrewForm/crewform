@@ -34,6 +34,15 @@ export interface Agent {
     fallback_model: string | null;
     output_route_ids: string[] | null;
     config: Record<string, unknown>;
+    voice_profile: VoiceProfileInline | null;
+    voice_profile_id: string | null;
+    output_template_id: string | null;
+}
+
+export interface VoiceProfileInline {
+    tone?: string;
+    custom_instructions?: string;
+    output_format_hints?: string;
 }
 
 export interface ApiKey {

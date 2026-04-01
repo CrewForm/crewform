@@ -127,7 +127,20 @@ export async function processTask(task: Task) {
         const rawKey = decryptApiKey(apiKeyData.encrypted_key);
 
         // 3. Prepare Prompt (with attached files)
-        const systemPrompt = agent.system_prompt || 'You are a helpful AI assistant.';
+        let systemPrompt = agent.system_prompt || 'You are a helpful AI assistant.';
+
+        // Inject voice profile into system prompt if configured
+        if (agent.voice_profile) {
+            const vp = agent.voice_profile;
+            const voiceSections: string[] = [];
+            if (vp.tone) voiceSections.push(`Tone: ${vp.tone}`);
+            if (vp.custom_instructions) voiceSections.push(vp.custom_instructions);
+            if (vp.output_format_hints) voiceSections.push(`Output format: ${vp.output_format_hints}`);
+            if (voiceSections.length > 0) {
+                systemPrompt += `\n\n## Voice & Tone\n${voiceSections.join('\n')}`;
+            }
+        }
+
         let userPrompt = `Task Title: ${task.title}\n\nTask Description:\n${task.description}`;
 
         // Load input file attachments
@@ -348,6 +361,37 @@ export async function processTask(task: Task) {
                 throw new Error(`Model "${effectiveModel}" is not available on ${provider}. Please update the agent's model in Settings → Agents.`);
             } else {
                 throw llmError;
+            }
+        }
+
+        // 4b. Apply output template if configured
+        if (executionResult && agent.output_template_id) {
+            try {
+                const tplResult = await supabase
+                    .from('output_templates')
+                    .select('body')
+                    .eq('id', agent.output_template_id)
+                    .single();
+
+                const tplData = tplResult.data as { body: string } | null;
+                if (tplData?.body) {
+                    const variables: Record<string, string> = {
+                        task_title: task.title,
+                        task_result: executionResult.result,
+                        agent_name: agent.name,
+                        timestamp: new Date().toISOString(),
+                        tokens_used: executionResult.usage.totalTokens.toLocaleString(),
+                        model: effectiveModel,
+                    };
+                    // Replace {{variable}} placeholders
+                    const rendered = tplData.body.replace(/\{\{(\w+)\}\}/g, (_match: string, varName: string) => {
+                        return varName in variables ? variables[varName] : `{{${varName}}}`;
+                    });
+                    executionResult = { ...executionResult, result: rendered };
+                    console.log(`[TaskRunner] Applied output template ${agent.output_template_id} to task ${task.id}`);
+                }
+            } catch (tplErr) {
+                console.warn(`[TaskRunner] Failed to apply output template (non-fatal):`, tplErr);
             }
         }
 

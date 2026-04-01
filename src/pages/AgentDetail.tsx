@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, Save, Trash2, Upload, DownloadCloud, Activity, Settings2, AlertCircle, Loader2, History, Zap, Plus, Pencil, X, CheckCircle2, XCircle, Clock, Cpu, Coins } from 'lucide-react'
+import { ArrowLeft, Save, Trash2, Upload, DownloadCloud, Activity, Settings2, AlertCircle, Loader2, History, Zap, Plus, Pencil, X, CheckCircle2, XCircle, Clock, Cpu, Coins, Mic, FileOutput } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAgent } from '@/hooks/useAgent'
 import { useUpdateAgent } from '@/hooks/useUpdateAgent'
@@ -16,6 +16,8 @@ import { TriggersPanel } from '@/components/agents/TriggersPanel'
 import { ChannelSelector } from '@/components/shared/ChannelSelector'
 import { PublishAgentModal } from '@/components/marketplace/PublishAgentModal'
 import { CustomToolEditor } from '@/components/agents/CustomToolEditor'
+import { VoiceProfileTab } from '@/components/agents/VoiceProfileTab'
+import { OutputTemplateTab } from '@/components/agents/OutputTemplateTab'
 import { unpublishAgent } from '@/db/marketplace'
 import { StatusIndicator } from '@/components/ui/StatusIndicator'
 import { agentSchema, MODEL_OPTIONS, BUILT_IN_TOOLS, getActiveModelOptions, mergeModelOptions, inferProviderFromModel } from '@/lib/agentSchema'
@@ -29,10 +31,12 @@ import type { AgentFormData } from '@/lib/agentSchema'
 import type { CustomTool } from '@/types'
 import type { ZodError } from 'zod'
 
-type TabKey = 'config' | 'history' | 'triggers' | 'activity'
+type TabKey = 'config' | 'voice' | 'output' | 'history' | 'triggers' | 'activity'
 
 const tabs: { key: TabKey; label: string; icon: typeof Settings2 }[] = [
     { key: 'config', label: 'Configuration', icon: Settings2 },
+    { key: 'voice', label: 'Voice Profile', icon: Mic },
+    { key: 'output', label: 'Output Template', icon: FileOutput },
     { key: 'history', label: 'History', icon: History },
     { key: 'triggers', label: 'Triggers', icon: Zap },
     { key: 'activity', label: 'Activity', icon: Activity },
@@ -350,6 +354,25 @@ export function AgentDetail() {
                         updateField('system_prompt', prompt)
                         setActiveTab('config')
                     }}
+                />
+            )}
+
+            {activeTab === 'voice' && id && workspaceId && (
+                <VoiceProfileTab
+                    agentId={id}
+                    workspaceId={workspaceId}
+                    currentProfile={agent.voice_profile ?? null}
+                    currentProfileId={agent.voice_profile_id ?? null}
+                    onChanged={() => setHasChanges(true)}
+                />
+            )}
+
+            {activeTab === 'output' && id && workspaceId && (
+                <OutputTemplateTab
+                    agentId={id}
+                    workspaceId={workspaceId}
+                    currentTemplateId={agent.output_template_id ?? null}
+                    onChanged={() => setHasChanges(true)}
                 />
             )}
 

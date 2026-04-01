@@ -354,7 +354,20 @@ function buildSpeakerSystemPrompt(
 
     const basePrompt = speaker.system_prompt || 'You are a helpful AI assistant.';
 
-    return `${basePrompt}
+    // Inject voice profile if configured
+    let voiceBlock = '';
+    if (speaker.voice_profile) {
+        const vp = speaker.voice_profile;
+        const voiceSections: string[] = [];
+        if (vp.tone) voiceSections.push(`Tone: ${vp.tone}`);
+        if (vp.custom_instructions) voiceSections.push(vp.custom_instructions);
+        if (vp.output_format_hints) voiceSections.push(`Output format: ${vp.output_format_hints}`);
+        if (voiceSections.length > 0) {
+            voiceBlock = `\n\n## Voice & Tone\n${voiceSections.join('\n')}`;
+        }
+    }
+
+    return `${basePrompt}${voiceBlock}
 
 You are participating in a collaborative discussion with other agents:
 ${otherAgents}

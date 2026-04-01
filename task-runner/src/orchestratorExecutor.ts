@@ -9,7 +9,23 @@ import { executeLLMCall } from './llmHelper';
 import { writeTeamRunUsageRecord } from './usageWriter';
 import { dispatchTeamRunWebhooks } from './webhookDispatcher';
 import { storeTeamMemory, retrieveRelevantMemories, buildMemoryContext } from './teamMemory';
-import type { TeamRun, Agent, OrchestratorConfig, Delegation, TokenUsage } from './types';
+import type { TeamRun, Agent, OrchestratorConfig, Delegation, TokenUsage, VoiceProfileInline } from './types';
+
+// ─── Voice Profile Injection Helper ──────────────────────────────────────────
+
+function buildSystemPromptWithVoice(basePrompt: string, voiceProfile: VoiceProfileInline | null): string {
+    let systemPrompt = basePrompt;
+    if (voiceProfile) {
+        const voiceSections: string[] = [];
+        if (voiceProfile.tone) voiceSections.push(`Tone: ${voiceProfile.tone}`);
+        if (voiceProfile.custom_instructions) voiceSections.push(voiceProfile.custom_instructions);
+        if (voiceProfile.output_format_hints) voiceSections.push(`Output format: ${voiceProfile.output_format_hints}`);
+        if (voiceSections.length > 0) {
+            systemPrompt += `\n\n## Voice & Tone\n${voiceSections.join('\n')}`;
+        }
+    }
+    return systemPrompt;
+}
 
 // ─── Tool Definitions ────────────────────────────────────────────────────────
 
@@ -379,7 +395,7 @@ async function executeToolCall(
                 const workerResult = await executeLLMCall({
                     workspaceId: run.workspace_id,
                     agentId,
-                    systemPrompt: worker.system_prompt || 'You are a helpful AI assistant.',
+                    systemPrompt: buildSystemPromptWithVoice(worker.system_prompt || 'You are a helpful AI assistant.', worker.voice_profile),
                     userPrompt: instruction,
                     enableTools: true,
                 });
@@ -453,7 +469,7 @@ async function executeToolCall(
                 const workerResult = await executeLLMCall({
                     workspaceId: run.workspace_id,
                     agentId: delegation.worker_agent_id,
-                    systemPrompt: worker?.system_prompt || 'You are a helpful AI assistant.',
+                    systemPrompt: buildSystemPromptWithVoice(worker?.system_prompt || 'You are a helpful AI assistant.', worker?.voice_profile ?? null),
                     userPrompt: revisionPrompt,
                     enableTools: true,
                 });
