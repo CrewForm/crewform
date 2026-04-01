@@ -2,11 +2,13 @@
 // Copyright (C) 2026 CrewForm
 
 import { useState } from 'react'
-import { Plus, Trash2, Pencil, ToggleLeft, ToggleRight, Plug, ExternalLink, Server, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react'
+import { Plus, Trash2, Pencil, ToggleLeft, ToggleRight, Plug, ExternalLink, Server, RefreshCw, CheckCircle2, AlertCircle, Cpu } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import { useMcpServers, useCreateMcpServer, useUpdateMcpServer, useDeleteMcpServer } from '@/hooks/useMcpServers'
 import { discoverMcpTools } from '@/db/mcpServers'
 import type { McpServer } from '@/db/mcpServers'
 import { useWorkspace } from '@/hooks/useWorkspace'
+import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 
 interface McpServerFormData {
@@ -341,6 +343,169 @@ export function McpServersSettings() {
                         >
                             {editId ? 'Update' : 'Add Server'}
                         </button>
+                    </div>
+                </div>
+            )}
+
+            {/* ─── MCP Server Publishing ─────────────────────────────────── */}
+            <hr className="my-8 border-border" />
+            <McpServerPublishing />
+        </div>
+    )
+}
+
+// ─── MCP Server Publishing Section ──────────────────────────────────────────
+
+function McpServerPublishing() {
+    const { workspaceId } = useWorkspace()
+    const [copied, setCopied] = useState(false)
+
+    // Fetch agents that are MCP-published
+    const { data: publishedAgents, isLoading } = useQuery({
+        queryKey: ['agents', workspaceId, 'mcp-published'],
+        queryFn: async () => {
+            if (!workspaceId) return []
+            const { data } = await supabase
+                .from('agents')
+                .select('id, name, description')
+                .eq('workspace_id', workspaceId)
+                .eq('is_mcp_published', true)
+                .order('name')
+            return (data ?? []) as Array<{ id: string; name: string; description: string }>
+        },
+        enabled: !!workspaceId,
+    })
+
+    // Fetch MCP server API key
+    const { data: mcpKey } = useQuery({
+        queryKey: ['api-keys', workspaceId, 'mcp-server'],
+        queryFn: async () => {
+            if (!workspaceId) return null
+            const { data } = await supabase
+                .from('api_keys')
+                .select('encrypted_key')
+                .eq('workspace_id', workspaceId)
+                .eq('provider', 'mcp-server')
+                .single()
+            return (data as { encrypted_key: string } | null)?.encrypted_key ?? null
+        },
+        enabled: !!workspaceId,
+    })
+
+    // Fall back to A2A key if no mcp-server key
+    const { data: a2aKey } = useQuery({
+        queryKey: ['api-keys', workspaceId, 'a2a-fallback'],
+        queryFn: async () => {
+            if (!workspaceId || mcpKey) return null
+            const { data } = await supabase
+                .from('api_keys')
+                .select('encrypted_key')
+                .eq('workspace_id', workspaceId)
+                .eq('provider', 'a2a')
+                .single()
+            return (data as { encrypted_key: string } | null)?.encrypted_key ?? null
+        },
+        enabled: !!workspaceId && mcpKey === null,
+    })
+
+    const apiKey = mcpKey ?? a2aKey ?? 'YOUR_MCP_API_KEY'
+    const taskRunnerUrl = import.meta.env.VITE_TASK_RUNNER_URL as string || 'http://localhost:3001'
+    const mcpEndpoint = `${taskRunnerUrl}/mcp`
+
+    const configSnippet = JSON.stringify({
+        mcpServers: {
+            crewform: {
+                url: mcpEndpoint,
+                headers: {
+                    Authorization: `Bearer ${apiKey}`,
+                },
+            },
+        },
+    }, null, 2)
+
+    function copyConfig() {
+        void navigator.clipboard.writeText(configSnippet)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+    }
+
+    return (
+        <div>
+            <div className="mb-2">
+                <h2 className="text-lg font-semibold text-gray-100">MCP Server Publishing</h2>
+                <p className="text-sm text-gray-500">
+                    Expose your agents as MCP tools so external clients (Claude Desktop, Cursor, other agents) can call them.
+                </p>
+            </div>
+
+            {/* Published agents */}
+            <div className="mt-4">
+                <h3 className="text-sm font-medium text-gray-400 mb-2">Published Agents</h3>
+                {isLoading ? (
+                    <div className="text-sm text-gray-600">Loading…</div>
+                ) : !publishedAgents || publishedAgents.length === 0 ? (
+                    <div className="rounded-lg border border-dashed border-border py-6 text-center">
+                        <Cpu className="mx-auto h-6 w-6 text-gray-600 mb-2" />
+                        <p className="text-sm text-gray-500">No agents published as MCP tools yet.</p>
+                        <p className="mt-1 text-xs text-gray-600">
+                            Go to an agent's detail page and click "MCP Publish" to expose it.
+                        </p>
+                    </div>
+                ) : (
+                    <div className="space-y-2">
+                        {publishedAgents.map((agent) => {
+                            const toolName = agent.name
+                                .toLowerCase()
+                                .replace(/[^a-z0-9]+/g, '_')
+                                .replace(/^_|_$/g, '')
+                                .slice(0, 64)
+                            return (
+                                <div
+                                    key={agent.id}
+                                    className="flex items-center justify-between rounded-lg border border-brand-primary/20 bg-brand-muted/5 px-4 py-2.5"
+                                >
+                                    <div className="min-w-0 flex-1">
+                                        <span className="text-sm font-medium text-gray-200">{agent.name}</span>
+                                        <span className="ml-2 rounded bg-surface-elevated px-1.5 py-0.5 text-[10px] font-mono text-gray-500">
+                                            {toolName}
+                                        </span>
+                                    </div>
+                                    <CheckCircle2 className="h-4 w-4 text-brand-primary shrink-0" />
+                                </div>
+                            )
+                        })}
+                    </div>
+                )}
+            </div>
+
+            {/* Connection config */}
+            {publishedAgents && publishedAgents.length > 0 && (
+                <div className="mt-6">
+                    <h3 className="text-sm font-medium text-gray-400 mb-2">Connection Config</h3>
+                    <p className="text-xs text-gray-600 mb-2">
+                        Add this to your Claude Desktop config (<code className="text-gray-500">claude_desktop_config.json</code>) or Cursor MCP settings:
+                    </p>
+                    <div className="relative">
+                        <pre className="rounded-lg border border-border bg-surface-elevated p-4 text-xs font-mono text-gray-300 overflow-x-auto">
+                            {configSnippet}
+                        </pre>
+                        <button
+                            type="button"
+                            onClick={copyConfig}
+                            className="absolute top-2 right-2 rounded px-2 py-1 text-xs text-gray-500 hover:text-gray-300 hover:bg-surface-card transition-colors"
+                        >
+                            {copied ? '✓ Copied' : 'Copy'}
+                        </button>
+                    </div>
+                    <div className="mt-3 rounded-lg bg-brand-muted/10 border border-brand-primary/20 px-4 py-2.5">
+                        <p className="text-xs text-gray-400">
+                            <span className="font-medium text-gray-300">Endpoint:</span>{' '}
+                            <code className="text-brand-primary">{mcpEndpoint}</code>
+                        </p>
+                        <p className="text-xs text-gray-400 mt-1">
+                            <span className="font-medium text-gray-300">Auth:</span>{' '}
+                            Bearer token (uses your A2A or MCP-server API key)
+                        </p>
                     </div>
                 </div>
             )}

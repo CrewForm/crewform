@@ -301,6 +301,32 @@ export function AgentDetail() {
                         </button>
                     )}
 
+                    {/* MCP Server toggle */}
+                    <button
+                        type="button"
+                        onClick={() => {
+                            updateMutation.mutate(
+                                { id: agent.id, data: { is_mcp_published: !agent.is_mcp_published } },
+                                {
+                                    onSuccess: () => {
+                                        toast.success(agent.is_mcp_published ? 'Agent removed from MCP server' : 'Agent published as MCP tool')
+                                    },
+                                    onError: () => { toast.error('Failed to update MCP status') },
+                                },
+                            )
+                        }}
+                        className={cn(
+                            'flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors',
+                            agent.is_mcp_published
+                                ? 'border-brand-primary/30 text-brand-primary hover:bg-brand-muted/20'
+                                : 'border-border text-gray-500 hover:bg-surface-elevated hover:text-gray-300',
+                        )}
+                        title={agent.is_mcp_published ? 'This agent is exposed as an MCP tool' : 'Expose this agent as an MCP tool'}
+                    >
+                        <Cpu className="h-4 w-4" />
+                        {agent.is_mcp_published ? 'MCP Published' : 'MCP Publish'}
+                    </button>
+
                     {/* Delete button */}
                     <button
                         type="button"

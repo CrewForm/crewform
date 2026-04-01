@@ -37,6 +37,7 @@ export interface Agent {
     voice_profile: VoiceProfileInline | null;
     voice_profile_id: string | null;
     output_template_id: string | null;
+    is_mcp_published: boolean;
 }
 
 export interface VoiceProfileInline {

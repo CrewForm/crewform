@@ -8,6 +8,7 @@ import { writeTeamRunAudit } from './auditWriter';
 import { isFeatureEnabled } from './license';
 import { handleA2ARequest } from './a2aServer';
 import { handleAgUiRequest } from './agUiServer';
+import { handleMcpServerRequest } from './mcpServer';
 import {
     registerRunner, deregisterRunner, getRunnerId, getInstanceName,
     runRecoverySweep, RECOVERY_INTERVAL_MS, MAX_CONCURRENT, decrementLoad,
@@ -236,6 +237,10 @@ function createWebhookServer(): http.Server {
             void handleAgUiRequest(req, res).then((agUiHandled) => {
                 if (agUiHandled) return;
 
+                // MCP Server endpoint (expose agents as MCP tools)
+                void handleMcpServerRequest(req, res).then((mcpHandled) => {
+                    if (mcpHandled) return;
+
                 // Health check
                 if (req.method === 'GET' && req.url === '/health') {
                     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -286,6 +291,7 @@ function createWebhookServer(): http.Server {
                 // 404 for everything else
                 res.writeHead(404, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: 'Not found' }));
+                }); // end handleMcpServerRequest.then
             }); // end handleAgUiRequest.then
         }); // end handleA2ARequest.then
     });

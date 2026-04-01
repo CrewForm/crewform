@@ -72,6 +72,7 @@ export interface Agent {
   config: Record<string, unknown>
   // Marketplace fields
   is_published: boolean
+  is_mcp_published: boolean
   marketplace_tags: string[]
   install_count: number
   rating_avg: number

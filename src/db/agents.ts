@@ -69,7 +69,9 @@ export async function createAgent(input: CreateAgentInput): Promise<Agent> {
 }
 
 /** Update an existing agent */
-export type UpdateAgentInput = Partial<Omit<CreateAgentInput, 'workspace_id'>>
+export type UpdateAgentInput = Partial<Omit<CreateAgentInput, 'workspace_id'>> & {
+    is_mcp_published?: boolean
+}
 
 export async function updateAgent(id: string, input: UpdateAgentInput): Promise<Agent> {
     // Snapshot old prompt if system_prompt is being changed
