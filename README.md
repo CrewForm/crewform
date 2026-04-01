@@ -129,6 +129,16 @@
 </td>
 <td align="center" width="25%">
 🐳<br/><strong>Local AI via Ollama</strong><br/>Air-gapped setup — zero data leaving your network
+</tr>
+<tr>
+<td align="center" width="25%">
+🎙️<br/><strong>Voice Profiles</strong><br/>Control agent tone, style, and brand voice consistency
+</td>
+<td align="center" width="25%">
+📝<br/><strong>Output Templates</strong><br/>Format results with {{variable}} templates
+</td>
+<td align="center" width="25%">
+🔀<br/><strong>Fan-Out Branching</strong><br/>Parallel pipeline steps with merge agents
 </td>
 <td align="center" width="25%">
 🛡️<br/><strong>RBAC & Workspaces</strong><br/>Role-based access, multi-tenant isolation
@@ -259,6 +269,9 @@ Each client gets their own workspace. Custom agents built around their tools and
 - 🔒 **Secure by Default** — AES-256-GCM key encryption, Row-Level Security, GDPR-ready
 - ⚡ **Real-Time** — Watch your agents work in real-time with live task execution updates
 - 🎨 **Visual Workflow Canvas** — Drag-and-drop agents onto an interactive canvas with live execution visualization, glassmorphism nodes, transcript panel, tool activity heatmap, keyboard shortcuts, and camera auto-follow
+- 🎙️ **Voice Profiles** — Control agent tone, custom instructions, and output format hints; save as reusable brand voice templates
+- 📝 **Output Templates** — Format results with `{{variable}}` placeholders for consistent, structured output
+- 🔀 **Fan-Out Branching** — Parallel pipeline steps that dispatch to multiple agents simultaneously, then merge results
 - 📊 **Usage Tracking** — Monitor token usage, costs, and performance per agent and task
 
 ### Enterprise Edition (Paid Plans)

@@ -104,6 +104,81 @@ This is step 3 in a multi-step pipeline. 2 previous steps have completed.
 | **Stop** | Halts the entire pipeline. The run is marked as failed. |
 | **Skip** | Marks the step as skipped and continues to the next step. The next step won't receive output from the skipped step. |
 
+## Fan-Out (Parallel Branching)
+
+Pipeline teams support **fan-out steps** — a single step that dispatches work to multiple agents in parallel, then merges the results.
+
+```
+Input → Agent A → [Fan-Out] → Agent B  ─┐
+                             → Agent C  ─┤→ Merge Agent D → Agent E → Output
+                             → Agent D  ─┘
+                  (parallel branches)    (merge)
+```
+
+### Creating a Fan-Out Step
+
+1. In the pipeline step list, click **+ Add Fan-Out Step**
+2. Select **Parallel Agents** — the agents that will run concurrently
+3. Select a **Merge Agent** — the agent that receives all branch results and synthesizes them
+4. Configure **Merge Instructions** — how the merge agent should combine the outputs
+5. Choose a **Failure Mode** — what happens if a branch fails
+
+### Fan-Out Step Configuration
+
+| Field | Description |
+|-------|-------------|
+| **Parallel Agents** | 2+ agents that execute concurrently on the same input |
+| **Merge Agent** | Single agent that receives all branch outputs and produces a unified result |
+| **Merge Instructions** | Specific instructions for the merge agent on how to combine results |
+| **On Branch Failure** | `fail_fast` (stop all branches), `continue` (complete remaining branches), or `skip` |
+
+### Failure Modes
+
+| Mode | Behavior |
+|------|----------|
+| **Fail Fast** | If any branch fails, cancel remaining branches and fail the step |
+| **Continue** | Complete all remaining branches; pass successful results to the merge agent |
+| **Skip** | Skip the entire fan-out step; proceed to the next pipeline step |
+
+### Canvas Visualization
+
+On the visual workflow canvas, fan-out steps render as a **branching pattern**:
+- A **fan-out node** splits into parallel branch edges
+- Each **branch agent** appears as a separate node
+- Branches converge at a **merge node**
+- During execution, each branch shows its individual status (running/completed/failed)
+
+### Example: Multi-Perspective Analysis
+
+A fan-out step for analyzing a business proposal from multiple angles:
+
+**Parallel Agents:**
+- Financial Analyst → evaluates ROI and risk
+- Technical Reviewer → assesses feasibility
+- Market Researcher → checks competitive landscape
+
+**Merge Agent:** Strategy lead synthesizes all three perspectives into a recommendation.
+
+### Pipeline Context for Merge Agents
+
+The merge agent receives a special context block:
+
+```
+## Fan-Out Branch Results
+
+### Branch 1: Financial Analyst
+[Financial analysis output]
+
+### Branch 2: Technical Reviewer
+[Technical assessment output]
+
+### Branch 3: Market Researcher
+[Market research output]
+
+## Merge Instructions
+Synthesize all branch results into a single strategic recommendation.
+```
+
 ## Best Practices
 
 1. **Start simple** — Begin with 2-3 steps and add complexity gradually
