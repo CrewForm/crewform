@@ -4,6 +4,31 @@ All notable changes to CrewForm will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.6.0] - 2026-04-01
+
+### Added
+
+- **Fan-Out Pipelines** — Pipeline steps can now branch into multiple agents running in parallel, with configurable merge agent and failure modes (`fail_fast` / `continue_on_partial`)
+- **Fan-Out Config UI** — New "Add Fan-Out" button in pipeline config panel with multi-agent checklist, merge agent selector, merge instructions, and branch failure mode
+- **Fan-Out Canvas Visualization** — Workflow canvas renders fan-out steps as branching nodes with amber-colored edges and merge points
+- **Fan-Out Progress Rail** — Real-time execution rail shows parallel branch status indicators per agent
+- **Visual Builder Phase 2** — Glassmorphism node styling, live transcript panel, keyboard shortcuts, and tool usage heatmap
+- **Multi-Directional Handles** — Canvas supports both top-to-bottom and left-to-right layout directions with correct edge handle switching
+- **Pipeline Step Insertion** — Right-click any edge on the canvas to insert a new agent step between existing steps
+- **README Comparison Table** — "How CrewForm Compares" section with 11-row feature comparison (CrewForm vs alternatives)
+- **README Hero GIF** — Animated pipeline run GIF as README hero image
+
+### Fixed
+
+- **Fan-Out Canvas Roundtrip** — Canvas changes no longer destroy fan-out configuration; graph-to-config reverse mapping correctly groups fan-out branch/merge nodes
+- **Edge Handle Persistence** — Edge handles now persist correctly when switching between TB/LR layout directions
+- **Edge Handle Direction** — Edges connect to correct side handles based on layout direction
+
+### Changed
+
+- Updated LLM provider count from 15 to 16 (Moonshot added)
+- Pipeline validation now skips `agent_id` check for fan-out steps
+
 ## [1.5.0] - 2026-03-27
 
 ### Added
