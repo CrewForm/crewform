@@ -31,7 +31,7 @@ const settingsTabs: { key: SettingsTab; label: string; icon: typeof KeyRound; ee
   { key: 'members', label: 'Members', icon: Users, eeFeature: 'rbac' },
   { key: 'workspace', label: 'Workspace', icon: Building2 },
   { key: 'billing', label: 'Billing', icon: CreditCard },
-  { key: 'audit-log', label: 'Audit Log', icon: ScrollText, eeFeature: 'audit_logs' },
+  { key: 'audit-log', label: 'Audit Log', icon: ScrollText },
   { key: 'automations', label: 'Automations', icon: Zap },
   { key: 'mcp-servers', label: 'MCP Servers', icon: Plug },
   { key: 'a2a', label: 'A2A Protocol', icon: Link2 },
