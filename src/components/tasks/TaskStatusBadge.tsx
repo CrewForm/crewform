@@ -8,6 +8,7 @@ const STATUS_CONFIG: Record<TaskStatus, { label: string; className: string }> = 
     pending: { label: 'Pending', className: 'bg-gray-500/10 text-gray-400 border-gray-500/30' },
     dispatched: { label: 'Dispatched', className: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30 animate-pulse' },
     running: { label: 'Running', className: 'bg-blue-500/10 text-blue-400 border-blue-500/30 animate-pulse' },
+    waiting_for_input: { label: 'Waiting', className: 'bg-amber-500/10 text-amber-400 border-amber-500/30 animate-pulse' },
     completed: { label: 'Completed', className: 'bg-green-500/10 text-green-400 border-green-500/30' },
     failed: { label: 'Failed', className: 'bg-red-500/10 text-red-400 border-red-500/30' },
     cancelled: { label: 'Cancelled', className: 'bg-gray-500/10 text-gray-500 border-gray-500/20' },

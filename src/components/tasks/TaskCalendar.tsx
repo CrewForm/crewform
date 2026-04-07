@@ -16,6 +16,7 @@ const STATUS_COLORS: Record<TaskStatus, string> = {
     pending: 'bg-yellow-400',
     dispatched: 'bg-blue-400',
     running: 'bg-purple-400',
+    waiting_for_input: 'bg-amber-400',
     completed: 'bg-green-400',
     failed: 'bg-red-400',
     cancelled: 'bg-gray-500',

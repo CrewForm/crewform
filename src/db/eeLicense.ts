@@ -73,7 +73,8 @@ export async function validateLicenseKey(
     })
 
     if (result.error) {
-        return { valid: false, error: result.error.message }
+        const err = result.error as { message?: string }
+        return { valid: false, error: err.message ?? 'Validation failed' }
     }
 
     return result.data as LicenseValidationResult
@@ -84,7 +85,7 @@ export async function validateLicenseKey(
  * Returns null if never validated.
  */
 export function getValidatedAt(license: EELicense): Date | null {
-    const ts = license.metadata?.validated_at
+    const ts = license.metadata.validated_at
     if (typeof ts === 'string') {
         const d = new Date(ts)
         return isNaN(d.getTime()) ? null : d
