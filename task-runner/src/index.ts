@@ -14,6 +14,7 @@ import {
     runRecoverySweep, RECOVERY_INTERVAL_MS, MAX_CONCURRENT, decrementLoad,
 } from './runnerRegistry';
 import { evaluateTriggers, TRIGGER_EVAL_INTERVAL_MS } from './triggerScheduler';
+import { initTracing, isTracingEnabled, startTrace, startSpan, endSpan, endTrace, flushTraces } from './tracing';
 import type { Task, TeamRun } from './types';
 
 // ─── Configuration ───────────────────────────────────────────────────────────
@@ -89,31 +90,55 @@ async function executeTeamRun(run: TeamRun): Promise<void> {
 
     const teamMode = (teamResponse.data as { mode: string } | null)?.mode ?? 'pipeline';
 
-    // Gate EE modes behind license check
-    if (teamMode === 'orchestrator') {
-        const allowed = await isFeatureEnabled(run.workspace_id, 'orchestrator_mode');
-        if (!allowed) {
-            log(`Orchestrator mode requires an Enterprise license — failing run ${run.id}`);
-            await supabase.from('team_runs').update({
-                status: 'failed',
-                output: 'Orchestrator mode requires a Pro plan or above. Please upgrade at crewform.tech/pricing.',
-            }).eq('id', run.id);
-            return;
+    // ── Tracing: start team run trace ──
+    const traceCtx = isTracingEnabled() ? startTrace('team.run', {
+        'crewform.team_id': run.team_id,
+        'crewform.workspace_id': run.workspace_id,
+        'crewform.run_id': run.id,
+        'crewform.team_mode': teamMode,
+    }) : undefined;
+
+    try {
+        // Gate EE modes behind license check
+        if (teamMode === 'orchestrator') {
+            const allowed = await isFeatureEnabled(run.workspace_id, 'orchestrator_mode');
+            if (!allowed) {
+                log(`Orchestrator mode requires an Enterprise license — failing run ${run.id}`);
+                await supabase.from('team_runs').update({
+                    status: 'failed',
+                    output: 'Orchestrator mode requires a Pro plan or above. Please upgrade at crewform.tech/pricing.',
+                }).eq('id', run.id);
+                if (traceCtx) endTrace(traceCtx, 'error', 'License check failed: orchestrator mode');
+                return;
+            }
+            const oSpan = traceCtx ? startSpan(traceCtx, 'orchestrator.execute') : undefined;
+            await processOrchestratorRun(run);
+            if (oSpan) endSpan(oSpan);
+        } else if (teamMode === 'collaboration') {
+            const allowed = await isFeatureEnabled(run.workspace_id, 'collaboration_mode');
+            if (!allowed) {
+                log(`Collaboration mode requires an Enterprise license — failing run ${run.id}`);
+                await supabase.from('team_runs').update({
+                    status: 'failed',
+                    output: 'Collaboration mode requires a Team plan or above. Please upgrade at crewform.tech/pricing.',
+                }).eq('id', run.id);
+                if (traceCtx) endTrace(traceCtx, 'error', 'License check failed: collaboration mode');
+                return;
+            }
+            const cSpan = traceCtx ? startSpan(traceCtx, 'collaboration.execute') : undefined;
+            await processCollaborationRun(run);
+            if (cSpan) endSpan(cSpan);
+        } else {
+            const pSpan = traceCtx ? startSpan(traceCtx, 'pipeline.execute') : undefined;
+            await processPipelineRun(run);
+            if (pSpan) endSpan(pSpan);
         }
-        await processOrchestratorRun(run);
-    } else if (teamMode === 'collaboration') {
-        const allowed = await isFeatureEnabled(run.workspace_id, 'collaboration_mode');
-        if (!allowed) {
-            log(`Collaboration mode requires an Enterprise license — failing run ${run.id}`);
-            await supabase.from('team_runs').update({
-                status: 'failed',
-                output: 'Collaboration mode requires a Team plan or above. Please upgrade at crewform.tech/pricing.',
-            }).eq('id', run.id);
-            return;
-        }
-        await processCollaborationRun(run);
-    } else {
-        await processPipelineRun(run);
+
+        if (traceCtx) endTrace(traceCtx, 'success');
+    } catch (err: unknown) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        if (traceCtx) endTrace(traceCtx, 'error', errMsg);
+        throw err;
     }
 
     void writeTeamRunAudit(run.workspace_id, run.created_by, 'team_run_completed', {
@@ -305,6 +330,9 @@ async function start() {
     try {
         const id = await registerRunner();
         log(`Registered with ID ${id}`);
+
+        // Initialize OpenTelemetry tracing (no-op if no env vars set)
+        await initTracing();
 
         // Validate EE licenses (HMAC signature check if CREWFORM_LICENSE_SECRET is set)
         await validateLicensesOnStartup();

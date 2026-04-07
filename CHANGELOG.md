@@ -29,6 +29,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - 24-hour periodic re-validation with 7-day offline grace period
   - Validation status display (last validated, stale indicator) in the License Admin panel
   - Invalid/forged keys are automatically marked as `invalid` in the database
+- **Observability & Tracing** — Opt-in OpenTelemetry + Langfuse integration for production debugging of multi-agent workflows:
+  - New `tracing.ts` module with zero-overhead lazy initialization (only loads SDKs when env vars are set)
+  - **Langfuse** support — LLM calls appear as Generations with model, token counts, cost, and prompt/output previews
+  - **Generic OTLP** support — works with Datadog, Jaeger, Grafana Tempo, and any OTLP-compatible backend
+  - Task execution traces with spans for MCP discovery, LLM calls, and tool invocations
+  - Team run traces with child spans for pipeline/orchestrator/collaboration execution
+  - Env vars: `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `OTEL_EXPORTER_OTLP_ENDPOINT`
 
 ### Changed
 
@@ -36,6 +43,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Documentation
 
+- **MCP Protocol** — Expanded docs to clearly document **MCP Client Execution** — agents autonomously invoke external MCP server tools during task runs via `callMcpTool()`. Added architecture diagram, runtime execution lifecycle (8-step flow), and example usage
+- **Observability** — New doc page covering Langfuse and OTLP setup, trace structure for tasks and team runs, environment variables, and Docker/self-hosted configuration
 - **API Reference** — Added AG-UI Protocol endpoints section (`POST /ag-ui/:agentId/sse`, `POST /ag-ui/:agentId/respond`, `GET /ag-ui/health`), added `waiting_for_input` to task statuses
 - **Agents Guide** — Added MCP Server Publishing section (publish toggle, tool name mapping, config snippet, client setup)
 - **Visual Workflow Builder** — Added Fan-Out Visualization section (fan-out/branch/merge node types, branching pattern, per-branch execution states)

@@ -10,6 +10,8 @@ import { loadInputFiles, buildFileContext, extractAndSaveArtifacts } from './fil
 import { connectToServer, discoverTools, disconnectAll as disconnectMcpClients } from './mcpClient';
 import type { McpServerConfig } from './mcpClient';
 import { agUiEventBus, AgUiEventType } from './agUiEventBus';
+import { startTrace, startSpan, startGeneration, endSpan, endSpanWithError, endGeneration, endTrace, isTracingEnabled } from './tracing';
+import type { TraceContext } from './tracing';
 import type { ToolDefinition } from './toolExecutor';
 import type { CustomToolConfig, ToolCallLog } from './toolExecutor';
 import type { Task, Agent, ApiKey, TokenUsage } from './types';
@@ -47,6 +49,16 @@ export async function processTask(task: Task) {
     // Find the auto-created agent_tasks record (created by DB trigger on dispatch)
     let agentTaskId: string | null = null;
     let agent: Agent | null = null;
+
+    // ── Tracing: start root trace for this task ──
+    let traceCtx: TraceContext | undefined;
+    if (isTracingEnabled()) {
+        traceCtx = startTrace('task.execute', {
+            'crewform.task_id': task.id,
+            'crewform.workspace_id': task.workspace_id,
+            'crewform.agent_id': task.assigned_agent_id ?? '',
+        });
+    }
 
     try {
         console.log(`[TaskRunner] Claimed task ${task.id} (Agent: ${task.assigned_agent_id})`);
@@ -207,6 +219,7 @@ export async function processTask(task: Task) {
         let mcpServers: McpServerConfig[] = [];
         const hasMcpTools = agentTools.some(t => t.startsWith('mcp:'));
         if (hasMcpTools) {
+            const mcpSpan = traceCtx ? startSpan(traceCtx, 'mcp.discover', { 'crewform.agent_name': agent.name }) : undefined;
             try {
                 const { data: mcpData } = await supabase
                     .from('mcp_servers')
@@ -228,9 +241,11 @@ export async function processTask(task: Task) {
                     }
                     console.log(`[TaskRunner] Loaded ${mcpToolDefs.length.toString()} MCP tools from ${mcpServers.length.toString()} servers`);
                 }
+                if (mcpSpan) endSpan(mcpSpan, { 'mcp.tool_count': mcpToolDefs.length, 'mcp.server_count': mcpServers.length });
             } catch (err: unknown) {
                 const msg = err instanceof Error ? err.message : String(err);
                 console.warn(`[TaskRunner] MCP server fetch failed (non-fatal): ${msg}`);
+                if (mcpSpan) endSpanWithError(mcpSpan, msg);
             }
         }
 
@@ -251,6 +266,14 @@ export async function processTask(task: Task) {
                 console.warn('[TaskRunner] web_search enabled but no Serper API key found');
             }
         }
+
+        // ── Tracing: start LLM generation span ──
+        const genHandle = traceCtx ? startGeneration(traceCtx, {
+            name: hasTools ? 'llm.tool_use_call' : 'llm.call',
+            model: effectiveModel,
+            provider: providerLower,
+            input: userPrompt.substring(0, 500),
+        }) : undefined;
 
         try {
             if (hasTools) {
@@ -370,6 +393,16 @@ export async function processTask(task: Task) {
             }
         }
 
+        // ── Tracing: end LLM generation span ──
+        if (genHandle && executionResult) {
+            endGeneration(genHandle, {
+                output: executionResult.result.substring(0, 500),
+                promptTokens: executionResult.usage.promptTokens,
+                completionTokens: executionResult.usage.completionTokens,
+                totalTokens: executionResult.usage.totalTokens,
+                costUsd: executionResult.usage.costEstimateUSD,
+            });
+        }
         // 4b. Apply output template if configured
         if (executionResult && agent.output_template_id) {
             try {
@@ -444,6 +477,11 @@ export async function processTask(task: Task) {
 
         console.log(`[TaskRunner] Completed task ${task.id} successfully.`);
 
+        // ── Tracing: end root trace ──
+        if (traceCtx) {
+            endTrace(traceCtx, 'success');
+        }
+
         // 7a. Mark agent as idle
         await supabase
             .from('agents')
@@ -479,6 +517,11 @@ export async function processTask(task: Task) {
     } catch (error: unknown) {
         const errMsg = error instanceof Error ? error.message : String(error);
         console.error(`[TaskRunner] Failed task ${task.id}:`, errMsg);
+
+        // ── Tracing: end root trace with error ──
+        if (traceCtx) {
+            endTrace(traceCtx, 'error', errMsg);
+        }
 
         // Finalize Task failure
         await supabase
