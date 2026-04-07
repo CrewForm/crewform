@@ -1,5 +1,34 @@
-export type TaskStatus = 'pending' | 'dispatched' | 'running' | 'completed' | 'failed' | 'cancelled';
+export type TaskStatus = 'pending' | 'dispatched' | 'running' | 'waiting_for_input' | 'completed' | 'failed' | 'cancelled';
 export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
+
+// ─── AG-UI Interaction Types ────────────────────────────────────────────────
+
+export type InteractionType = 'approval' | 'confirm_data' | 'choice';
+
+export interface InteractionChoice {
+    id: string;
+    label: string;
+    description?: string;
+}
+
+export interface InteractionContext {
+    interactionId: string;
+    type: InteractionType;
+    title: string;
+    description?: string;
+    data?: Record<string, unknown>;
+    choices?: InteractionChoice[];
+    requestedAt: number;
+    timeoutMs: number;
+}
+
+export interface InteractionResponse {
+    interactionId: string;
+    approved?: boolean;
+    data?: Record<string, unknown>;
+    selectedOptionId?: string;
+    respondedAt: number;
+}
 
 export interface Task {
     id: string;
@@ -13,6 +42,7 @@ export interface Task {
     result: string | null;
     error: string | null;
     metadata: Record<string, unknown> | null;
+    interaction_context: InteractionContext | null;
     created_by: string;
     created_at: string;
     updated_at: string;

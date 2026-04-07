@@ -20,6 +20,9 @@ export type AgUiEventType =
     | 'STATE_SNAPSHOT'
     | 'STATE_DELTA'
     | 'CUSTOM'
+    | 'INTERACTION_REQUEST'
+    | 'INTERACTION_RESPONSE'
+    | 'INTERACTION_TIMEOUT'
 
 export interface AgUiEvent {
     type: AgUiEventType
@@ -46,11 +49,23 @@ export interface AgUiToolCall {
     status: 'calling' | 'done'
 }
 
+export interface AgUiInteractionRequest {
+    interactionId: string
+    interactionType: 'approval' | 'confirm_data' | 'choice'
+    title: string
+    description?: string
+    data?: Record<string, unknown>
+    choices?: { id: string; label: string; description?: string }[]
+    timeoutMs: number
+    requestedAt: number
+}
+
 export interface AgUiStreamState {
     status: AgUiStreamStatus
     events: AgUiEvent[]
     textContent: string
     toolCalls: AgUiToolCall[]
+    pendingInteraction: AgUiInteractionRequest | null
     error: string | null
 }
 
@@ -71,12 +86,13 @@ export function useAgentStream(
     taskId: string,
     apiKey: string,
     enabled = false,
-): AgUiStreamState {
+): AgUiStreamState & { respond: (response: { interactionId: string; approved?: boolean; data?: Record<string, unknown>; selectedOptionId?: string }) => Promise<void> } {
     const [state, setState] = useState<AgUiStreamState>({
         status: 'idle',
         events: [],
         textContent: '',
         toolCalls: [],
+        pendingInteraction: null,
         error: null,
     })
     const abortRef = useRef<AbortController | null>(null)
@@ -187,6 +203,30 @@ export function useAgentStream(
                                         newStatus = 'error'
                                         newError = event.message ?? 'Unknown error'
                                         break
+
+                                    case 'INTERACTION_REQUEST':
+                                        return {
+                                            ...prev,
+                                            events: newEvents,
+                                            pendingInteraction: {
+                                                interactionId: event.interactionId as string,
+                                                interactionType: event.interactionType as 'approval' | 'confirm_data' | 'choice',
+                                                title: event.title as string,
+                                                description: event.description as string | undefined,
+                                                data: event.data as Record<string, unknown> | undefined,
+                                                choices: event.choices as { id: string; label: string; description?: string }[] | undefined,
+                                                timeoutMs: event.timeoutMs as number,
+                                                requestedAt: event.timestamp,
+                                            },
+                                        }
+
+                                    case 'INTERACTION_RESPONSE':
+                                    case 'INTERACTION_TIMEOUT':
+                                        return {
+                                            ...prev,
+                                            events: newEvents,
+                                            pendingInteraction: null,
+                                        }
                                 }
 
                                 return {
@@ -194,6 +234,7 @@ export function useAgentStream(
                                     events: newEvents,
                                     textContent: newText,
                                     toolCalls: newToolCalls,
+                                    pendingInteraction: prev.pendingInteraction,
                                     error: newError,
                                 }
                             })
@@ -218,5 +259,27 @@ export function useAgentStream(
         return () => { abortRef.current?.abort() }
     }, [connect])
 
-    return state
+    // ─── Respond to interactions ────────────────────────────────────────
+
+    const respond = useCallback(async (response: {
+        interactionId: string
+        approved?: boolean
+        data?: Record<string, unknown>
+        selectedOptionId?: string
+    }) => {
+        const url = `${taskRunnerUrl.replace(/\/$/, '')}/ag-ui/${agentId}/respond`
+        await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${apiKey}`,
+            },
+            body: JSON.stringify({
+                threadId: taskId,
+                ...response,
+            }),
+        })
+    }, [taskRunnerUrl, agentId, taskId, apiKey])
+
+    return { ...state, respond }
 }

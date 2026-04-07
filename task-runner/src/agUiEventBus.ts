@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // AG-UI Event Bus — in-process pub/sub for AG-UI protocol events.
 // The executor publishes events; the SSE endpoint subscribes per task.
+// Rich interactions: executor can request user input and wait for a response.
 
 import { EventEmitter } from 'events';
+import type { InteractionResponse } from './types';
 
 // ─── AG-UI Event Types ──────────────────────────────────────────────────────
 
@@ -21,6 +23,10 @@ export enum AgUiEventType {
     STATE_SNAPSHOT = 'STATE_SNAPSHOT',
     STATE_DELTA = 'STATE_DELTA',
     CUSTOM = 'CUSTOM',
+    // ─── Rich Interaction Events ─────────────────────────────────────────
+    INTERACTION_REQUEST = 'INTERACTION_REQUEST',
+    INTERACTION_RESPONSE = 'INTERACTION_RESPONSE',
+    INTERACTION_TIMEOUT = 'INTERACTION_TIMEOUT',
 }
 
 export interface AgUiEvent {
@@ -57,6 +63,7 @@ class AgUiEventBus {
             // Give SSE clients a moment to receive the final event, then clean up
             setTimeout(() => {
                 this.emitter.removeAllListeners(`agui:${taskId}`);
+                this.emitter.removeAllListeners(`agui-response:${taskId}`);
             }, 5000);
         }
     }
@@ -122,6 +129,76 @@ class AgUiEventBus {
     /** Check if there are active subscribers for a task */
     hasSubscribers(taskId: string): boolean {
         return this.emitter.listenerCount(`agui:${taskId}`) > 0;
+    }
+
+    // ─── Rich Interaction Support ───────────────────────────────────────
+
+    /**
+     * Wait for a user response to an interaction request.
+     * Returns a Promise that resolves with the response payload, or rejects on timeout.
+     *
+     * @param taskId The task ID
+     * @param interactionId Unique ID for this interaction
+     * @param timeoutMs Maximum time to wait (default 5 minutes)
+     */
+    waitForResponse(
+        taskId: string,
+        interactionId: string,
+        timeoutMs = 300_000,
+    ): Promise<InteractionResponse> {
+        return new Promise<InteractionResponse>((resolve, reject) => {
+            const channel = `agui-response:${taskId}`;
+            let timer: ReturnType<typeof setTimeout> | null = null;
+
+            const handler = (response: InteractionResponse) => {
+                if (response.interactionId !== interactionId) return;
+
+                // Matching response received — clean up and resolve
+                if (timer) clearTimeout(timer);
+                this.emitter.removeListener(channel, handler);
+                resolve(response);
+            };
+
+            this.emitter.on(channel, handler);
+
+            // Timeout — emit INTERACTION_TIMEOUT and reject
+            timer = setTimeout(() => {
+                this.emitter.removeListener(channel, handler);
+
+                // Emit timeout event to SSE subscribers
+                this.emit(taskId, {
+                    type: AgUiEventType.INTERACTION_TIMEOUT,
+                    timestamp: Date.now(),
+                    threadId: taskId,
+                    interactionId,
+                });
+
+                reject(new Error(`Interaction ${interactionId} timed out after ${timeoutMs}ms`));
+            }, timeoutMs);
+        });
+    }
+
+    /**
+     * Submit a response to an interaction request.
+     * Called by the /respond endpoint when a user submits their input.
+     *
+     * @param taskId The task ID
+     * @param response The user's response payload
+     */
+    respond(taskId: string, response: InteractionResponse): void {
+        // Emit to the waiting executor
+        this.emitter.emit(`agui-response:${taskId}`, response);
+
+        // Also emit as an AG-UI event for SSE subscribers (so the frontend knows the interaction was answered)
+        this.emit(taskId, {
+            type: AgUiEventType.INTERACTION_RESPONSE,
+            timestamp: Date.now(),
+            threadId: taskId,
+            interactionId: response.interactionId,
+            approved: response.approved,
+            data: response.data,
+            selectedOptionId: response.selectedOptionId,
+        });
     }
 }
 

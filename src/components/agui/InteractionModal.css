@@ -1,0 +1,287 @@
+/* AG-UI Interaction Modal — glassmorphism styling */
+
+.interaction-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(4px);
+    animation: interaction-overlay-in 0.2s ease-out;
+}
+
+.interaction-modal {
+    width: 100%;
+    max-width: 520px;
+    border-radius: 16px;
+    background: rgba(30, 30, 40, 0.85);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05);
+    animation: interaction-modal-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    overflow: hidden;
+}
+
+.interaction-modal-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 20px 20px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.interaction-modal-icon {
+    font-size: 24px;
+    line-height: 1;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.interaction-modal-title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #f1f1f3;
+    line-height: 1.3;
+}
+
+.interaction-modal-description {
+    margin: 4px 0 0;
+    font-size: 13px;
+    color: #9ca3af;
+    line-height: 1.4;
+}
+
+.interaction-modal-timer {
+    margin-left: auto;
+    flex-shrink: 0;
+    font-size: 13px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: #9ca3af;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 4px 10px;
+    border-radius: 8px;
+}
+
+.interaction-modal-timer.urgent {
+    color: #f87171;
+    background: rgba(248, 113, 113, 0.1);
+    animation: interaction-timer-pulse 1s infinite;
+}
+
+.interaction-modal-body {
+    padding: 16px 20px 20px;
+}
+
+/* ─── Actions ─────────────────────────────────────────────────────────────── */
+
+.interaction-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+.interaction-btn {
+    flex: 1;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.interaction-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.interaction-btn-approve {
+    background: rgba(52, 211, 153, 0.15);
+    color: #34d399;
+    border: 1px solid rgba(52, 211, 153, 0.2);
+}
+
+.interaction-btn-approve:hover:not(:disabled) {
+    background: rgba(52, 211, 153, 0.25);
+}
+
+.interaction-btn-reject {
+    background: rgba(248, 113, 113, 0.1);
+    color: #f87171;
+    border: 1px solid rgba(248, 113, 113, 0.15);
+}
+
+.interaction-btn-reject:hover:not(:disabled) {
+    background: rgba(248, 113, 113, 0.2);
+}
+
+.interaction-btn-edit {
+    background: rgba(96, 165, 250, 0.1);
+    color: #60a5fa;
+    border: 1px solid rgba(96, 165, 250, 0.15);
+}
+
+.interaction-btn-edit:hover:not(:disabled) {
+    background: rgba(96, 165, 250, 0.2);
+}
+
+/* ─── Data Table ──────────────────────────────────────────────────────────── */
+
+.interaction-data-table {
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.interaction-data-table table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.interaction-data-table th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #6b7280;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.interaction-data-table td {
+    padding: 8px 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.interaction-data-key {
+    font-size: 13px;
+    font-weight: 500;
+    color: #9ca3af;
+    width: 40%;
+}
+
+.interaction-data-value {
+    font-size: 13px;
+    color: #f1f1f3;
+    font-variant-numeric: tabular-nums;
+}
+
+.interaction-data-input {
+    width: 100%;
+    padding: 4px 8px;
+    border: 1px solid rgba(96, 165, 250, 0.3);
+    border-radius: 6px;
+    background: rgba(96, 165, 250, 0.05);
+    color: #f1f1f3;
+    font-size: 13px;
+    outline: none;
+}
+
+.interaction-data-input:focus {
+    border-color: rgba(96, 165, 250, 0.5);
+    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
+}
+
+/* ─── Choices ─────────────────────────────────────────────────────────────── */
+
+.interaction-choices {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.interaction-choice {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.02);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.interaction-choice:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.interaction-choice.selected {
+    background: rgba(139, 92, 246, 0.08);
+    border-color: rgba(139, 92, 246, 0.3);
+}
+
+.interaction-choice input[type="radio"] {
+    accent-color: #8b5cf6;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+}
+
+.interaction-choice-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.interaction-choice-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #f1f1f3;
+}
+
+.interaction-choice-desc {
+    font-size: 12px;
+    color: #6b7280;
+}
+
+/* ─── Footer ──────────────────────────────────────────────────────────────── */
+
+.interaction-modal-footer {
+    padding: 12px 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    display: flex;
+    justify-content: center;
+}
+
+.interaction-modal-badge {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #f59e0b;
+    background: rgba(245, 158, 11, 0.1);
+    padding: 4px 12px;
+    border-radius: 100px;
+}
+
+/* ─── Animations ──────────────────────────────────────────────────────────── */
+
+@keyframes interaction-overlay-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes interaction-modal-in {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes interaction-timer-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}

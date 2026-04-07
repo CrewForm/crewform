@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // AG-UI Protocol Server — SSE endpoint for streaming agent execution events.
-// Mounts at POST /ag-ui/:agentId/sse
+// Mounts at POST /ag-ui/:agentId/sse and POST /ag-ui/:agentId/respond
 
 import type { IncomingMessage, ServerResponse } from 'http';
 import { supabase } from './supabase';
 import { agUiEventBus } from './agUiEventBus';
 import type { AgUiEvent } from './agUiEventBus';
+import type { InteractionResponse } from './types';
 
 // ─── Auth ───────────────────────────────────────────────────────────────────
 
@@ -66,8 +67,9 @@ function sendJson(res: ServerResponse, status: number, data: unknown) {
 /**
  * Handle AG-UI protocol requests.
  * Routes:
- *   POST /ag-ui/:agentId/sse  — SSE event stream
- *   OPTIONS /ag-ui/*           — CORS preflight
+ *   POST /ag-ui/:agentId/sse      — SSE event stream
+ *   POST /ag-ui/:agentId/respond   — Submit interaction response
+ *   OPTIONS /ag-ui/*               — CORS preflight
  *
  * Returns true if the request was handled, false otherwise.
  */
@@ -174,9 +176,99 @@ export async function handleAgUiRequest(
         return true;
     }
 
+    // ─── POST /ag-ui/:agentId/respond — Submit interaction response ─────
+
+    const respondMatch = url.match(/^\/ag-ui\/([^/]+)\/respond/);
+    if (req.method === 'POST' && respondMatch) {
+        const agentId = respondMatch[1];
+
+        // Authenticate
+        const auth = await authenticateRequest(req);
+        if (!auth) {
+            sendJson(res, 401, { error: 'Unauthorized — provide Bearer token' });
+            return true;
+        }
+
+        // Parse response body
+        let body: {
+            threadId?: string;
+            interactionId?: string;
+            approved?: boolean;
+            data?: Record<string, unknown>;
+            selectedOptionId?: string;
+        };
+        try {
+            const raw = await readBody(req);
+            body = JSON.parse(raw) as typeof body;
+        } catch {
+            sendJson(res, 400, { error: 'Invalid JSON body' });
+            return true;
+        }
+
+        if (!body.threadId || !body.interactionId) {
+            sendJson(res, 400, { error: 'threadId and interactionId are required' });
+            return true;
+        }
+
+        // Verify agent belongs to workspace
+        const { data: agent } = await supabase
+            .from('agents')
+            .select('id')
+            .eq('id', agentId)
+            .eq('workspace_id', auth.workspaceId)
+            .single();
+
+        if (!agent) {
+            sendJson(res, 404, { error: 'Agent not found in workspace' });
+            return true;
+        }
+
+        // Verify the task exists and is waiting for input
+        const { data: task } = await supabase
+            .from('tasks')
+            .select('id, status')
+            .eq('id', body.threadId)
+            .eq('workspace_id', auth.workspaceId)
+            .single();
+
+        if (!task) {
+            sendJson(res, 404, { error: 'Task not found' });
+            return true;
+        }
+
+        if (task.status !== 'waiting_for_input') {
+            sendJson(res, 409, { error: `Task is not waiting for input (status: ${task.status as string})` });
+            return true;
+        }
+
+        // Build the response object
+        const response: InteractionResponse = {
+            interactionId: body.interactionId,
+            approved: body.approved,
+            data: body.data,
+            selectedOptionId: body.selectedOptionId,
+            respondedAt: Date.now(),
+        };
+
+        // Submit the response — this unblocks the waiting executor
+        agUiEventBus.respond(body.threadId, response);
+
+        // Clear interaction_context and reset status
+        await supabase
+            .from('tasks')
+            .update({
+                status: 'running',
+                interaction_context: null,
+            })
+            .eq('id', body.threadId);
+
+        sendJson(res, 200, { ok: true, interactionId: body.interactionId });
+        return true;
+    }
+
     // GET /ag-ui/health — health check for AG-UI
     if (req.method === 'GET' && url === '/ag-ui/health') {
-        sendJson(res, 200, { status: 'ok', protocol: 'ag-ui', version: '1.0' });
+        sendJson(res, 200, { status: 'ok', protocol: 'ag-ui', version: '1.1' });
         return true;
     }
 

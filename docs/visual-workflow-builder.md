@@ -31,9 +31,28 @@ The Visual Workflow Builder is available on any Team page via the **Canvas** tab
 
 - **Start Node** - Entry point of the workflow (green, with breathing pulse animation)
 - **Agent Nodes** - Represent individual agents with role badges (Brain/Worker/Reviewer)
+- **Fan-Out Node** - Splits into parallel branches (labeled "fan-out" on the first edge)
+- **Branch Agent Nodes** - Parallel agents that execute concurrently within a fan-out step
+- **Merge Node** - Converges branch outputs back into a single result
 - **End Node** - Terminal node of the workflow (red)
 
 All nodes use **glassmorphism styling** with frosted glass backgrounds, backdrop blur, translucent borders, and hover lift effects.
+
+### Fan-Out Visualization
+
+When a pipeline includes [fan-out steps](/pipeline-teams#fan-out-parallel-branching), the canvas renders a branching pattern:
+
+```
+... → Previous Step → [Fan-Out] → Branch Agent A  ─┐
+                                 → Branch Agent B  ─┤→ [Merge Agent] → Next Step → ...
+                                 → Branch Agent C  ─┘
+```
+
+- The **fan-out node** splits into multiple parallel edges, each leading to a branch agent
+- **Branch agents** appear as standard agent nodes, arranged side-by-side
+- A **merge node** collects all branch outputs — this is the agent that synthesizes results
+- During execution, each branch shows its **individual status** (Idle → Running → Completed/Failed)
+- The merge node only starts executing once all branches (or surviving branches, depending on failure mode) complete
 
 ### Drag and Drop
 
