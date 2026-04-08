@@ -179,7 +179,7 @@ data: {"type":"RUN_FINISHED","timestamp":1711000005,"threadId":"abc","runId":"ab
 
 ```bash
 curl http://localhost:3001/ag-ui/health
-# → {"status":"ok","protocol":"ag-ui","version":"1.0"}
+# → {"status":"ok","protocol":"ag-ui","version":"1.1"}
 ```
 
 ### Stream Events
