@@ -7,7 +7,9 @@ description: 'Trace and debug multi-agent workflows with Langfuse, Datadog, Jaeg
 
 CrewForm's task runner supports **opt-in observability** via OpenTelemetry and Langfuse. When enabled, every task execution, LLM call, tool invocation, and team run is traced with span-level detail — giving you full visibility into multi-agent workflows.
 
-<Info>Tracing is entirely opt-in. If no observability env vars are set, there is zero overhead — no SDK is loaded, no spans are emitted.</Info>
+<Info>
+  Tracing is entirely opt-in. If no observability env vars are set, there is zero overhead — no SDK is loaded, no spans are emitted.
+</Info>
 
 ## Supported Backends
 
@@ -115,7 +117,9 @@ task-runner:
     # - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318
 ```
 
-<Tip>For self-hosted Langfuse, you can run it alongside CrewForm in the same Docker Compose stack. See [langfuse.com/docs/deployment/self-host](https://langfuse.com/docs/deployment/self-host) for setup instructions.</Tip>
+<Tip>
+  For self-hosted Langfuse, you can run it alongside CrewForm in the same Docker Compose stack. See [langfuse.com/docs/deployment/self-host](https://langfuse.com/docs/deployment/self-host) for setup instructions.
+</Tip>
 
 ## Troubleshooting
 
@@ -127,6 +131,6 @@ task-runner:
 
 ### High Latency
 
-Tracing adds minimal overhead (typically <1ms per span). If you notice latency:
+Tracing adds minimal overhead (typically less than 1ms per span). If you notice latency:
 - Ensure your OTLP collector is network-local to the task runner
 - Langfuse batches traces automatically — no additional config needed
