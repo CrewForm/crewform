@@ -306,7 +306,7 @@ Each client gets their own workspace. Custom agents built around their tools and
 - 📡 **Messaging Channels** — Trigger agents from Discord, Slack, Telegram, and Email
 - 📤 **Output Routes** — Deliver results to Discord channels, Slack, webhooks, MS Teams, and more
 - 📈 **Advanced Analytics** — Charts, CSV export, prompt history with diffs *(Pro)*
-- 💬 **Chat Widget** — Embed agents on any website *(all plans)*
+- 💬 **Chat Widget** — Embed agents on any website *(Pro)*
 - 📋 **Audit Logs** — Full audit trail with Datadog/Splunk streaming *(Enterprise)*
 - 🐝 **Swarm** — Multi-runner concurrency pool *(Enterprise)*
 
@@ -325,6 +325,7 @@ CrewForm uses an **open-core** model: a free Community Edition under AGPL-3.0 an
 | Knowledge Base | 3 docs | 25 docs | Unlimited | Unlimited |
 | A2A Consume | ✅ | ✅ | ✅ | ✅ |
 | A2A Publish | — | ✅ | ✅ | ✅ |
+| Chat Widget | — | ✅ | ✅ | ✅ |
 | Pipeline Mode | ✅ | ✅ | ✅ | ✅ |
 | Orchestrator Mode | — | ✅ | ✅ | ✅ |
 | Collaboration Mode | — | — | ✅ | ✅ |

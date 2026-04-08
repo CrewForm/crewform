@@ -21,6 +21,7 @@ export const FEATURE_MIN_PLAN: Record<string, string> = {
     orchestrator_mode: 'Pro',
     messaging_channels: 'Pro',
     custom_tools: 'Pro',
+    chat_widget: 'Pro',
     // Team tier
     collaboration_mode: 'Team',
     team_memory: 'Team',

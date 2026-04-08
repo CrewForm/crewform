@@ -36,7 +36,7 @@ const settingsTabs: { key: SettingsTab; label: string; icon: typeof KeyRound; ee
   { key: 'automations', label: 'Automations', icon: Zap },
   { key: 'mcp-servers', label: 'MCP Servers', icon: Plug },
   { key: 'a2a', label: 'A2A Protocol', icon: Link2 },
-  { key: 'chat-widget', label: 'Chat Widget', icon: MessageCircle },
+  { key: 'chat-widget', label: 'Chat Widget', icon: MessageCircle, eeFeature: 'chat_widget' },
   { key: 'license', label: 'License', icon: ShieldCheck },
   { key: 'profile', label: 'Profile', icon: User },
 ]
