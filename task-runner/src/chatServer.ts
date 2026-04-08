@@ -310,7 +310,15 @@ async function handleSendMessage(
     }
 
     // Get or create session
-    const session = await getOrCreateSession(config, body.visitorId);
+    let session: ChatSession;
+    try {
+        session = await getOrCreateSession(config, body.visitorId);
+    } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Session creation failed';
+        console.error(`[Chat Widget] Session error: ${msg}`);
+        sendJson(res, 500, { error: `Session error: ${msg}` });
+        return;
+    }
 
     // Build conversation context from history
     const conversationContext = buildConversationContext(session.messages as ChatMessage[]);
@@ -331,7 +339,7 @@ async function handleSendMessage(
             status: 'dispatched',
             priority: 'medium',
             assigned_agent_id: config.agent_id,
-            created_by: '00000000-0000-0000-0000-000000000000', // system user
+            created_by: null, // system-created (no user context for widget)
             metadata: {
                 source: 'chat-widget',
                 widget_config_id: config.id,
@@ -342,7 +350,7 @@ async function handleSendMessage(
 
     if (insertError) {
         console.error(`[Chat Widget] Failed to create task: ${insertError.message}`);
-        sendJson(res, 500, { error: 'Failed to process message' });
+        sendJson(res, 500, { error: `Failed to process message: ${insertError.message}` });
         return;
     }
 
@@ -393,8 +401,10 @@ async function handleSendMessage(
                 break;
             }
         }
-    } catch {
-        // Stream ended or client disconnected — clean exit
+    } catch (streamErr: unknown) {
+        // Stream ended or client disconnected — log and clean exit
+        const msg = streamErr instanceof Error ? streamErr.message : 'stream error';
+        console.warn(`[Chat Widget] Stream ended: ${msg}`);
     }
 
     // If no streaming events were received (provider doesn't stream), poll for result
@@ -538,18 +548,27 @@ export async function handleChatRequest(
     // Route to handler
     const cleanUrl = url.split('?')[0]; // Remove query params for matching
 
-    if (req.method === 'GET' && cleanUrl === '/chat/config') {
-        await handleGetConfig(req, res, config);
-        return true;
-    }
+    try {
+        if (req.method === 'GET' && cleanUrl === '/chat/config') {
+            await handleGetConfig(req, res, config);
+            return true;
+        }
 
-    if (req.method === 'POST' && cleanUrl === '/chat/message') {
-        await handleSendMessage(req, res, config);
-        return true;
-    }
+        if (req.method === 'POST' && cleanUrl === '/chat/message') {
+            await handleSendMessage(req, res, config);
+            return true;
+        }
 
-    if (req.method === 'GET' && cleanUrl === '/chat/history') {
-        await handleGetHistory(req, res, config);
+        if (req.method === 'GET' && cleanUrl === '/chat/history') {
+            await handleGetHistory(req, res, config);
+            return true;
+        }
+    } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Internal server error';
+        console.error(`[Chat Widget] Unhandled error on ${cleanUrl}: ${msg}`);
+        if (!res.headersSent) {
+            sendJson(res, 500, { error: msg });
+        }
         return true;
     }
 
