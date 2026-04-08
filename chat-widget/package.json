@@ -1,0 +1,15 @@
+{
+  "name": "@crewform/chat-widget",
+  "version": "1.0.0",
+  "description": "Embeddable chat widget for CrewForm agents",
+  "type": "module",
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "vite": "^6.0.0"
+  }
+}

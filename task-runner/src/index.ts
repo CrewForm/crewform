@@ -9,6 +9,7 @@ import { isFeatureEnabled, validateLicensesOnStartup } from './license';
 import { handleA2ARequest } from './a2aServer';
 import { handleAgUiRequest } from './agUiServer';
 import { handleMcpServerRequest } from './mcpServer';
+import { handleChatRequest } from './chatServer';
 import {
     registerRunner, deregisterRunner, getRunnerId, getInstanceName,
     runRecoverySweep, RECOVERY_INTERVAL_MS, MAX_CONCURRENT, decrementLoad,
@@ -266,6 +267,10 @@ function createWebhookServer(): http.Server {
                 void handleMcpServerRequest(req, res).then((mcpHandled) => {
                     if (mcpHandled) return;
 
+                // Chat Widget endpoints
+                void handleChatRequest(req, res).then((chatHandled) => {
+                    if (chatHandled) return;
+
                 // Health check
                 if (req.method === 'GET' && req.url === '/health') {
                     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -316,6 +321,7 @@ function createWebhookServer(): http.Server {
                 // 404 for everything else
                 res.writeHead(404, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: 'Not found' }));
+                }); // end handleChatRequest.then
                 }); // end handleMcpServerRequest.then
             }); // end handleAgUiRequest.then
         }); // end handleA2ARequest.then
