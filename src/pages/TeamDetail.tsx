@@ -16,6 +16,7 @@ import {
     ChevronDown,
     LayoutList,
     Workflow,
+    Download,
 } from 'lucide-react'
 import { useTeam } from '@/hooks/useTeam'
 import { useAgents } from '@/hooks/useAgents'
@@ -37,6 +38,8 @@ import { EEGate } from '@/components/shared/UpgradeBadge'
 import { UpgradeCard } from '@/components/shared/UpgradeBadge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
+import { exportTeam, downloadExport } from '@/lib/exportImport'
+import { toast } from 'sonner'
 import { WorkflowCanvas } from '@/components/workflow/WorkflowCanvas'
 import { CanvasErrorBoundary } from '@/components/workflow/CanvasErrorBoundary'
 import type { PipelineConfig, OrchestratorConfig, CollaborationConfig, TeamMode } from '@/types'
@@ -293,6 +296,24 @@ export function TeamDetail() {
                                 >
                                     <Play className="h-4 w-4" />
                                     Run Team
+                                </button>
+
+                                {/* Export JSON */}
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        void exportTeam(team).then((data) => {
+                                            downloadExport(data)
+                                            toast.success('Team exported as JSON')
+                                        }).catch(() => {
+                                            toast.error('Failed to export team')
+                                        })
+                                    }}
+                                    className="flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-gray-400 transition-colors hover:bg-surface-elevated hover:text-gray-200"
+                                    title="Export team and agents as JSON"
+                                >
+                                    <Download className="h-4 w-4" />
+                                    Export
                                 </button>
 
                                 {/* Delete button */}

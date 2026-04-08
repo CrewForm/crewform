@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, Save, Trash2, Upload, DownloadCloud, Activity, Settings2, AlertCircle, Loader2, History, Zap, Plus, Pencil, X, CheckCircle2, XCircle, Clock, Cpu, Coins, Mic, FileOutput } from 'lucide-react'
+import { ArrowLeft, Save, Trash2, Upload, DownloadCloud, Activity, Settings2, AlertCircle, Loader2, History, Zap, Plus, Pencil, X, CheckCircle2, XCircle, Clock, Cpu, Coins, Mic, FileOutput, Download } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAgent } from '@/hooks/useAgent'
 import { useUpdateAgent } from '@/hooks/useUpdateAgent'
@@ -19,6 +19,7 @@ import { CustomToolEditor } from '@/components/agents/CustomToolEditor'
 import { VoiceProfileTab } from '@/components/agents/VoiceProfileTab'
 import { OutputTemplateTab } from '@/components/agents/OutputTemplateTab'
 import { unpublishAgent } from '@/db/marketplace'
+import { exportAgent, downloadExport } from '@/lib/exportImport'
 import { StatusIndicator } from '@/components/ui/StatusIndicator'
 import { agentSchema, MODEL_OPTIONS, BUILT_IN_TOOLS, getActiveModelOptions, mergeModelOptions, inferProviderFromModel } from '@/lib/agentSchema'
 import { useOpenRouterModels } from '@/hooks/useOpenRouterModels'
@@ -325,6 +326,20 @@ export function AgentDetail() {
                     >
                         <Cpu className="h-4 w-4" />
                         {agent.is_mcp_published ? 'MCP Published' : 'MCP Publish'}
+                    </button>
+
+                    {/* Export JSON */}
+                    <button
+                        type="button"
+                        onClick={() => {
+                            downloadExport(exportAgent(agent))
+                            toast.success('Agent exported as JSON')
+                        }}
+                        className="flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-gray-400 transition-colors hover:bg-surface-elevated hover:text-gray-200"
+                        title="Export agent configuration as JSON"
+                    >
+                        <Download className="h-4 w-4" />
+                        Export
                     </button>
 
                     {/* Delete button */}

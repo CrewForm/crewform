@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 CrewForm
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bot, LayoutGrid, List, Search, AlertCircle, RefreshCw } from 'lucide-react'
+import { Bot, LayoutGrid, List, Search, AlertCircle, RefreshCw, Upload } from 'lucide-react'
+import { toast } from 'sonner'
 import { useAgents } from '@/hooks/useAgents'
 import { useWorkspace } from '@/hooks/useWorkspace'
 import { AgentCard } from '@/components/agents/AgentCard'
@@ -12,6 +13,7 @@ import { SkeletonCard } from '@/components/ui/skeleton'
 import { Skeleton } from '@/components/ui/skeleton'
 import { RoleGate } from '@/components/ui/RoleGate'
 import type { Agent } from '@/types'
+import { parseExportFile, importAgent, importTeam, type CrewFormExport, type AgentExport, type TeamExport } from '@/lib/exportImport'
 
 type ViewMode = 'grid' | 'list'
 type SortField = 'name' | 'status' | 'model' | 'created'
@@ -20,6 +22,38 @@ export function Agents() {
   const navigate = useNavigate()
   const { workspaceId } = useWorkspace()
   const { agents, isLoading, error, refetch } = useAgents(workspaceId)
+  const importInputRef = useRef<HTMLInputElement>(null)
+
+  function handleImport(file: File) {
+    const reader = new FileReader()
+    reader.onload = () => {
+      try {
+        const parsed: CrewFormExport = parseExportFile(reader.result as string)
+        if (parsed.type === 'agent') {
+          void importAgent(workspaceId ?? '', parsed.data as AgentExport).then((newId) => {
+            toast.success('Agent imported successfully')
+            void refetch()
+            navigate(`/agents/${newId}`)
+          }).catch((err: unknown) => {
+            const msg = err instanceof Error ? err.message : 'Unknown error'
+            toast.error(`Import failed: ${msg}`)
+          })
+        } else {
+          void importTeam(workspaceId ?? '', parsed.data as TeamExport).then((newId) => {
+            toast.success('Team and agents imported successfully')
+            navigate(`/teams/${newId}`)
+          }).catch((err: unknown) => {
+            const msg = err instanceof Error ? err.message : 'Unknown error'
+            toast.error(`Import failed: ${msg}`)
+          })
+        }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Invalid file'
+        toast.error(msg)
+      }
+    }
+    reader.readAsText(file)
+  }
 
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const [searchQuery, setSearchQuery] = useState('')
@@ -74,13 +108,35 @@ export function Agents() {
           )}
         </div>
         <RoleGate minRole="member">
-          <button
-            type="button"
-            onClick={() => navigate('/agents/new')}
-            className="rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-brand-hover"
-          >
-            + New Agent
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => importInputRef.current?.click()}
+              className="flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-gray-400 transition-colors hover:bg-surface-elevated hover:text-gray-200"
+              title="Import agent or team from JSON"
+            >
+              <Upload className="h-4 w-4" />
+              Import
+            </button>
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".json"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) handleImport(file)
+                e.target.value = ''
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => navigate('/agents/new')}
+              className="rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-brand-hover"
+            >
+              + New Agent
+            </button>
+          </div>
         </RoleGate>
       </div>
 
