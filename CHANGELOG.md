@@ -6,8 +6,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-04-08
+
 ### Added
 
+- **Embeddable Chat Widget** — Drop-in `<script>` tag to embed any CrewForm agent as a floating chat widget on any website:
+  - Standalone Vite build outputs `widget.js` bundle served at `/chat/widget.js`
+  - Customizable position, theme colors, and welcome message via `data-*` attributes
+  - Domain whitelisting via `cf_chat_` API keys for production security
+  - Settings UI with embed snippet generator, API key management, and live preview
+  - Chat history stored in `chat_sessions` / `chat_messages` tables (Migration `071`)
+  - Built and bundled inside the task runner Docker image for zero-config deployment
+- **Knowledge Base Enhancements** — Upgraded KB from basic vector search to production-grade retrieval:
+  - **Retrieval Testing UI** — Interactive playground to query uploaded documents, see matched chunks with color-coded similarity scores, toggle between search modes, and filter by document or tag
+  - **Metadata Tag Filtering** — Tag documents with labels (e.g., "FAQ", "Technical") and filter search results by tags. Inline tag editor on each document row with GIN-indexed tag queries
+  - **Hybrid Search + Reranking** — Combines vector similarity (cosine) with PostgreSQL full-text search (`ts_rank_cd`), weighted scoring (default 70% vector / 30% text), and over-fetch + rerank strategy for better recall
+  - New `POST /kb/search` endpoint for direct retrieval without task execution
+  - Migration `072`: `tags` column, `tsvector` generated column, GIN indexes, `hybrid_search_knowledge` RPC
+- **Agent/Team Export & Import** — Portable JSON data format for sharing agent and team configurations:
+  - **Export Agent** — One-click download of agent config (model, prompt, tools, voice profile) as `crewform-agent-{name}.json`
+  - **Export Team** — Self-contained JSON with all member agents embedded inline, preserving pipeline/orchestrator/collaboration config
+  - **Import** — Upload any export file to create agents/teams with `(imported)` suffix; team imports rewrite all agent ID references to maintain referential integrity
+  - Export buttons on Agent Detail and Team Detail pages; Import button on Agents list
+  - Versioned `crewform-export` format (v1) for forward compatibility
 - **AG-UI Rich Interactions** — Agents can now pause execution and request user input via three interaction types:
   - **Approval** — Agent asks for permission before proceeding (Approve / Reject buttons)
   - **Data Confirmation** — Agent presents data for user to verify or edit before continuing
