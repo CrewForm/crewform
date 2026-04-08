@@ -258,6 +258,45 @@ Each API key is scoped to a single workspace — only that workspace's published
 
 See the full [MCP Server Publishing Guide](./mcp-server-publishing.md) for detailed setup instructions.
 
+## Export & Import
+
+### Exporting an Agent
+
+1. Open the agent in **Agents → [Agent Name]**
+2. Click the **Export** button in the header bar
+3. A `crewform-agent-{name}.json` file downloads automatically
+
+The export includes: model, system prompt, temperature, max tokens, tags, tools, voice profile, and config. It does **not** include workspace-specific data like API keys, task history, or custom tools.
+
+### Importing an Agent
+
+1. Navigate to **Agents** list page
+2. Click the **Import** button in the top-right
+3. Select a `.json` file (CrewForm export format)
+4. The agent is created with an `(imported)` suffix
+
+Importing a team export file from the Agents page will import the team **and** all its member agents.
+
+### Export Format
+
+Exports use a versioned `crewform-export` format (v1) for forward compatibility:
+
+```json
+{
+  "format": "crewform-export",
+  "version": 1,
+  "type": "agent",
+  "exported_at": "2026-04-08T12:00:00.000Z",
+  "data": {
+    "name": "Code Reviewer",
+    "model": "claude-sonnet-4-20250514",
+    "system_prompt": "You are an expert code reviewer...",
+    "tools": ["web_search", "knowledge_search"],
+    ...
+  }
+}
+```
+
 ## Using Agents in Teams
 
 Agents become more powerful when combined into teams. See the [Pipeline Teams Guide](./pipeline-teams.md) for multi-agent workflows.

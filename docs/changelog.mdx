@@ -9,6 +9,22 @@ All notable changes to CrewForm will be documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.8.0] — 2026-04-08
+
+### Added
+
+- **Embeddable Chat Widget** — Drop-in `<script>` tag to embed any CrewForm agent as a floating chat bubble on any website, with streaming responses, domain whitelisting, customizable themes, and session history
+- **Knowledge Base Enhancements** — Upgraded retrieval pipeline with interactive Retrieval Testing UI, metadata tag filtering (GIN-indexed), and hybrid search combining vector + full-text with reranking
+- **Agent/Team Export & Import** — Portable JSON data format for sharing configurations. Export agents or entire teams (with all member agents embedded). Import with automatic ID remapping
+- **AG-UI Rich Interactions** — Agents can pause execution and request user input: Approval, Data Confirmation, or Choice Selection — with glassmorphism modal, countdown timer, and 5-minute timeout
+- **Marketplace Agent README** — Published agents can include rich Markdown documentation with live preview editor
+- **License Key Validation** — HMAC-SHA256 cryptographic verification with 24-hour re-validation and 7-day offline grace period
+- **Observability & Tracing** — Opt-in OpenTelemetry + Langfuse integration for tracing LLM calls, tool invocations, and team runs
+
+### Changed
+
+- AG-UI health endpoint now reports version `1.1`
+
 ## [1.7.1] — 2026-04-01
 
 ### Added

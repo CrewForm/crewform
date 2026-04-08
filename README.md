@@ -144,6 +144,20 @@
 🛡️<br/><strong>RBAC & Workspaces</strong><br/>Role-based access, multi-tenant isolation
 </td>
 </tr>
+<tr>
+<td align="center" width="25%">
+💬<br/><strong>Chat Widget</strong><br/>Embed agents on any website with one script tag
+</td>
+<td align="center" width="25%">
+📦<br/><strong>Export & Import</strong><br/>Portable JSON for agents and teams
+</td>
+<td align="center" width="25%">
+📡<br/><strong>Observability</strong><br/>OpenTelemetry + Langfuse tracing
+</td>
+<td align="center" width="25%">
+🤝<br/><strong>Rich Interactions</strong><br/>Agents ask for approval, confirmation, or choices
+</td>
+</tr>
 </table>
 
 ## 🚀 Quick Start
@@ -273,6 +287,10 @@ Each client gets their own workspace. Custom agents built around their tools and
 - 📝 **Output Templates** — Format results with `{{variable}}` placeholders for consistent, structured output
 - 🔀 **Fan-Out Branching** — Parallel pipeline steps that dispatch to multiple agents simultaneously, then merge results
 - 📊 **Usage Tracking** — Monitor token usage, costs, and performance per agent and task
+- 💬 **Chat Widget** — Embed any agent on your website with a single `<script>` tag — streaming responses, domain whitelisting, customizable themes
+- 📦 **Export & Import** — Download agent/team configs as portable JSON; import into any workspace with automatic ID remapping
+- 📡 **Observability** — Opt-in OpenTelemetry + Langfuse integration for tracing LLM calls, tool use, and team runs
+- 🤝 **AG-UI Rich Interactions** — Agents can pause and request approval, data confirmation, or choices from the user mid-execution
 
 ### Enterprise Edition (Paid Plans)
 
@@ -288,6 +306,7 @@ Each client gets their own workspace. Custom agents built around their tools and
 - 📡 **Messaging Channels** — Trigger agents from Discord, Slack, Telegram, and Email
 - 📤 **Output Routes** — Deliver results to Discord channels, Slack, webhooks, MS Teams, and more
 - 📈 **Advanced Analytics** — Charts, CSV export, prompt history with diffs *(Pro)*
+- 💬 **Chat Widget** — Embed agents on any website *(all plans)*
 - 📋 **Audit Logs** — Full audit trail with Datadog/Splunk streaming *(Enterprise)*
 - 🐝 **Swarm** — Multi-runner concurrency pool *(Enterprise)*
 
@@ -335,6 +354,8 @@ CrewForm uses an **open-core** model: a free Community Edition under AGPL-3.0 an
 | [API Reference](https://docs.crewform.tech/api-reference) | REST API endpoints and authentication |
 | [Self-Hosting](https://docs.crewform.tech/self-hosting) | Docker Compose production deployment |
 | [Visual Workflow Builder](https://docs.crewform.tech/visual-workflow-builder) | Interactive canvas with live execution observability |
+| [Chat Widget](https://docs.crewform.tech/chat-widget) | Embed agents on any website with a script tag |
+| [Observability](https://docs.crewform.tech/observability) | OpenTelemetry + Langfuse tracing setup |
 | [Changelog](https://docs.crewform.tech/changelog) | Release notes and version history |
 
 ## Architecture
@@ -431,7 +452,7 @@ Yes! CrewForm supports Docker-based self-hosting. See our [self-hosting guide](h
 <details>
 <summary><strong>What LLM providers are supported?</strong></summary>
 
-CrewForm supports **15 providers**: OpenAI, Anthropic, Google Gemini, Groq, Mistral, Cohere, NVIDIA NIM, Perplexity, Together, OpenRouter, HuggingFace, MiniMax, Moonshot, Venice, and **Ollama** (local models). More providers can be added via the modular provider architecture.
+CrewForm supports **16 providers**: OpenAI, Anthropic, Google Gemini, Groq, Mistral, Cohere, NVIDIA NIM, Perplexity, Together, OpenRouter, HuggingFace, MiniMax, Moonshot, Venice, and **Ollama** (local models). More providers can be added via the modular provider architecture.
 </details>
 
 <details>
@@ -456,7 +477,9 @@ CrewForm is a **visual, UI-first platform** — you create agents, teams, and ta
 | **BYOK (zero markup)** | ✅ 16 providers, your keys, your cost | Often limited providers or markup fees |
 | **Local Models (Ollama)** | ✅ Native — zero API keys, fully air-gapped | Varies |
 | **Self-Hosting** | ✅ One-command Docker Compose | Often cloud-only or complex setup |
-| **RAG / Knowledge Base** | ✅ Built-in with pgvector | Sometimes available, often requires plugins |
+| **RAG / Knowledge Base** | ✅ Built-in with pgvector + hybrid search | Sometimes available, often requires plugins |
+| **Embeddable Chat Widget** | ✅ One-line script tag, streaming, domain security | Rare — usually requires custom dev |
+| **Data Portability** | ✅ JSON export/import for agents and teams | Usually locked to platform |
 | **Agent Marketplace** | ✅ Browse, install, and publish templates | Rare in open-source tools |
 | **Team Memory** | ✅ pgvector semantic search across runs | Typically not available |
 | **Integrations** | ✅ Zapier (7K+ apps), Discord, Slack, Telegram, Trello, webhooks | Usually API-only |
