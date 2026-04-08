@@ -48,7 +48,8 @@
             "group": "Getting Started",
             "pages": [
                 "quickstart",
-                "self-hosting"
+                "self-hosting",
+                "troubleshooting"
             ]
         },
         {
@@ -66,7 +67,8 @@
             "pages": [
                 "channels",
                 "discord-integration",
-                "output-routes"
+                "output-routes",
+                "zapier-testing-guide"
             ]
         },
         {
@@ -76,7 +78,16 @@
                 "mcp-server-publishing",
                 "a2a-protocol",
                 "ag-ui-protocol",
-                "knowledge-base"
+                "knowledge-base",
+                "observability"
+            ]
+        },
+        {
+            "group": "Tutorials",
+            "pages": [
+                "tutorial-chatbot",
+                "tutorial-content-pipeline",
+                "tutorial-mcp-publishing"
             ]
         },
         {

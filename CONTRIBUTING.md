@@ -68,6 +68,94 @@ To set up the project locally for development:
 *   `task-runner/`: Node.js backend execution engine.
 *   `supabase/`: Database schema, migrations, and edge functions.
 *   `crewform-docs/`: Project documentation and ROADMAP.
+*   `docs/`: Mintlify-powered documentation site.
+*   `docker/`: Docker compose and nginx configs for self-hosting.
+*   `zapier-app/`: Zapier integration app.
+*   `scripts/`: Migration and utility scripts.
+*   `e2e/`: End-to-end tests (Playwright).
+
+## Architecture Overview
+
+CrewForm follows a **frontend + serverless backend + standalone task runner** architecture:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Frontend (Vite/React)                     │
+│                    src/ → app.crewform.tech                   │
+└────────────────────────┬────────────────────────────────────┘
+                         │ Supabase Client SDK
+┌────────────────────────▼────────────────────────────────────┐
+│              Supabase (Backend-as-a-Service)                  │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌───────────────┐  │
+│  │ Auth     │ │ Database │ │ Realtime │ │ Edge Functions│  │
+│  │ (GoTrue) │ │ (Pg+RLS) │ │ (WS)    │ │ (Deno)       │  │
+│  └──────────┘ └──────────┘ └──────────┘ └───────────────┘  │
+└────────────────────────┬────────────────────────────────────┘
+                         │ Realtime subscription (tasks table)
+┌────────────────────────▼────────────────────────────────────┐
+│                  Task Runner (Node.js)                        │
+│  ┌─────────────┐ ┌──────────────┐ ┌──────────────────────┐  │
+│  │ LLM Clients │ │ Tool Executor│ │ Protocol Servers     │  │
+│  │ (16 provs)  │ │ (MCP, A2A,  │ │ (MCP, A2A, AG-UI)   │  │
+│  │             │ │  KB search)  │ │                      │  │
+│  └─────────────┘ └──────────────┘ └──────────────────────┘  │
+│  ┌─────────────┐ ┌──────────────┐ ┌──────────────────────┐  │
+│  │ Tracing     │ │ Channel      │ │ Output Route         │  │
+│  │ (Langfuse/  │ │ Handlers     │ │ Dispatcher           │  │
+│  │  OTLP)      │ │ (Slack, etc) │ │ (Webhook, Slack...)  │  │
+│  └─────────────┘ └──────────────┘ └──────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Component Responsibilities
+
+| Component | Location | Role |
+|-----------|----------|------|
+| **Frontend** | `src/` | React SPA — agent builder, team canvas, task management, settings UI |
+| **Supabase Auth** | Managed | User authentication, session management, workspace isolation |
+| **PostgreSQL + RLS** | `supabase/migrations/` | All data storage with Row-Level Security for workspace isolation |
+| **pgvector** | Extension | Vector embeddings for knowledge base search and team memory |
+| **Edge Functions** | `supabase/functions/` | MCP discovery, Zapier webhook, marketplace sync |
+| **Task Runner** | `task-runner/src/` | LLM execution, tool calling, protocol servers, tracing, channel handlers |
+| **Nginx** | `docker/nginx.conf` | Reverse proxy for self-hosted deployments |
+
+### Task Execution Flow
+
+When a user creates a task:
+
+1. **Frontend** inserts a row in `tasks` table with status `pending`
+2. **Task Runner** detects it via Supabase Realtime subscription
+3. Runner loads the agent config (model, prompt, tools, knowledge base)
+4. Runner calls the appropriate **LLM client** (OpenAI, Anthropic, etc.)
+5. If the LLM requests tool use, the **Tool Executor** handles it:
+   - `mcp_tool_*` → MCP Client execution
+   - `a2a_delegate` → A2A Client delegation
+   - `knowledge_search` → pgvector similarity search
+   - `web_search`, `calculator`, etc. → built-in tools
+6. Runner updates the task with the result and status `completed`
+7. **Output Route Dispatcher** sends results to configured destinations
+
+### Agent Execution Modes
+
+| Mode | Description | Key Files |
+|------|-------------|-----------|
+| **Single Task** | One agent, one task | `task-runner/src/taskRunner.ts` |
+| **Pipeline** | Sequential agent chain — output flows to the next agent | `task-runner/src/pipelineRunner.ts` |
+| **Orchestrator** | Brain agent delegates sub-tasks to worker agents dynamically | `task-runner/src/orchestratorRunner.ts` |
+| **Collaboration** | Agents discuss in rounds, building on each other's responses | `task-runner/src/collaborationRunner.ts` |
+| **Fan-Out** | Parallel branching — multiple agents run simultaneously, merge agent combines | Part of pipeline runner |
+
+### Key Files for Contributors
+
+| Area | Files |
+|------|-------|
+| Adding an LLM provider | `task-runner/src/llmClients/` |
+| Adding a built-in tool | `task-runner/src/tools/`, `task-runner/src/toolExecutor.ts` |
+| Adding an output route | `task-runner/src/outputRouteDispatcher.ts`, `src/components/settings/` |
+| Adding a messaging channel | `task-runner/src/channels/`, `supabase/functions/` |
+| Database schema changes | `supabase/migrations/` (create a new numbered file) |
+| UI components | `src/components/` (ShadCN + Tailwind) |
+| Tracing/observability | `task-runner/src/tracing.ts` |
 
 ## Coding Standards
 
