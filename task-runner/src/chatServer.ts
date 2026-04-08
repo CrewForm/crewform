@@ -452,11 +452,23 @@ let cachedWidgetJs: string | null = null;
 
 function serveWidgetJs(res: ServerResponse) {
     if (!cachedWidgetJs) {
-        // Try to read the built widget file
-        const widgetPath = path.resolve(__dirname, '../../chat-widget/dist/crewform-chat.js');
-        try {
-            cachedWidgetJs = fs.readFileSync(widgetPath, 'utf-8');
-        } catch {
+        // Try multiple candidate paths (Docker container vs local dev)
+        const candidates = [
+            path.resolve(__dirname, '../chat-widget/dist/crewform-chat.js'),  // Docker: /usr/src/app/chat-widget/dist/
+            path.resolve(__dirname, '../../chat-widget/dist/crewform-chat.js'), // Local dev: task-runner/dist → chat-widget/dist
+        ];
+
+        for (const widgetPath of candidates) {
+            try {
+                cachedWidgetJs = fs.readFileSync(widgetPath, 'utf-8');
+                console.log(`[Chat Widget] Loaded widget JS from ${widgetPath}`);
+                break;
+            } catch {
+                // Try next candidate
+            }
+        }
+
+        if (!cachedWidgetJs) {
             // Fallback: return a minimal loader that tells the dev to build the widget
             cachedWidgetJs = '/* CrewForm Chat Widget not built. Run: cd chat-widget && npm run build */\nconsole.warn("CrewForm Chat Widget: bundle not found. Run `cd chat-widget && npm run build`.");';
         }

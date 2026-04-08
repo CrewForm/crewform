@@ -4,7 +4,8 @@
         "builder": "DOCKERFILE",
         "dockerfilePath": "task-runner/Dockerfile",
         "watchPatterns": [
-            "task-runner/**"
+            "task-runner/**",
+            "chat-widget/**"
         ]
     },
     "deploy": {

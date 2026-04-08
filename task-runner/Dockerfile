@@ -6,7 +6,16 @@ FROM node:20-alpine
 
 WORKDIR /usr/src/app
 
-# Copy package files and install dependencies
+# ── Build the chat widget first ──────────────────────────────────────────────
+COPY chat-widget/package*.json ./chat-widget/
+RUN cd chat-widget && npm ci --include=dev
+
+COPY chat-widget/tsconfig.json ./chat-widget/tsconfig.json
+COPY chat-widget/vite.config.ts ./chat-widget/vite.config.ts
+COPY chat-widget/src ./chat-widget/src
+RUN cd chat-widget && npx vite build
+
+# ── Build the task runner ────────────────────────────────────────────────────
 COPY task-runner/package*.json ./
 RUN npm ci --include=dev
 
