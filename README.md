@@ -4,7 +4,9 @@
 
 ### Form your AI crew
 
-**Open-source AI Agent Orchestration Platform**
+**Open-source AI Agent Orchestration Platform — with all 3 agentic protocols**
+
+The first platform with native **MCP** (Tools) + **A2A** (Agent-to-Agent) + **AG-UI** (Frontend Streaming)
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![CI](https://github.com/CrewForm/crewform/actions/workflows/ci.yml/badge.svg)](https://github.com/CrewForm/crewform/actions/workflows/ci.yml)
@@ -75,87 +77,89 @@
 </table>
 </details>
 
+## 🔌 Protocols & Standards
+
+CrewForm is the **first platform with native support for all three agentic protocols**:
+
+| Protocol | Direction | What It Does |
+|---|---|---|
+| **MCP** (Model Context Protocol) | 🔌 Client + 🔧 Server | **Client:** Agents discover and call tools from any MCP server. **Server:** Expose your agents as MCP tools for Claude Desktop, Cursor, and other MCP clients. |
+| **A2A** (Agent-to-Agent Protocol) | ↔️ Bidirectional | **Consume:** Delegate tasks to external A2A agents. **Publish:** Expose your agents for other AI systems to call. Cross-framework agent interop. |
+| **AG-UI** (Agent-User Interface) | 📡 Streaming | Real-time SSE event streaming from agent to frontend. Supports text deltas, tool calls, state transitions, and rich interactions (approval, confirmation, choices). |
+
+> **Why this matters:** Most platforms support zero or one protocol. CrewForm gives your agents access to thousands of tools (MCP), cross-framework interop (A2A), and real-time UI streaming (AG-UI) — all out of the box.
+
 ## ✨ Features at a Glance
 
 <table>
 <tr>
 <td align="center" width="25%">
-🤖<br/><strong>16 LLM Providers</strong><br/>OpenAI, Anthropic, Gemini, Groq, Ollama, and more
+🔌<br/><strong>MCP Client + Server</strong><br/>Use external tools & expose agents as MCP tools
 </td>
+<td align="center" width="25%">
+🤝<br/><strong>A2A Bidirectional</strong><br/>Agent-to-Agent interop — consume & publish
+</td>
+<td align="center" width="25%">
+🖥️<br/><strong>AG-UI Streaming</strong><br/>Real-time SSE events with rich interactions
+</td>
+<td align="center" width="25%">
+🤖<br/><strong>16 LLM Providers</strong><br/>OpenAI, Anthropic, Gemini, Groq, Ollama, +11 more
+</td>
+</tr>
+<tr>
 <td align="center" width="25%">
 🔀<br/><strong>3 Team Modes</strong><br/>Pipeline, Orchestrator, and Collaboration
 </td>
 <td align="center" width="25%">
-🏪<br/><strong>Agent Marketplace</strong><br/>Browse, install, and publish agent templates
+📚<br/><strong>Knowledge Base (RAG)</strong><br/>Hybrid search: pgvector + full-text + reranking
 </td>
 <td align="center" width="25%">
-🔑<br/><strong>BYOK</strong><br/>Your API keys, your cost — zero markup
-</td>
-</tr>
-<tr>
-<td align="center" width="25%">
-🏠<br/><strong>Self-Hostable</strong><br/>Docker Compose — your data, your infra
+🎨<br/><strong>Visual Workflow Canvas</strong><br/>Drag-and-drop with live execution visualization
 </td>
 <td align="center" width="25%">
-🔌<br/><strong>MCP Protocol</strong><br/>Use external tools & expose agents as MCP tools
-</td>
-<td align="center" width="25%">
-📚<br/><strong>Knowledge Base (RAG)</strong><br/>Upload docs, chunk, embed, and search
-</td>
-<td align="center" width="25%">
-🧠<br/><strong>Team Memory</strong><br/>pgvector semantic search across runs
+🐳<br/><strong>Local AI via Ollama</strong><br/>Air-gapped — zero data leaving your network
 </td>
 </tr>
 <tr>
 <td align="center" width="25%">
-🤝<br/><strong>A2A Protocol</strong><br/>Agent-to-Agent interop with external AI systems
-</td>
-<td align="center" width="25%">
-🖥️<br/><strong>AG-UI Protocol</strong><br/>Real-time SSE streaming for frontend integration
-</td>
-<td align="center" width="25%">
-⚡<br/><strong>Zapier + Channels</strong><br/>7,000+ apps, Discord, Slack, Telegram, Email
-</td>
-<td align="center" width="25%">
-📊<br/><strong>Analytics</strong><br/>Track tokens, costs, and agent performance
-</td>
-</tr>
-<tr>
-<td align="center" width="25%">
-🎨<br/><strong>Visual Workflow Canvas</strong><br/>Drag-and-drop orchestration with live execution visualization
-</td>
-<td align="center" width="25%">
-🔄<br/><strong>Fallback Models</strong><br/>Auto-switch to backup models on failure
-</td>
-<td align="center" width="25%">
-🐳<br/><strong>Local AI via Ollama</strong><br/>Air-gapped setup — zero data leaving your network
-</tr>
-<tr>
-<td align="center" width="25%">
-🎙️<br/><strong>Voice Profiles</strong><br/>Control agent tone, style, and brand voice consistency
-</td>
-<td align="center" width="25%">
-📝<br/><strong>Output Templates</strong><br/>Format results with {{variable}} templates
-</td>
-<td align="center" width="25%">
-🔀<br/><strong>Fan-Out Branching</strong><br/>Parallel pipeline steps with merge agents
-</td>
-<td align="center" width="25%">
-🛡️<br/><strong>RBAC & Workspaces</strong><br/>Role-based access, multi-tenant isolation
-</td>
-</tr>
-<tr>
-<td align="center" width="25%">
-💬<br/><strong>Chat Widget</strong><br/>Embed agents on any website with one script tag
-</td>
-<td align="center" width="25%">
-📦<br/><strong>Export & Import</strong><br/>Portable JSON for agents and teams
+💬<br/><strong>Chat Widget</strong><br/>Embed agents on any website — one script tag
 </td>
 <td align="center" width="25%">
 📡<br/><strong>Observability</strong><br/>OpenTelemetry + Langfuse tracing
 </td>
 <td align="center" width="25%">
-🤝<br/><strong>Rich Interactions</strong><br/>Agents ask for approval, confirmation, or choices
+⚡<br/><strong>Zapier + Channels</strong><br/>7,000+ apps, Discord, Slack, Telegram, Email
+</td>
+<td align="center" width="25%">
+🏪<br/><strong>Agent Marketplace</strong><br/>Browse, install, and publish agent templates
+</td>
+</tr>
+<tr>
+<td align="center" width="25%">
+🔀<br/><strong>Fan-Out Branching</strong><br/>Parallel pipeline steps with merge agents
+</td>
+<td align="center" width="25%">
+📦<br/><strong>Export & Import</strong><br/>Portable JSON for agents and teams
+</td>
+<td align="center" width="25%">
+🔄<br/><strong>Fallback Models</strong><br/>Auto-switch to backup models on failure
+</td>
+<td align="center" width="25%">
+🏠<br/><strong>Self-Hostable</strong><br/>Docker Compose — your data, your infra
+</td>
+</tr>
+<tr>
+<td align="center" width="25%">
+🔑<br/><strong>BYOK</strong><br/>Your API keys, your cost — zero markup
+</td>
+<td align="center" width="25%">
+🧠<br/><strong>Team Memory</strong><br/>pgvector semantic search across runs
+</td>
+<td align="center" width="25%">
+🛡️<br/><strong>RBAC & Workspaces</strong><br/>Role-based access, multi-tenant isolation
+</td>
+<td align="center" width="25%">
+📊<br/><strong>Analytics</strong><br/>Track tokens, costs, and agent performance
 </td>
 </tr>
 </table>
@@ -193,6 +197,7 @@ npm run dev
 
 ## Table of Contents
 
+- [Protocols & Standards](#-protocols--standards)
 - [Why CrewForm?](#why-crewform)
 - [How It Works](#how-it-works)
 - [Who It's For](#who-its-for)
@@ -362,30 +367,39 @@ CrewForm uses an **open-core** model: a free Community Edition under AGPL-3.0 an
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────┐
-│                   CrewForm UI                    │
-│          React + TypeScript + Tailwind           │
-├─────────────────────────────────────────────────┤
-│          EE Feature Gating (ee/)                 │
-│     License Validation · Feature Flags           │
-├─────────────────────────────────────────────────┤
-│                  Supabase Layer                  │
-│     Auth · Database · Realtime · Storage         │
-│           Edge Functions (REST API)              │
-├─────────────────────────────────────────────────┤
-│                  Task Runner                     │
-│      Node.js · Multi-Provider LLM Support        │
-│     (Anthropic · Google · OpenAI · More)         │
-├─────────────────────────────────────────────────┤
-│             Protocol Layer                       │
-│   MCP (Tools) · A2A (Agents) · AG-UI (Frontend)  │
-├─────────────────────────────────────────────────┤
-│                  Integrations                    │
-│   Channels · Output Routes · Zapier · Webhooks   │
-├─────────────────────────────────────────────────┤
-│              Your LLM Providers                  │
-│           (BYOK — Your Keys, Your Cost)          │
-└─────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│                        CrewForm UI                               │
+│             React + TypeScript + Tailwind + ShadCN               │
+│      Visual Workflow Canvas · AG-UI SSE Streaming · Chat Widget  │
+├──────────────────────────────────────────────────────────────────┤
+│                      Supabase Layer                              │
+│         Auth · PostgreSQL · Realtime · Storage                   │
+│         Edge Functions (REST API) · pgvector (RAG)               │
+├──────────────────────────────────────────────────────────────────┤
+│                       Task Runner                                │
+│                   Node.js · Multi-Provider LLM                   │
+│   ┌─────────────────────────────────────────────────────────┐    │
+│   │  OpenAI · Anthropic · Gemini · Groq · Mistral · Cohere │    │
+│   │  NVIDIA · Perplexity · Together · OpenRouter · HuggingFace│  │
+│   │  MiniMax · Moonshot · Venice · Ollama (local) · xAI     │    │
+│   └─────────────────────────────────────────────────────────┘    │
+├──────────────────────────────────────────────────────────────────┤
+│                     Protocol Layer                               │
+│  ┌──────────────┐  ┌──────────────┐  ┌───────────────────────┐   │
+│  │ MCP Protocol  │  │ A2A Protocol │  │    AG-UI Protocol     │   │
+│  │ Client+Server │  │ Bidirectional│  │ SSE + Rich Interactions│  │
+│  └──────────────┘  └──────────────┘  └───────────────────────┘   │
+├──────────────────────────────────────────────────────────────────┤
+│                      Integrations                                │
+│  Channels (Discord · Slack · Telegram · Email) · Output Routes   │
+│  Zapier (7,000+ apps) · Webhooks · Chat Widget · REST API        │
+├──────────────────────────────────────────────────────────────────┤
+│                    Observability                                 │
+│         OpenTelemetry · Langfuse · Datadog · Jaeger              │
+├──────────────────────────────────────────────────────────────────┤
+│                  Your LLM Providers                              │
+│              BYOK — Your Keys, Your Cost                         │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 ## Tech Stack
@@ -394,13 +408,14 @@ CrewForm uses an **open-core** model: a free Community Edition under AGPL-3.0 an
 |-------|-----------|
 | **Frontend** | React 18 · TypeScript · Vite · Tailwind CSS · ShadCN UI |
 | **State** | TanStack Query · Zustand |
-| **Backend** | Supabase (Auth, Database, Realtime, Edge Functions) |
-| **Task Runner** | Node.js · Multi-provider LLM integration |
-| **Vector Search** | pgvector (team memory + knowledge base RAG) |
-| **Protocols** | MCP (Model Context Protocol) · A2A (Agent-to-Agent) · AG-UI (Agent-User Interface) |
-| **Integrations** | Zapier · Discord · Slack · Telegram · Email · Webhooks |
+| **Backend** | Supabase (Auth, PostgreSQL, Realtime, Edge Functions) |
+| **Task Runner** | Node.js · 16 LLM providers + Ollama (local) |
+| **Vector Search** | pgvector — hybrid search (cosine + full-text + reranking) |
+| **Protocols** | MCP (client + server) · A2A (bidirectional) · AG-UI (SSE + rich interactions) |
+| **Observability** | OpenTelemetry · Langfuse · Datadog · Jaeger |
+| **Integrations** | Zapier · Discord · Slack · Telegram · Email · Webhooks · Chat Widget |
 | **Validation** | Zod |
-| **Deployment** | Vercel · Docker |
+| **Deployment** | Vercel · Docker Compose |
 
 ## Contributing
 
@@ -453,7 +468,11 @@ Yes! CrewForm supports Docker-based self-hosting. See our [self-hosting guide](h
 <details>
 <summary><strong>What LLM providers are supported?</strong></summary>
 
-CrewForm supports **16 providers**: OpenAI, Anthropic, Google Gemini, Groq, Mistral, Cohere, NVIDIA NIM, Perplexity, Together, OpenRouter, HuggingFace, MiniMax, Moonshot, Venice, and **Ollama** (local models). More providers can be added via the modular provider architecture.
+CrewForm supports **16 cloud providers + Ollama** for local models:
+
+OpenAI, Anthropic, Google Gemini, Groq, Mistral, Cohere, NVIDIA NIM, Perplexity, Together, OpenRouter, HuggingFace, MiniMax, Moonshot, Venice, xAI, and **Ollama** (local — Llama 3, Mistral, Phi, etc.).
+
+Ollama enables fully air-gapped setups — zero API keys, zero data leaving your network. More providers can be added via the modular provider architecture.
 </details>
 
 <details>
@@ -470,23 +489,26 @@ CrewForm is a **visual, UI-first platform** — you create agents, teams, and ta
 
 ## How CrewForm Compares
 
-| Capability | CrewForm | Most Alternatives |
-|---|---|---|
-| **Visual UI** | ✅ Drag-and-drop workflow canvas with live execution | Often code-only or basic flow editors |
-| **Multi-Agent Teams** | ✅ 3 modes — Pipeline, Orchestrator, Collaboration | Usually single-mode or code-defined |
-| **All 3 Agentic Protocols** | ✅ MCP + A2A + AG-UI — native | Typically zero or one |
-| **BYOK (zero markup)** | ✅ 16 providers, your keys, your cost | Often limited providers or markup fees |
-| **Local Models (Ollama)** | ✅ Native — zero API keys, fully air-gapped | Varies |
-| **Self-Hosting** | ✅ One-command Docker Compose | Often cloud-only or complex setup |
-| **RAG / Knowledge Base** | ✅ Built-in with pgvector + hybrid search | Sometimes available, often requires plugins |
-| **Embeddable Chat Widget** | ✅ One-line script tag, streaming, domain security | Rare — usually requires custom dev |
-| **Data Portability** | ✅ JSON export/import for agents and teams | Usually locked to platform |
-| **Agent Marketplace** | ✅ Browse, install, and publish templates | Rare in open-source tools |
-| **Team Memory** | ✅ pgvector semantic search across runs | Typically not available |
-| **Integrations** | ✅ Zapier (7K+ apps), Discord, Slack, Telegram, Trello, webhooks | Usually API-only |
-| **Open Source** | ✅ AGPL-3.0 | Varies |
+| Capability | CrewForm | Dify | n8n | CrewAI | LangGraph |
+|---|---|---|---|---|---|
+| **Visual UI** | ✅ Drag-and-drop canvas + live execution | ✅ Flow editor | ✅ Flow editor | ❌ Code-only | ❌ Code-only |
+| **Multi-Agent Teams** | ✅ 3 modes (Pipeline, Orchestrator, Collab) | ❌ Single-agent | ❌ Node-based | ✅ Code-defined | ✅ Code-defined |
+| **MCP Protocol** | ✅ Client + Server (bidirectional) | ❌ | ✅ Client only | ❌ | ❌ |
+| **A2A Protocol** | ✅ Bidirectional (consume + publish) | ❌ | ❌ | ❌ | ❌ |
+| **AG-UI Protocol** | ✅ SSE + rich interactions | ❌ | ❌ | ❌ | ❌ |
+| **LLM Providers** | ✅ 16 + Ollama (local) | ~10 | Via nodes | Code | Code |
+| **BYOK (zero markup)** | ✅ Your keys, your cost | ✅ | ✅ | ✅ | ✅ |
+| **Local Models (Ollama)** | ✅ Native, air-gapped | ✅ | ✅ | ✅ | ✅ |
+| **RAG / Knowledge Base** | ✅ Hybrid search + retrieval tester | ✅ | Via nodes | Code | Code |
+| **Chat Widget** | ✅ One script tag, streaming | ✅ | ❌ | ❌ | ❌ |
+| **Observability** | ✅ OTLP + Langfuse | ✅ LangSmith | ❌ | ✅ | ✅ |
+| **Fan-Out (Parallel)** | ✅ Built-in branching + merge | ❌ | ✅ | ❌ | ✅ |
+| **Agent Marketplace** | ✅ Browse, install, publish | ✅ Templates | ✅ Templates | ❌ | ❌ |
+| **Data Portability** | ✅ JSON export/import | ✅ DSL export | ✅ JSON export | N/A | N/A |
+| **Self-Hosting** | ✅ Docker Compose | ✅ Docker | ✅ Docker | N/A (library) | N/A (library) |
+| **Open Source** | ✅ AGPL-3.0 | ✅ Apache-2.0 | ✅ Fair-code | ✅ MIT | ✅ MIT |
 
-> **CrewForm is the first platform to support all three agentic protocols** (MCP + A2A + AG-UI) — giving your agents access to thousands of tools, cross-framework interop, and real-time UI streaming out of the box.
+> **CrewForm is the only platform with all three agentic protocols** (MCP + A2A + AG-UI) — giving your agents access to thousands of tools, cross-framework interop, and real-time UI streaming out of the box.
 
 ## License
 
