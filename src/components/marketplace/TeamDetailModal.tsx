@@ -161,6 +161,6 @@ function getAgentCount(team: Team): number {
     }
     if ('brain_agent_id' in config && config.brain_agent_id) ids.add(config.brain_agent_id)
     if ('worker_agent_ids' in config && Array.isArray(config.worker_agent_ids)) config.worker_agent_ids.forEach(id => ids.add(id))
-    if ('agent_ids' in config && Array.isArray(config.agent_ids)) (config.agent_ids as string[]).forEach(id => ids.add(id))
+    if ('agent_ids' in config && Array.isArray(config.agent_ids)) config.agent_ids.forEach((id: string) => ids.add(id))
     return ids.size || 1
 }

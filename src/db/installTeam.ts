@@ -27,18 +27,20 @@ export async function installMarketplaceTeam(
     userId: string,
 ): Promise<TeamInstallResult> {
     // 1. Fetch source team
-    const { data: teamData, error: teamError } = await supabase
+    const result = await supabase
         .from('teams')
         .select('*')
         .eq('id', teamId)
         .eq('is_published', true)
         .single()
 
-    if (teamError || !teamData) {
+    if (result.error || !result.data) {
         throw new Error('Team not found or is not published')
     }
 
-    const sourceTeam = teamData as Team
+    const sourceTeam = result.data as Team
+
+
 
     // Check team quota before cloning
     await enforceQuota(workspaceId, 'teams')
@@ -71,10 +73,10 @@ export async function installMarketplaceTeam(
         config.worker_agent_ids.forEach(id => agentIds.add(id))
     }
     if ('agent_ids' in config && Array.isArray(config.agent_ids)) {
-        (config.agent_ids as string[]).forEach(id => agentIds.add(id))
+        config.agent_ids.forEach((id: string) => agentIds.add(id))
     }
-    if ('facilitator_agent_id' in config && config.facilitator_agent_id) {
-        agentIds.add(config.facilitator_agent_id as string)
+    if ('facilitator_agent_id' in config && typeof config.facilitator_agent_id === 'string') {
+        agentIds.add(config.facilitator_agent_id)
     }
 
     // 4. Fetch all agents

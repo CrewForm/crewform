@@ -95,7 +95,7 @@ function getTeamAgentCount(team: Team): number {
         config.worker_agent_ids.forEach(id => ids.add(id))
     }
     if ('agent_ids' in config && Array.isArray(config.agent_ids)) {
-        (config.agent_ids as string[]).forEach(id => ids.add(id))
+        config.agent_ids.forEach((id: string) => ids.add(id))
     }
 
     return ids.size || 1
