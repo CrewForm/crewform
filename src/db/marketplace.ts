@@ -2,7 +2,7 @@
 // Copyright (C) 2026 CrewForm
 
 import { supabase } from '@/lib/supabase'
-import type { Agent } from '@/types'
+import type { Agent, Team } from '@/types'
 
 export type MarketplaceSortOption = 'installs' | 'rating' | 'newest'
 
@@ -653,4 +653,194 @@ export async function fetchUserReview(
 
     if (result.error) throw result.error
     return result.data as AgentReview | null
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TEAM MARKETPLACE
+// ═══════════════════════════════════════════════════════════════════════════
+
+const MARKETPLACE_TEAM_COLUMNS = [
+    'id', 'workspace_id', 'name', 'description', 'mode',
+    'config', 'is_published', 'marketplace_tags',
+    'install_count', 'rating_avg', 'marketplace_readme',
+    'created_at', 'updated_at',
+].join(',')
+
+/** Fetch published marketplace teams with optional filtering and sorting */
+export async function fetchMarketplaceTeams(
+    options: MarketplaceQueryOptions = {},
+): Promise<Team[]> {
+    let query = supabase
+        .from('teams')
+        .select(MARKETPLACE_TEAM_COLUMNS)
+        .eq('is_published', true)
+
+    if (options.search?.trim()) {
+        const term = `%${options.search.trim()}%`
+        query = query.or(`name.ilike.${term},description.ilike.${term}`)
+    }
+
+    if (options.tags && options.tags.length > 0) {
+        query = query.contains('marketplace_tags', options.tags)
+    }
+
+    if (options.category) {
+        query = query.contains('marketplace_tags', [options.category])
+    }
+
+    switch (options.sort) {
+        case 'rating':
+            query = query.order('rating_avg', { ascending: false })
+            break
+        case 'newest':
+            query = query.order('created_at', { ascending: false })
+            break
+        case 'installs':
+        default:
+            query = query.order('install_count', { ascending: false })
+            break
+    }
+
+    const { data, error } = await query
+    if (error) throw error
+    return data as unknown as Team[]
+}
+
+/** Get all unique tags from published teams */
+export async function fetchMarketplaceTeamTags(): Promise<string[]> {
+    const { data, error } = await supabase
+        .from('teams')
+        .select('marketplace_tags')
+        .eq('is_published', true)
+
+    if (error) throw error
+
+    const tagSet = new Set<string>()
+    for (const row of data as Array<{ marketplace_tags: string[] }>) {
+        for (const tag of row.marketplace_tags) {
+            tagSet.add(tag)
+        }
+    }
+    return Array.from(tagSet).sort()
+}
+
+// ─── Team Publishing ────────────────────────────────────────────────────────
+
+/** Submit a team for marketplace review */
+export async function submitTeamForReview(
+    teamId: string,
+    tags: string[],
+    userId: string,
+    readme?: string,
+): Promise<MarketplaceSubmission> {
+    // Update team tags and readme
+    const updateFields: Record<string, unknown> = { marketplace_tags: tags }
+    if (readme !== undefined) {
+        updateFields.marketplace_readme = readme || null
+    }
+    const updateResult = await supabase
+        .from('teams')
+        .update(updateFields)
+        .eq('id', teamId)
+
+    if (updateResult.error) throw updateResult.error
+
+    // Create submission (team_id instead of agent_id)
+    const result = await supabase
+        .from('marketplace_submissions')
+        .insert({
+            team_id: teamId,
+            submitted_by: userId,
+            injection_scan_result: { safe: true, flags: [] }, // No prompt scan needed for teams
+        })
+        .select()
+        .single()
+
+    if (result.error) throw result.error
+    return result.data as MarketplaceSubmission
+}
+
+/** Approve a team submission and publish the team */
+export async function approveTeamSubmission(id: string, reviewerId: string): Promise<void> {
+    const subResult = await supabase
+        .from('marketplace_submissions')
+        .select('team_id')
+        .eq('id', id)
+        .single()
+
+    if (subResult.error) throw subResult.error
+    const teamId = (subResult.data as { team_id: string }).team_id
+
+    const updateResult = await supabase
+        .from('marketplace_submissions')
+        .update({
+            status: 'approved',
+            reviewed_by: reviewerId,
+            reviewed_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+
+    if (updateResult.error) throw updateResult.error
+
+    const publishResult = await supabase
+        .from('teams')
+        .update({ is_published: true })
+        .eq('id', teamId)
+
+    if (publishResult.error) throw publishResult.error
+}
+
+/** Unpublish a team from the marketplace */
+export async function unpublishTeam(teamId: string): Promise<void> {
+    const result = await supabase
+        .from('teams')
+        .update({ is_published: false })
+        .eq('id', teamId)
+
+    if (result.error) throw result.error
+}
+
+// ─── Team Ratings ───────────────────────────────────────────────────────────
+
+export interface TeamReview {
+    id: string
+    team_id: string
+    user_id: string
+    rating: number
+    review_text: string
+    created_at: string
+    updated_at: string
+}
+
+/** Submit or update a rating for a marketplace team */
+export async function submitTeamRating(
+    teamId: string,
+    userId: string,
+    workspaceId: string,
+    rating: number,
+    reviewText: string = '',
+): Promise<TeamReview> {
+    const result = await supabase
+        .from('team_reviews')
+        .upsert(
+            { team_id: teamId, user_id: userId, workspace_id: workspaceId, rating, review_text: reviewText },
+            { onConflict: 'team_id,user_id' },
+        )
+        .select()
+        .single()
+
+    if (result.error) throw result.error
+    return result.data as TeamReview
+}
+
+/** Fetch all reviews for a team */
+export async function fetchTeamReviews(teamId: string): Promise<TeamReview[]> {
+    const result = await supabase
+        .from('team_reviews')
+        .select('*')
+        .eq('team_id', teamId)
+        .order('created_at', { ascending: false })
+
+    if (result.error) throw result.error
+    return result.data as TeamReview[]
 }

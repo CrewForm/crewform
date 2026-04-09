@@ -17,6 +17,7 @@ import {
     LayoutList,
     Workflow,
     Download,
+    Upload,
 } from 'lucide-react'
 import { useTeam } from '@/hooks/useTeam'
 import { useAgents } from '@/hooks/useAgents'
@@ -36,6 +37,7 @@ import { TeamMemoryPanel } from '@/components/teams/TeamMemoryPanel'
 import { ChannelSelector } from '@/components/shared/ChannelSelector'
 import { EEGate } from '@/components/shared/UpgradeBadge'
 import { UpgradeCard } from '@/components/shared/UpgradeBadge'
+import { PublishTeamModal } from '@/components/marketplace/PublishTeamModal'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { exportTeam, downloadExport } from '@/lib/exportImport'
@@ -80,6 +82,7 @@ export function TeamDetail() {
     const [outputRouteIds, setOutputRouteIds] = useState<string[] | null>(null)
     const [channelInitialized, setChannelInitialized] = useState(false)
     const [view, setView] = useState<'form' | 'canvas'>('form')
+    const [showPublishModal, setShowPublishModal] = useState(false)
 
     const { runs, isLoading: isLoadingRuns } = useTeamRuns(id ?? null)
     const pipelineConfig = team?.mode === 'pipeline' ? (team.config as PipelineConfig) : undefined
@@ -314,6 +317,17 @@ export function TeamDetail() {
                                 >
                                     <Download className="h-4 w-4" />
                                     Export
+                                </button>
+
+                                {/* Publish to Marketplace */}
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPublishModal(true)}
+                                    className="flex items-center gap-2 rounded-lg border border-brand-primary/30 px-4 py-2 text-sm font-medium text-brand-primary transition-colors hover:bg-brand-primary/10"
+                                    title="Publish this team to the marketplace"
+                                >
+                                    <Upload className="h-4 w-4" />
+                                    Publish
                                 </button>
 
                                 {/* Delete button */}
@@ -579,6 +593,14 @@ export function TeamDetail() {
                             teamMode={team.mode}
                             onClose={() => setShowRunModal(false)}
                             onCreated={(runId) => navigate(`/teams/${team.id}/runs/${runId}`)}
+                        />
+                    )}
+
+                    {/* Publish Team Modal */}
+                    {showPublishModal && (
+                        <PublishTeamModal
+                            team={team}
+                            onClose={() => setShowPublishModal(false)}
                         />
                     )}
                 </>

@@ -1,15 +1,16 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2026 CrewForm
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
     fetchMarketplaceAgents, fetchMarketplaceTags,
     submitAgentForReview, fetchMySubmissions, fetchPendingSubmissions,
     approveSubmission, rejectSubmission, fetchCreatorStats,
     submitAgentRating, fetchAgentReviews,
+    fetchMarketplaceTeams, fetchMarketplaceTeamTags,
+    submitTeamForReview, submitTeamRating, fetchTeamReviews,
 } from '@/db/marketplace'
-import type { MarketplaceQueryOptions, MarketplaceSubmission, CreatorStats, AgentReview } from '@/db/marketplace'
-import type { Agent } from '@/types'
+import { installMarketplaceTeam } from '@/db/installTeam'
+import type { MarketplaceQueryOptions, MarketplaceSubmission, CreatorStats, AgentReview, TeamReview } from '@/db/marketplace'
+import type { TeamInstallResult } from '@/db/installTeam'
+import type { Agent, Team } from '@/types'
 
 const STALE_TIME = 5 * 60 * 1000 // 5 minutes — marketplace data doesn't change often
 
@@ -23,11 +24,31 @@ export function useMarketplaceAgents(options: MarketplaceQueryOptions) {
     return { agents: data, isLoading, error, refetch }
 }
 
+/** Fetch marketplace teams with search, tag filter, and sort */
+export function useMarketplaceTeams(options: MarketplaceQueryOptions) {
+    const { data = [], isLoading, error, refetch } = useQuery<Team[]>({
+        queryKey: ['marketplace-teams', options.search, options.tags, options.category, options.sort],
+        queryFn: () => fetchMarketplaceTeams(options),
+        staleTime: STALE_TIME,
+    })
+    return { teams: data, isLoading, error, refetch }
+}
+
 /** Fetch all unique marketplace tags for the filter UI */
 export function useMarketplaceTags() {
     const { data = [], isLoading } = useQuery<string[]>({
         queryKey: ['marketplace-tags'],
         queryFn: fetchMarketplaceTags,
+        staleTime: STALE_TIME,
+    })
+    return { tags: data, isLoading }
+}
+
+/** Fetch all unique team marketplace tags */
+export function useMarketplaceTeamTags() {
+    const { data = [], isLoading } = useQuery<string[]>({
+        queryKey: ['marketplace-team-tags'],
+        queryFn: fetchMarketplaceTeamTags,
         staleTime: STALE_TIME,
     })
     return { tags: data, isLoading }
@@ -40,6 +61,17 @@ export function useSubmitAgent() {
     const queryClient = useQueryClient()
     return useMutation<MarketplaceSubmission, Error, { agentId: string; tags: string[]; readme?: string; userId: string }>({
         mutationFn: ({ agentId, tags, readme, userId }) => submitAgentForReview(agentId, tags, userId, readme),
+        onSuccess: () => {
+            void queryClient.invalidateQueries({ queryKey: ['my-submissions'] })
+        },
+    })
+}
+
+/** Submit a team for marketplace review */
+export function useSubmitTeam() {
+    const queryClient = useQueryClient()
+    return useMutation<MarketplaceSubmission, Error, { teamId: string; tags: string[]; readme?: string; userId: string }>({
+        mutationFn: ({ teamId, tags, readme, userId }) => submitTeamForReview(teamId, tags, userId, readme),
         onSuccess: () => {
             void queryClient.invalidateQueries({ queryKey: ['my-submissions'] })
         },
@@ -79,6 +111,7 @@ export function useApproveSubmission() {
         onSuccess: () => {
             void queryClient.invalidateQueries({ queryKey: ['pending-submissions'] })
             void queryClient.invalidateQueries({ queryKey: ['marketplace-agents'] })
+            void queryClient.invalidateQueries({ queryKey: ['marketplace-teams'] })
         },
     })
 }
@@ -134,6 +167,48 @@ export function useSubmitRating() {
         onSuccess: (_data, vars) => {
             void queryClient.invalidateQueries({ queryKey: ['agent-reviews', vars.agentId] })
             void queryClient.invalidateQueries({ queryKey: ['marketplace-agents'] })
+        },
+    })
+}
+
+/** Fetch reviews for a specific team */
+export function useTeamReviews(teamId: string | null) {
+    return useQuery<TeamReview[]>({
+        queryKey: ['team-reviews', teamId],
+        queryFn: () => {
+            if (!teamId) throw new Error('Missing teamId')
+            return fetchTeamReviews(teamId)
+        },
+        enabled: !!teamId,
+        staleTime: 60 * 1000,
+    })
+}
+
+/** Submit or update a rating for a marketplace team */
+export function useSubmitTeamRating() {
+    const queryClient = useQueryClient()
+    return useMutation<TeamReview, Error, { teamId: string; userId: string; workspaceId: string; rating: number; reviewText?: string }>({
+        mutationFn: ({ teamId, userId, workspaceId, rating, reviewText }) =>
+            submitTeamRating(teamId, userId, workspaceId, rating, reviewText ?? ''),
+        onSuccess: (_data, vars) => {
+            void queryClient.invalidateQueries({ queryKey: ['team-reviews', vars.teamId] })
+            void queryClient.invalidateQueries({ queryKey: ['marketplace-teams'] })
+        },
+    })
+}
+
+// ─── Team Install ───────────────────────────────────────────────────────────
+
+/** Install a marketplace team into the user's workspace */
+export function useInstallTeam() {
+    const queryClient = useQueryClient()
+    return useMutation<TeamInstallResult, Error, { teamId: string; workspaceId: string; userId: string }>({
+        mutationFn: ({ teamId, workspaceId, userId }) =>
+            installMarketplaceTeam(teamId, workspaceId, userId),
+        onSuccess: () => {
+            void queryClient.invalidateQueries({ queryKey: ['teams'] })
+            void queryClient.invalidateQueries({ queryKey: ['agents'] })
+            void queryClient.invalidateQueries({ queryKey: ['marketplace-teams'] })
         },
     })
 }

@@ -134,6 +134,12 @@ export interface Team {
   mode: TeamMode
   config: PipelineConfig | OrchestratorConfig | CollaborationConfig
   output_route_ids: string[] | null // null = all routes, [] = none, [...ids] = specific
+  // Marketplace fields
+  is_published: boolean
+  marketplace_tags: string[]
+  install_count: number
+  rating_avg: number
+  marketplace_readme: string | null
   created_at: string
   updated_at: string
 }
