@@ -750,12 +750,81 @@ function sectionEmoji(heading: string): string {
  * doesn't have enough structure to justify splitting.
  */
 function parseOutputSections(output: string): TrelloSection[] {
-    const headingRegex = /^(#{1,2})\s+(.+)$/gm;
-    const matches = [...output.matchAll(headingRegex)];
+    // Strategy 1: Markdown headings (h1–h4)
+    const headingRegex = /^(#{1,4})\s+(.+)$/gm;
+    let matches = [...output.matchAll(headingRegex)];
 
-    // Need at least 2 headings to justify splitting into multiple cards
-    if (matches.length < 2) return [];
+    if (matches.length >= 2) {
+        console.log(`[Trello] parseOutputSections: found ${matches.length} markdown headings`);
+        return buildSectionsFromMatches(output, matches);
+    }
 
+    // Strategy 2: Bold-line section headers (e.g., **Section Name** on its own line)
+    const boldRegex = /^\*\*([^*]{3,80})\*\*\s*$/gm;
+    matches = [...output.matchAll(boldRegex)];
+
+    if (matches.length >= 2) {
+        console.log(`[Trello] parseOutputSections: found ${matches.length} bold-line sections`);
+        return buildSectionsFromMatches(output, matches);
+    }
+
+    // Strategy 3: Horizontal rule separators (---)
+    const parts = output.split(/\n---+\n/);
+    if (parts.length >= 2) {
+        console.log(`[Trello] parseOutputSections: found ${parts.length} separator-delimited sections`);
+        const sections: TrelloSection[] = [];
+        for (let i = 0; i < parts.length; i++) {
+            const part = parts[i].trim();
+            if (!part) continue;
+
+            // Try to extract a title from the first line
+            const firstLine = part.split('\n')[0].trim()
+                .replace(/^#+\s*/, '')      // strip leading #
+                .replace(/^\*\*|\*\*$/g, '') // strip bold markers
+                .substring(0, 80);
+            const rest = part.substring(part.indexOf('\n') + 1).trim();
+
+            sections.push({
+                title: `${sectionEmoji(firstLine)} ${firstLine}`,
+                content: rest || part,
+            });
+        }
+        return sections.length >= 2 ? sections : [];
+    }
+
+    // Strategy 4: Large content with no clear structure — split by size
+    if (output.length > 2000) {
+        console.log(`[Trello] parseOutputSections: no structure found, splitting by paragraphs`);
+        const paragraphs = output.split(/\n\n+/);
+        const sections: TrelloSection[] = [];
+        let currentContent = '';
+        let sectionIndex = 1;
+
+        for (const para of paragraphs) {
+            if (currentContent.length + para.length > 4000 && currentContent.length > 500) {
+                sections.push({
+                    title: `📄 Part ${sectionIndex}`,
+                    content: currentContent.trim(),
+                });
+                currentContent = para;
+                sectionIndex++;
+            } else {
+                currentContent += (currentContent ? '\n\n' : '') + para;
+            }
+        }
+        if (currentContent.trim()) {
+            sections.push({
+                title: `📄 Part ${sectionIndex}`,
+                content: currentContent.trim(),
+            });
+        }
+        return sections.length >= 2 ? sections : [];
+    }
+
+    return [];
+}
+
+function buildSectionsFromMatches(output: string, matches: RegExpMatchArray[]): TrelloSection[] {
     const sections: TrelloSection[] = [];
 
     // Preamble — any text before the first heading
@@ -766,7 +835,8 @@ function parseOutputSections(output: string): TrelloSection[] {
 
     // Each heading becomes a card
     for (let i = 0; i < matches.length; i++) {
-        const heading = matches[i][2].trim();
+        // Use capture group 2 if present (markdown headings), otherwise group 1 (bold)
+        const heading = (matches[i][2] ?? matches[i][1]).trim();
         const contentStart = matches[i].index! + matches[i][0].length;
         const contentEnd = i + 1 < matches.length ? matches[i + 1].index! : output.length;
         const content = output.substring(contentStart, contentEnd).trim();
