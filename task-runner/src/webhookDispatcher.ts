@@ -212,6 +212,27 @@ export async function dispatchTeamRunWebhooks(
         if (error || !routes || routes.length === 0) return;
 
         const attachments = await loadAttachmentsForPayload(null, teamRun.id);
+
+        // ── Ensure we have the output ──────────────────────────────────────
+        // Some executors may not pass the output inline. As a safety net,
+        // always fetch from DB if the passed value is missing.
+        let resolvedOutput = teamRun.output ?? null;
+        if (!resolvedOutput && teamRun.status === 'completed') {
+            const { data: runRow } = await supabase
+                .from('team_runs')
+                .select('output')
+                .eq('id', teamRun.id)
+                .single();
+            resolvedOutput = (runRow as { output: string | null } | null)?.output ?? null;
+            if (resolvedOutput) {
+                console.log(`[Webhooks] Fetched output from DB for run ${teamRun.id} (${resolvedOutput.length} chars)`);
+            } else {
+                console.warn(`[Webhooks] No output found in DB for completed run ${teamRun.id}`);
+            }
+        }
+
+        console.log(`[Webhooks] Team run ${teamRun.id} payload: status=${teamRun.status}, output=${resolvedOutput ? resolvedOutput.length + ' chars' : 'null'}`);
+
         const payload: WebhookPayload = {
             id: teamRun.id,
             event,
@@ -220,8 +241,8 @@ export async function dispatchTeamRunWebhooks(
             task_title: teamRun.input_task,
             agent_name: teamName,
             status: teamRun.status,
-            result_preview: teamRun.output ? teamRun.output.substring(0, 500) : null,
-            result_full: teamRun.output ?? null,
+            result_preview: resolvedOutput ? resolvedOutput.substring(0, 500) : null,
+            result_full: resolvedOutput,
             error: teamRun.error_message ?? null,
             timestamp: new Date().toISOString(),
             attachments,
@@ -818,7 +839,11 @@ async function deliverTrello(
     // ── Create new cards ────────────────────────────────────────────────
     const output = payload.result_full || payload.error || 'No output';
     const targetList = reviewListId && payload.status === 'completed' ? reviewListId : listId;
+
+    console.log(`[Trello] deliverTrello: result_full=${payload.result_full ? payload.result_full.length + ' chars' : 'null'}, output=${output.length} chars`);
+
     const sections = parseOutputSections(output);
+    console.log(`[Trello] Parsed ${sections.length} sections from output`);
 
     if (sections.length >= 2) {
         // ── Multi-card creation: one card per markdown section ───────
