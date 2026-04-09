@@ -209,7 +209,7 @@ npm run dev
 - [Contributing](#contributing)
 - [Community](#community)
 - [FAQ](#faq)
-- [How CrewForm Compares](#how-crewform-compares)
+- [CrewForm vs Others](#crewform-vs-others)
 - [License](#license)
 
 ## Why CrewForm?
@@ -487,7 +487,7 @@ CrewForm integrates with **Zapier** (7,000+ apps), messaging channels (**Discord
 CrewForm is a **visual, UI-first platform** — you create agents, teams, and tasks through a web interface with no Python required. CrewAI and LangGraph are code-first libraries. CrewForm also includes built-in billing, RBAC, marketplace, messaging channels, MCP protocol support, RAG knowledge base, A2A agent-to-agent interop, AG-UI real-time streaming, and a production-ready self-hosted deployment. CrewForm is the **first platform to support all three agentic protocols** (MCP + A2A + AG-UI).
 </details>
 
-## How CrewForm Compares
+## CrewForm vs Others
 
 | Capability | CrewForm | Dify | n8n | CrewAI | LangGraph |
 |---|---|---|---|---|---|
