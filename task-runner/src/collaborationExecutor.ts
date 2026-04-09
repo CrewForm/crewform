@@ -28,11 +28,13 @@ export async function processCollaborationRun(run: TeamRun): Promise<void> {
     let totalTokens = 0;
     let totalCost = 0;
 
+    let teamData: { name: string; config: CollaborationConfig; mode: string; output_route_ids: string[] | null } | null = null;
+
     try {
         // 1. Fetch team config
         const teamResponse = await supabase
             .from('teams')
-            .select('config, mode')
+            .select('name, config, mode, output_route_ids')
             .eq('id', run.team_id)
             .single();
 
@@ -40,7 +42,7 @@ export async function processCollaborationRun(run: TeamRun): Promise<void> {
             throw new Error(`Failed to load team: ${teamResponse.error?.message ?? 'not found'}`);
         }
 
-        const teamData = teamResponse.data as { config: CollaborationConfig; mode: string };
+        teamData = teamResponse.data as { name: string; config: CollaborationConfig; mode: string; output_route_ids: string[] | null };
         const config = teamData.config;
 
         if (!config.agent_ids?.length || config.agent_ids.length < 2) {
@@ -193,8 +195,9 @@ export async function processCollaborationRun(run: TeamRun): Promise<void> {
         // Fire webhook (fire-and-forget)
         void dispatchTeamRunWebhooks(
             { id: run.id, team_id: run.team_id, workspace_id: run.workspace_id, status: 'completed', input_task: run.input_task, output: finalOutput },
-            `Collaboration Team ${run.team_id}`,
+            teamData.name,
             'team_run.completed',
+            teamData.output_route_ids,
         );
 
     } catch (error: unknown) {
@@ -214,8 +217,9 @@ export async function processCollaborationRun(run: TeamRun): Promise<void> {
 
         void dispatchTeamRunWebhooks(
             { id: run.id, team_id: run.team_id, workspace_id: run.workspace_id, status: 'failed', input_task: run.input_task, error_message: errMsg },
-            `Collaboration Team ${run.team_id}`,
+            teamData?.name ?? `Collaboration Team ${run.team_id}`,
             'team_run.failed',
+            teamData?.output_route_ids ?? null,
         );
     }
 }

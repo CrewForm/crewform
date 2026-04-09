@@ -542,8 +542,44 @@ async function executeToolCall(
         }
 
         case 'final_answer': {
-            const output = args.output as string;
-            console.log(`[Orchestrator] final_answer received, output length: ${output?.length ?? 0} chars`);
+            let output = (args.output as string) ?? '';
+            console.log(`[Orchestrator] final_answer received, brain output length: ${output.length} chars`);
+
+            // ── Augment with worker outputs if the brain was lazy ────────
+            // LLMs often call final_answer with a brief summary like
+            // "Task completed successfully" instead of including the full
+            // synthesized content. If the final answer is much shorter than
+            // the accumulated worker outputs, append them.
+            const completedDelegations = Array.from(delegations.values())
+                .filter((d) => d.status === 'completed' && d.worker_output);
+
+            if (completedDelegations.length > 0) {
+                const workerOutputsTotal = completedDelegations
+                    .reduce((sum, d) => sum + (d.worker_output?.length ?? 0), 0);
+
+                // If brain's final answer is less than 20% of workers' combined output,
+                // the brain likely just wrote a summary — augment with full worker outputs
+                if (output.length < workerOutputsTotal * 0.2) {
+                    console.log(`[Orchestrator] Brain output (${output.length} chars) << worker outputs (${workerOutputsTotal} chars) — augmenting`);
+
+                    const workerSections = completedDelegations.map((d) => {
+                        const worker = workers.find((w) => w.id === d.worker_agent_id);
+                        const workerName = worker?.name ?? 'Worker';
+                        return `## ${workerName}\n\n${d.worker_output}`;
+                    });
+
+                    output = [
+                        output,
+                        '',
+                        '---',
+                        '',
+                        ...workerSections,
+                    ].join('\n');
+
+                    console.log(`[Orchestrator] Augmented final output: ${output.length} chars`);
+                }
+            }
+
             await finalizeRun(run.id, output, 0, 0); // tokens/cost already tracked
             return { result: output, tokensUsed: 0, costUsed: 0, isDone: true };
         }
