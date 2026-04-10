@@ -78,6 +78,7 @@ export function App() {
             <Route path="/knowledge" element={<KnowledgeBase />} />
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/settings/:tab" element={<Settings />} />
 
             {/* Admin — super admin only */}
             <Route path="/admin" element={<AdminGuard><AdminPanel /></AdminGuard>} />

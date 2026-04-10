@@ -15,6 +15,20 @@ import {
   LogOut,
   X,
   Shield,
+  ChevronDown,
+  KeyRound,
+  Building2,
+  Webhook,
+  ScrollText,
+  CreditCard,
+  MessageSquareText,
+  ShieldCheck,
+  Brain,
+  Zap,
+  Plug,
+  Link2,
+  MessageCircle,
+  User,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
@@ -23,6 +37,7 @@ import { useIsMobile, useIsTablet } from '@/hooks/useMediaQuery'
 import { TopBar } from '@/components/layout/TopBar'
 import { MobileNav } from '@/components/layout/MobileNav'
 import { useWorkspace } from '@/hooks/useWorkspace'
+import { useEELicense } from '@/hooks/useEELicense'
 import { PageSkeleton } from '@/components/ui/PageSkeleton'
 
 const navItems = [
@@ -33,17 +48,62 @@ const navItems = [
   { to: '/knowledge', icon: BookOpen, label: 'Knowledge' },
   { to: '/marketplace', icon: Store, label: 'Marketplace' },
   { to: '/analytics', icon: BarChart3, label: 'Analytics' },
-  { to: '/settings', icon: Settings, label: 'Settings' },
 ] as const
+
+/** Settings sub-navigation items grouped by category */
+const settingsSubNav: {
+  category?: string
+  items: { to: string; icon: typeof KeyRound; label: string; eeFeature?: string }[]
+}[] = [
+  {
+    items: [
+      { to: '/settings', icon: Brain, label: 'LLM Setup' },
+      { to: '/settings/api-keys', icon: KeyRound, label: 'API Keys' },
+      { to: '/settings/webhooks', icon: Webhook, label: 'Webhooks' },
+    ],
+  },
+  {
+    category: 'Integrations',
+    items: [
+      { to: '/settings/channels', icon: MessageSquareText, label: 'Channels', eeFeature: 'messaging_channels' },
+      { to: '/settings/mcp-servers', icon: Plug, label: 'MCP Servers' },
+      { to: '/settings/a2a', icon: Link2, label: 'A2A Protocol' },
+      { to: '/settings/automations', icon: Zap, label: 'Automations' },
+      { to: '/settings/chat-widget', icon: MessageCircle, label: 'Chat Widget', eeFeature: 'chat_widget' },
+    ],
+  },
+  {
+    category: 'Workspace',
+    items: [
+      { to: '/settings/members', icon: Users, label: 'Members', eeFeature: 'rbac' },
+      { to: '/settings/workspace', icon: Building2, label: 'Workspace' },
+      { to: '/settings/billing', icon: CreditCard, label: 'Billing' },
+      { to: '/settings/audit-log', icon: ScrollText, label: 'Audit Log' },
+      { to: '/settings/license', icon: ShieldCheck, label: 'License' },
+      { to: '/settings/profile', icon: User, label: 'Profile' },
+    ],
+  },
+]
 
 export function RootLayout() {
   const { user, signOut } = useAuth()
   const { isSuperAdmin } = useSuperAdmin()
-  const { workspace, isSuspended } = useWorkspace()
+  const { workspace, isSuspended, workspaceId } = useWorkspace()
+  const { hasFeature } = useEELicense(workspaceId ?? undefined)
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  const isOnSettings = location.pathname === '/settings' || location.pathname.startsWith('/settings/')
+  const [settingsExpanded, setSettingsExpanded] = useState(isOnSettings)
+
+  // Auto-expand settings when navigating to a settings page
+  useEffect(() => {
+    if (isOnSettings) {
+      setSettingsExpanded(true)
+    }
+  }, [isOnSettings])
 
   const metadata = (user?.user_metadata ?? {}) as Record<string, unknown>
   const displayName = (typeof metadata.full_name === 'string' ? metadata.full_name : null)
@@ -157,7 +217,7 @@ export function RootLayout() {
         </div>
 
         {/* Navigation */}
-        <nav className={cn('flex-1 space-y-1 py-4', collapsed ? 'px-2' : 'px-3')}>
+        <nav className={cn('flex-1 overflow-y-auto py-4', collapsed ? 'px-2' : 'px-3')}>
           {allNavItems.map(({ to, icon: Icon, label }) => (
             <NavLink
               key={to}
@@ -178,6 +238,86 @@ export function RootLayout() {
               {!collapsed && label}
             </NavLink>
           ))}
+
+          {/* ─── Settings collapsible group ─── */}
+          {collapsed ? (
+            /* Collapsed: single settings icon */
+            <NavLink
+              to="/settings"
+              className={cn(
+                'flex items-center justify-center rounded-lg p-2.5 text-sm font-medium transition-colors',
+                isOnSettings
+                  ? 'bg-gray-800 text-gray-100'
+                  : 'text-gray-400 hover:bg-gray-800/50 hover:text-gray-200',
+              )}
+              title="Settings"
+            >
+              <Settings className="h-5 w-5 shrink-0" />
+            </NavLink>
+          ) : (
+            /* Expanded: collapsible settings section */
+            <div className="mt-1">
+              <button
+                type="button"
+                onClick={() => setSettingsExpanded(prev => !prev)}
+                className={cn(
+                  'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                  isOnSettings
+                    ? 'bg-gray-800 text-gray-100'
+                    : 'text-gray-400 hover:bg-gray-800/50 hover:text-gray-200',
+                )}
+              >
+                <Settings className="h-5 w-5 shrink-0" />
+                <span className="flex-1 text-left">Settings</span>
+                <ChevronDown
+                  className={cn(
+                    'h-4 w-4 shrink-0 transition-transform duration-200',
+                    settingsExpanded && 'rotate-180',
+                  )}
+                />
+              </button>
+
+              {/* Sub-navigation items */}
+              <div
+                className={cn(
+                  'overflow-hidden transition-all duration-200',
+                  settingsExpanded ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0',
+                )}
+              >
+                <div className="mt-1 space-y-0.5 pl-2">
+                  {settingsSubNav.map((group, gi) => (
+                    <div key={gi}>
+                      {group.category && (
+                        <div className="px-3 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wider text-gray-600">
+                          {group.category}
+                        </div>
+                      )}
+                      {group.items
+                        .filter(item => !item.eeFeature || hasFeature(item.eeFeature))
+                        .map(({ to, icon: Icon, label }) => (
+                          <NavLink
+                            key={to}
+                            to={to}
+                            end
+                            className={({ isActive }) =>
+                              cn(
+                                'flex items-center gap-2.5 rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors',
+                                isActive
+                                  ? 'bg-gray-800/80 text-gray-200'
+                                  : 'text-gray-500 hover:bg-gray-800/40 hover:text-gray-300',
+                              )
+                            }
+                          >
+                            <Icon className="h-3.5 w-3.5 shrink-0" />
+                            {label}
+                          </NavLink>
+                        ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
         </nav>
 
         {/* User footer — hidden when collapsed */}

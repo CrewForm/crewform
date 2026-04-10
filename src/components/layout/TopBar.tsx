@@ -19,7 +19,20 @@ const pageTitles: Record<string, string> = {
     '/knowledge': 'Knowledge Base',
     '/marketplace': 'Marketplace',
     '/analytics': 'Analytics',
-    '/settings': 'Settings',
+    '/settings': 'LLM Setup',
+    '/settings/api-keys': 'API Keys',
+    '/settings/webhooks': 'Webhooks',
+    '/settings/channels': 'Channels',
+    '/settings/members': 'Members',
+    '/settings/workspace': 'Workspace',
+    '/settings/billing': 'Billing',
+    '/settings/audit-log': 'Audit Log',
+    '/settings/automations': 'Automations',
+    '/settings/mcp-servers': 'MCP Servers',
+    '/settings/a2a': 'A2A Protocol',
+    '/settings/chat-widget': 'Chat Widget',
+    '/settings/license': 'License',
+    '/settings/profile': 'Profile',
 }
 
 export function TopBar({ onMenuToggle, isMobile }: TopBarProps) {
