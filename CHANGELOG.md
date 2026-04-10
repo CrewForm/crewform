@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.2] - 2026-04-11
+
+### Added
+
+- **AG-UI Multi-Step Wizards** — Agents can orchestrate complex, stateful, branching user interactions via `requestWizard()`. Supports 5 input types (approval, confirm_data, choice, text_input, form) with conditional step branching, cancellation, and a glassmorphism modal UI
+- **Marketplace: Creator Analytics Dashboard** — Comprehensive usage analytics for template authors replacing the basic stat cards:
+  - 4 summary cards: Published Agents, Total Installs, Average Rating, Total Reviews
+  - Install trend area chart (30-day daily + cumulative)
+  - Rating distribution bar chart (1–5★ color-coded)
+  - Per-agent performance table with installs, rating, reviews, and publish date
+  - Recent reviews feed with star display
+- **Navigation: Settings Sub-Navigation** — Migrated 14 settings tabs from horizontal scroll bar to collapsible sidebar groups, organized into 3 categories (Configuration, Integrations, Workspace) with URL-based routing (`/settings/:tab`)
+- **Navigation: Admin Panel Sub-Navigation** — Migrated 8 admin tabs (Overview, Workspaces, Abuse, Activity, Beta Users, Licenses, Marketplace, Review Queue) to collapsible sidebar group with URL-based routing (`/admin/:tab`), auto-expand, and super-admin gating
+
+### Changed
+
+- Settings and Admin pages no longer render their own tab bars — navigation is driven entirely by sidebar sub-items
+- TopBar dynamically shows per-section titles for all Settings and Admin sub-pages
+
 ## [1.8.1] - 2026-04-10
 
 ### Added

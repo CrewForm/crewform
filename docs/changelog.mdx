@@ -9,6 +9,34 @@ All notable changes to CrewForm will be documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.8.2] — 2026-04-11
+
+### Added
+
+- **AG-UI Multi-Step Wizards** — Agents can orchestrate complex, stateful, branching user interactions with 5 input types (approval, confirm_data, choice, text_input, form), conditional branching, and cancellation support
+- **Marketplace: Creator Analytics** — Comprehensive usage dashboard for template authors: install trend charts (30-day), rating distribution, per-agent performance table, and recent reviews feed
+- **Navigation: Settings Sub-Navigation** — 14 settings tabs migrated to collapsible sidebar groups with URL-based routing (`/settings/:tab`)
+- **Navigation: Admin Panel Sub-Navigation** — 8 admin tabs migrated to collapsible sidebar group with URL-based routing (`/admin/:tab`)
+
+### Changed
+
+- Settings and Admin pages now use sidebar sub-navigation instead of horizontal tab bars
+- TopBar shows per-section titles for all Settings and Admin sub-pages
+
+## [1.8.1] — 2026-04-10
+
+### Added
+
+- **Canvas: Copy/Paste Nodes** — `Ctrl+C` / `Ctrl+V` to duplicate agent nodes with auto-connection
+- **Canvas: Sticky Notes** — Right-click annotations with 5 color presets and persistence
+- **Canvas: Node I/O Inspector** — Click any agent node to inspect input/output data
+- **Canvas: Autosave Infrastructure** — Draft config support for Save vs. Publish workflow
+
+### Fixed
+
+- Canvas node blur, copy/paste reliability, sticky note persistence across navigation
+- Orchestrator final answer aggregation and webhook output consistency
+
 ## [1.8.0] — 2026-04-08
 
 ### Added
