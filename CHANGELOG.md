@@ -6,6 +6,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.1] - 2026-04-10
+
+### Added
+
+- **Canvas: Copy/Paste Nodes** — `Ctrl+C` / `Ctrl+V` to duplicate agent nodes on the workflow canvas. Auto-connects pasted nodes based on team mode (brain link in orchestrator, mesh in collaboration)
+- **Canvas: Sticky Notes** — Right-click canvas → "Add Note" for free-text annotations. 5 color presets (yellow, blue, green, pink, purple) with inline editing. Notes persist across saves and page navigation
+- **Canvas: Node I/O Inspector** — Click any agent node during/after a run to see collapsible Input/Output sections showing exact data the agent received and produced
+- **Canvas: Autosave Infrastructure** — `draft_config` column on teams (Migration `075`), `useSaveDraft` / `usePublishDraft` hooks for future Save vs. Publish workflow
+- **Canvas: Re-run Step Hook** — `useRerunStep` mutation hook for re-executing individual pipeline steps (backend endpoint coming in a future release)
+- **Keyboard Shortcuts** — Added `⌘C`, `⌘V` to the shortcuts overlay
+
+### Fixed
+
+- **Canvas: Node Blur** — Reduced `backdrop-filter` blur from 12px to 4px and raised background opacity. Added `will-change: transform` for crisp text rendering on all GPUs
+- **Canvas: Copy/Paste Not Working** — Rewrote paste logic from broken nested `setNodes`/`setEdges` pattern to direct state updates
+- **Canvas: Notes Disappearing** — Notes now persist in `config._canvas_notes` and are restored when rebuilding the graph from config
+- **Orchestrator: Lazy Final Answer** — Brain's `final_answer` is now augmented with aggregated worker outputs when insufficient, ensuring full content reaches webhook dispatchers
+- **Orchestrator: Webhook Output** — All three executors (pipeline, orchestrator, collaboration) now consistently pass output to the webhook dispatcher
+- **Webhook: DB Fallback** — Dispatcher fetches output from `task_runs.output` as a safety net if the in-memory value is empty
+- **Trello: Robust Parser** — Output parser now uses 4 fallback strategies (heading-based, separator-based, paragraph-based, single-card) for reliable multi-card delivery
+- **Trello: Multi-Card Delivery** — Fixed test handler and card creation for structured multi-card outputs
+
+### Changed
+
+- **Roadmap** — Updated Visual Workflow Builder status to Phase 3 (copy/paste, sticky notes, I/O inspector, draft autosave)
+- **README** — Major overhaul for v1.8.0; comparison table reformatted
+
 ## [1.8.0] - 2026-04-08
 
 ### Added
