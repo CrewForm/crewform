@@ -27,6 +27,10 @@ export enum AgUiEventType {
     INTERACTION_REQUEST = 'INTERACTION_REQUEST',
     INTERACTION_RESPONSE = 'INTERACTION_RESPONSE',
     INTERACTION_TIMEOUT = 'INTERACTION_TIMEOUT',
+    // ─── Wizard Events ──────────────────────────────────────────────────
+    WIZARD_STEP_ADVANCE = 'WIZARD_STEP_ADVANCE',
+    WIZARD_COMPLETE = 'WIZARD_COMPLETE',
+    WIZARD_CANCELLED = 'WIZARD_CANCELLED',
 }
 
 export interface AgUiEvent {

@@ -3,7 +3,7 @@ export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
 
 // ─── AG-UI Interaction Types ────────────────────────────────────────────────
 
-export type InteractionType = 'approval' | 'confirm_data' | 'choice';
+export type InteractionType = 'approval' | 'confirm_data' | 'choice' | 'wizard';
 
 export interface InteractionChoice {
     id: string;
@@ -20,6 +20,8 @@ export interface InteractionContext {
     choices?: InteractionChoice[];
     requestedAt: number;
     timeoutMs: number;
+    /** Wizard-specific: the full wizard definition */
+    wizard?: WizardDefinition;
 }
 
 export interface InteractionResponse {
@@ -27,7 +29,67 @@ export interface InteractionResponse {
     approved?: boolean;
     data?: Record<string, unknown>;
     selectedOptionId?: string;
+    /** Wizard-specific: which step this response is for */
+    wizardStepId?: string;
+    /** Wizard-specific: complete wizard cancelled by user */
+    wizardCancelled?: boolean;
     respondedAt: number;
+}
+
+// ─── AG-UI Wizard Types ─────────────────────────────────────────────────────
+
+export interface WizardField {
+    key: string;
+    label: string;
+    type: 'text' | 'number' | 'email' | 'textarea' | 'select' | 'toggle';
+    required?: boolean;
+    options?: { value: string; label: string }[];
+    placeholder?: string;
+    defaultValue?: unknown;
+}
+
+export interface WizardCondition {
+    /** stepId of a prior step whose response we inspect */
+    dependsOnStep: string;
+    /** Which response field to check (e.g. 'selectedOptionId', 'approved', or a data key) */
+    field: string;
+    operator: 'equals' | 'not_equals' | 'contains';
+    value: unknown;
+}
+
+export interface WizardStep {
+    stepId: string;
+    type: 'approval' | 'confirm_data' | 'choice' | 'text_input' | 'form';
+    title: string;
+    description?: string;
+    data?: Record<string, unknown>;
+    choices?: InteractionChoice[];
+    /** For 'form' type: dynamic form fields */
+    fields?: WizardField[];
+    /** For 'text_input' type: input placeholder */
+    placeholder?: string;
+    /** Conditional visibility — skip step if condition is not met */
+    condition?: WizardCondition;
+}
+
+export interface WizardDefinition {
+    steps: WizardStep[];
+    /** Title shown in the wizard header */
+    title: string;
+    description?: string;
+}
+
+export interface WizardStepResponse {
+    stepId: string;
+    approved?: boolean;
+    data?: Record<string, unknown>;
+    selectedOptionId?: string;
+    textInput?: string;
+}
+
+export interface WizardResult {
+    completed: boolean;
+    responses: WizardStepResponse[];
 }
 
 export interface Task {

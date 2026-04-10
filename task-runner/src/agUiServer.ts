@@ -196,6 +196,8 @@ export async function handleAgUiRequest(
             approved?: boolean;
             data?: Record<string, unknown>;
             selectedOptionId?: string;
+            wizardStepId?: string;
+            wizardCancelled?: boolean;
         };
         try {
             const raw = await readBody(req);
@@ -247,20 +249,25 @@ export async function handleAgUiRequest(
             approved: body.approved,
             data: body.data,
             selectedOptionId: body.selectedOptionId,
+            wizardStepId: body.wizardStepId,
+            wizardCancelled: body.wizardCancelled,
             respondedAt: Date.now(),
         };
 
         // Submit the response — this unblocks the waiting executor
         agUiEventBus.respond(body.threadId, response);
 
-        // Clear interaction_context and reset status
-        await supabase
-            .from('tasks')
-            .update({
-                status: 'running',
-                interaction_context: null,
-            })
-            .eq('id', body.threadId);
+        // For wizard steps, don't clear the interaction context yet — the wizard loop handles that
+        if (!body.wizardStepId && !body.wizardCancelled) {
+            // Clear interaction_context and reset status
+            await supabase
+                .from('tasks')
+                .update({
+                    status: 'running',
+                    interaction_context: null,
+                })
+                .eq('id', body.threadId);
+        }
 
         sendJson(res, 200, { ok: true, interactionId: body.interactionId });
         return true;

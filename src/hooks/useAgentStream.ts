@@ -23,6 +23,9 @@ export type AgUiEventType =
     | 'INTERACTION_REQUEST'
     | 'INTERACTION_RESPONSE'
     | 'INTERACTION_TIMEOUT'
+    | 'WIZARD_STEP_ADVANCE'
+    | 'WIZARD_COMPLETE'
+    | 'WIZARD_CANCELLED'
 
 export interface AgUiEvent {
     type: AgUiEventType
@@ -49,15 +52,66 @@ export interface AgUiToolCall {
     status: 'calling' | 'done'
 }
 
+export interface AgUiWizardField {
+    key: string
+    label: string
+    type: 'text' | 'number' | 'email' | 'textarea' | 'select' | 'toggle'
+    required?: boolean
+    options?: { value: string; label: string }[]
+    placeholder?: string
+    defaultValue?: unknown
+}
+
+export interface AgUiWizardCondition {
+    dependsOnStep: string
+    field: string
+    operator: 'equals' | 'not_equals' | 'contains'
+    value: unknown
+}
+
+export interface AgUiWizardStep {
+    stepId: string
+    type: 'approval' | 'confirm_data' | 'choice' | 'text_input' | 'form'
+    title: string
+    description?: string
+    data?: Record<string, unknown>
+    choices?: { id: string; label: string; description?: string }[]
+    fields?: AgUiWizardField[]
+    placeholder?: string
+    condition?: AgUiWizardCondition
+}
+
+export interface AgUiWizardDefinition {
+    steps: AgUiWizardStep[]
+    title: string
+    description?: string
+}
+
+export interface AgUiWizardStepResponse {
+    stepId: string
+    approved?: boolean
+    data?: Record<string, unknown>
+    selectedOptionId?: string
+    textInput?: string
+}
+
 export interface AgUiInteractionRequest {
     interactionId: string
-    interactionType: 'approval' | 'confirm_data' | 'choice'
+    interactionType: 'approval' | 'confirm_data' | 'choice' | 'wizard'
     title: string
     description?: string
     data?: Record<string, unknown>
     choices?: { id: string; label: string; description?: string }[]
     timeoutMs: number
     requestedAt: number
+    wizard?: AgUiWizardDefinition
+}
+
+export interface AgUiWizardState {
+    steps: AgUiWizardStep[]
+    currentStepIndex: number
+    completedStepIds: string[]
+    responses: AgUiWizardStepResponse[]
 }
 
 export interface AgUiStreamState {
@@ -66,6 +120,7 @@ export interface AgUiStreamState {
     textContent: string
     toolCalls: AgUiToolCall[]
     pendingInteraction: AgUiInteractionRequest | null
+    wizardState: AgUiWizardState | null
     error: string | null
 }
 
@@ -86,13 +141,14 @@ export function useAgentStream(
     taskId: string,
     apiKey: string,
     enabled = false,
-): AgUiStreamState & { respond: (response: { interactionId: string; approved?: boolean; data?: Record<string, unknown>; selectedOptionId?: string }) => Promise<void> } {
+): AgUiStreamState & { respond: (response: { interactionId: string; approved?: boolean; data?: Record<string, unknown>; selectedOptionId?: string; wizardStepId?: string; wizardCancelled?: boolean }) => Promise<void> } {
     const [state, setState] = useState<AgUiStreamState>({
         status: 'idle',
         events: [],
         textContent: '',
         toolCalls: [],
         pendingInteraction: null,
+        wizardState: null,
         error: null,
     })
     const abortRef = useRef<AbortController | null>(null)
@@ -204,20 +260,62 @@ export function useAgentStream(
                                         newError = event.message ?? 'Unknown error'
                                         break
 
-                                    case 'INTERACTION_REQUEST':
+                                    case 'INTERACTION_REQUEST': {
+                                        const interaction: AgUiInteractionRequest = {
+                                            interactionId: event.interactionId as string,
+                                            interactionType: event.interactionType as 'approval' | 'confirm_data' | 'choice' | 'wizard',
+                                            title: event.title as string,
+                                            description: event.description as string | undefined,
+                                            data: event.data as Record<string, unknown> | undefined,
+                                            choices: event.choices as { id: string; label: string; description?: string }[] | undefined,
+                                            timeoutMs: event.timeoutMs as number,
+                                            requestedAt: event.timestamp,
+                                            wizard: event.wizard as AgUiWizardDefinition | undefined,
+                                        }
+                                        // Initialize wizard state if this is a wizard interaction
+                                        const newWizardState: AgUiWizardState | null = interaction.interactionType === 'wizard' && interaction.wizard
+                                            ? {
+                                                steps: interaction.wizard.steps,
+                                                currentStepIndex: 0,
+                                                completedStepIds: [],
+                                                responses: [],
+                                            }
+                                            : null
                                         return {
                                             ...prev,
                                             events: newEvents,
-                                            pendingInteraction: {
-                                                interactionId: event.interactionId as string,
-                                                interactionType: event.interactionType as 'approval' | 'confirm_data' | 'choice',
-                                                title: event.title as string,
-                                                description: event.description as string | undefined,
-                                                data: event.data as Record<string, unknown> | undefined,
-                                                choices: event.choices as { id: string; label: string; description?: string }[] | undefined,
-                                                timeoutMs: event.timeoutMs as number,
-                                                requestedAt: event.timestamp,
-                                            },
+                                            pendingInteraction: interaction,
+                                            wizardState: newWizardState,
+                                        }
+                                    }
+
+                                    case 'WIZARD_STEP_ADVANCE':
+                                        return {
+                                            ...prev,
+                                            events: newEvents,
+                                            wizardState: prev.wizardState ? {
+                                                ...prev.wizardState,
+                                                completedStepIds: event.completedStepIds as string[],
+                                                currentStepIndex: prev.wizardState.steps.findIndex(
+                                                    s => s.stepId === (event.nextStepId as string)
+                                                ),
+                                            } : null,
+                                        }
+
+                                    case 'WIZARD_COMPLETE':
+                                        return {
+                                            ...prev,
+                                            events: newEvents,
+                                            pendingInteraction: null,
+                                            wizardState: null,
+                                        }
+
+                                    case 'WIZARD_CANCELLED':
+                                        return {
+                                            ...prev,
+                                            events: newEvents,
+                                            pendingInteraction: null,
+                                            wizardState: null,
                                         }
 
                                     case 'INTERACTION_RESPONSE':
@@ -226,6 +324,7 @@ export function useAgentStream(
                                             ...prev,
                                             events: newEvents,
                                             pendingInteraction: null,
+                                            wizardState: null,
                                         }
                                 }
 
@@ -233,6 +332,7 @@ export function useAgentStream(
                                     status: newStatus,
                                     events: newEvents,
                                     textContent: newText,
+                                    wizardState: prev.wizardState,
                                     toolCalls: newToolCalls,
                                     pendingInteraction: prev.pendingInteraction,
                                     error: newError,
@@ -266,6 +366,8 @@ export function useAgentStream(
         approved?: boolean
         data?: Record<string, unknown>
         selectedOptionId?: string
+        wizardStepId?: string
+        wizardCancelled?: boolean
     }) => {
         const url = `${taskRunnerUrl.replace(/\/$/, '')}/ag-ui/${agentId}/respond`
         await fetch(url, {

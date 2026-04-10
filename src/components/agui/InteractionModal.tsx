@@ -16,13 +16,14 @@ function formatValue(value: unknown, fallback = '—'): string {
 
 export interface InteractionRequest {
     interactionId: string
-    interactionType: 'approval' | 'confirm_data' | 'choice'
+    interactionType: 'approval' | 'confirm_data' | 'choice' | 'wizard'
     title: string
     description?: string
     data?: Record<string, unknown>
     choices?: { id: string; label: string; description?: string }[]
     timeoutMs: number
     requestedAt: number
+    wizard?: unknown
 }
 
 interface InteractionModalProps {
