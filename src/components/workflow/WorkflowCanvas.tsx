@@ -159,42 +159,6 @@ function WorkflowCanvasInner({ team, agents, onSaveConfig, onCanvasError, active
         )
     }, [executionStates, setNodes])
 
-    // Clipboard
-    const { copy, paste } = useCanvasClipboard({
-        nodes,
-        edges,
-        setNodes,
-        setEdges,
-        saveGraph,
-        pushState,
-        teamMode: team.mode,
-        layoutDirection,
-    })
-
-    // Centralized keyboard shortcuts
-    useCanvasKeyboard({
-        onUndo: () => { undo(nodes, edges) },
-        onRedo: () => { redo(nodes, edges) },
-        onCopy: copy,
-        onPaste: paste,
-        onFitView: () => { void reactFlowInstance.fitView({ duration: 400, padding: 0.3 }) },
-        onAutoLayout: () => {
-            pushState(nodes, edges)
-            const layoutedNodes = applyAutoLayout(nodes, edges)
-            setNodes(layoutedNodes)
-        },
-        onToggleTranscript: () => setShowTranscript((v) => !v),
-        onToggleShortcuts: () => setShowShortcuts((v) => !v),
-        onEscape: () => {
-            setShowPopup(false)
-            setSelectedNodeId(null)
-            setContextMenu(null)
-            setShowShortcuts(false)
-        },
-        onSelectAll: () => {
-            setNodes((nds) => nds.map((n) => ({ ...n, selected: true })))
-        },
-    })
 
     // ─── Save logic ──────────────────────────────────────────────────────────
 
@@ -233,6 +197,43 @@ function WorkflowCanvasInner({ team, agents, onSaveConfig, onCanvasError, active
             setIsSaving(false)
         }
     }, [team, agents, onSaveConfig, onCanvasError, setNodes, setEdges])
+
+    // Clipboard
+    const { copy, paste } = useCanvasClipboard({
+        nodes,
+        edges,
+        setNodes,
+        setEdges,
+        saveGraph,
+        pushState,
+        teamMode: team.mode,
+        layoutDirection,
+    })
+
+    // Centralized keyboard shortcuts
+    useCanvasKeyboard({
+        onUndo: () => { undo(nodes, edges) },
+        onRedo: () => { redo(nodes, edges) },
+        onCopy: copy,
+        onPaste: paste,
+        onFitView: () => { void reactFlowInstance.fitView({ duration: 400, padding: 0.3 }) },
+        onAutoLayout: () => {
+            pushState(nodes, edges)
+            const layoutedNodes = applyAutoLayout(nodes, edges)
+            setNodes(layoutedNodes)
+        },
+        onToggleTranscript: () => setShowTranscript((v) => !v),
+        onToggleShortcuts: () => setShowShortcuts((v) => !v),
+        onEscape: () => {
+            setShowPopup(false)
+            setSelectedNodeId(null)
+            setContextMenu(null)
+            setShowShortcuts(false)
+        },
+        onSelectAll: () => {
+            setNodes((nds) => nds.map((n) => ({ ...n, selected: true })))
+        },
+    })
 
     // ─── Node interactions ───────────────────────────────────────────────────
 
