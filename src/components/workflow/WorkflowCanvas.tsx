@@ -29,6 +29,7 @@ import './workflow.css'
 import { AgentNode } from './nodes/AgentNode'
 import { StartNode } from './nodes/StartNode'
 import { EndNode } from './nodes/EndNode'
+import { NoteNode } from './nodes/NoteNode'
 import { useWorkflowGraph, graphToConfig, validateConfig, getHandleIds, updateEdgeHandles } from './useWorkflowGraph'
 import { useCanvasHistory } from './useCanvasHistory'
 import { useAutoLayout } from './useAutoLayout'
@@ -37,6 +38,7 @@ import { useCanvasCamera, usePanToNode } from './useCanvasCamera'
 import { useCanvasKeyboard } from './useCanvasKeyboard'
 import { WorkflowSidebar } from './WorkflowSidebar'
 import { NodeDetailPopup } from './NodeDetailPopup'
+import { useCanvasClipboard } from './useCanvasClipboard'
 import { CanvasContextMenu, type ContextMenuState } from './CanvasContextMenu'
 import { ExecutionTimeline } from './ExecutionTimeline'
 import { TranscriptPanel } from './TranscriptPanel'
@@ -65,6 +67,7 @@ const NODE_TYPES: NodeTypes = {
     agentNode: AgentNode,
     startNode: StartNode,
     endNode: EndNode,
+    noteNode: NoteNode,
 }
 
 type TeamConfig = PipelineConfig | OrchestratorConfig | CollaborationConfig
@@ -156,10 +159,24 @@ function WorkflowCanvasInner({ team, agents, onSaveConfig, onCanvasError, active
         )
     }, [executionStates, setNodes])
 
+    // Clipboard
+    const { copy, paste } = useCanvasClipboard({
+        nodes,
+        edges,
+        setNodes,
+        setEdges,
+        saveGraph,
+        pushState,
+        teamMode: team.mode,
+        layoutDirection,
+    })
+
     // Centralized keyboard shortcuts
     useCanvasKeyboard({
         onUndo: () => { undo(nodes, edges) },
         onRedo: () => { redo(nodes, edges) },
+        onCopy: copy,
+        onPaste: paste,
         onFitView: () => { void reactFlowInstance.fitView({ duration: 400, padding: 0.3 }) },
         onAutoLayout: () => {
             pushState(nodes, edges)
@@ -576,6 +593,32 @@ function WorkflowCanvasInner({ team, agents, onSaveConfig, onCanvasError, active
         window.location.href = `/agents/${agentId}`
     }, [])
 
+    // ─── Add sticky note ─────────────────────────────────────────────────────
+
+    const handleAddNote = useCallback((screenX: number, screenY: number) => {
+        const bounds = document.querySelector('.react-flow')?.getBoundingClientRect()
+        if (!bounds) return
+
+        const position = reactFlowInstance.screenToFlowPosition({
+            x: screenX,
+            y: screenY,
+        })
+
+        const noteId = `note-${Date.now()}`
+        const newNode: Node = {
+            id: noteId,
+            type: 'noteNode',
+            position,
+            data: { content: '', color: 'yellow' },
+            draggable: true,
+        }
+
+        setNodes((currentNodes) => {
+            const updated = [...currentNodes, newNode]
+            return updated
+        })
+    }, [reactFlowInstance, setNodes])
+
     // ─── Render ──────────────────────────────────────────────────────────────
 
     const selectedNode = nodes.find((n) => n.id === selectedNodeId)
@@ -795,6 +838,7 @@ function WorkflowCanvasInner({ team, agents, onSaveConfig, onCanvasError, active
                     team={team}
                     agents={agents}
                     executionStates={executionStates}
+                    runMessages={runMessages}
                     onDelete={handleDeleteNode}
                     onClose={() => { setShowPopup(false); setSelectedNodeId(null) }}
                 />
@@ -813,6 +857,7 @@ function WorkflowCanvasInner({ team, agents, onSaveConfig, onCanvasError, active
                     onGoToAgent={handleGoToAgent}
                     agents={agents}
                     onInsertAgent={insertAgentBetween}
+                    onAddNote={handleAddNote}
                 />
             )}
 

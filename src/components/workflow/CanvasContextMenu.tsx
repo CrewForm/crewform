@@ -21,6 +21,7 @@ import {
     Brain,
     Plus,
     Bot,
+    StickyNote,
 } from 'lucide-react'
 import type { Node } from '@xyflow/react'
 import type { AgentNodeData } from './nodes/AgentNode'
@@ -49,6 +50,8 @@ interface CanvasContextMenuProps {
     /** For edge context menu: insert agent between two nodes */
     agents?: Agent[]
     onInsertAgent?: (sourceId: string, targetId: string, agent: Agent) => void
+    /** Add a sticky note at the given canvas position */
+    onAddNote?: (x: number, y: number) => void
 }
 
 interface MenuItem {
@@ -72,6 +75,7 @@ export function CanvasContextMenu({
     onSetAsBrain,
     agents,
     onInsertAgent,
+    onAddNote,
 }: CanvasContextMenuProps) {
     const menuRef = useRef<HTMLDivElement>(null)
     const [showAgentPicker, setShowAgentPicker] = useState(false)
@@ -178,6 +182,14 @@ export function CanvasContextMenu({
         })
     } else {
         // Pane (canvas background) context menu
+        if (onAddNote) {
+            items.push({
+                label: 'Add Note',
+                icon: StickyNote,
+                onClick: () => { onAddNote(state.x, state.y); onClose() },
+            })
+            items.push('separator')
+        }
         items.push({
             label: 'Fit View',
             icon: Maximize2,

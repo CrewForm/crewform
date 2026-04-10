@@ -5,11 +5,11 @@
  * On-canvas detail popup for agent nodes.
  *
  * Appears next to the selected node, showing agent details,
- * step config (pipeline), execution state, and quick actions.
+ * step config (pipeline), execution state, I/O inspector, and quick actions.
  * Uses glassmorphism styling for a premium floating card look.
  */
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useReactFlow } from '@xyflow/react'
 import type { Node } from '@xyflow/react'
 import {
@@ -22,8 +22,12 @@ import {
     Check,
     Loader2,
     X,
+    ArrowDownToLine,
+    ArrowUpFromLine,
+    ChevronDown,
+    ChevronRight,
 } from 'lucide-react'
-import type { Agent, Team, PipelineConfig, PipelineStep } from '@/types'
+import type { Agent, Team, PipelineConfig, PipelineStep, TeamMessage } from '@/types'
 import type { AgentNodeData } from './nodes/AgentNode'
 import type { ExecutionNodeState } from './useExecutionState'
 
@@ -32,6 +36,7 @@ interface NodeDetailPopupProps {
     team: Team
     agents: Agent[]
     executionStates: Map<string, ExecutionNodeState> | null
+    runMessages?: TeamMessage[]
     onDelete?: (nodeId: string) => void
     onClose: () => void
 }
@@ -43,9 +48,11 @@ const EXEC_STATUS_CONFIG: Record<ExecutionNodeState, { label: string; className:
     failed: { label: 'Failed', className: 'text-red-400', Icon: X },
 }
 
-export function NodeDetailPopup({ node, team, agents, executionStates, onDelete, onClose }: NodeDetailPopupProps) {
+export function NodeDetailPopup({ node, team, agents, executionStates, runMessages, onDelete, onClose }: NodeDetailPopupProps) {
     const popupRef = useRef<HTMLDivElement>(null)
     const { getNodesBounds, flowToScreenPosition } = useReactFlow()
+    const [showInput, setShowInput] = useState(false)
+    const [showOutput, setShowOutput] = useState(false)
 
     const nodeData = node.data as unknown as AgentNodeData
     const isAgentNode = node.type === 'agentNode'
@@ -67,6 +74,10 @@ export function NodeDetailPopup({ node, team, agents, executionStates, onDelete,
     const protectedIds = new Set(['start', 'end', 'brain'])
     const isBrain = nodeData.role === 'brain' || nodeData.role === 'orchestrator'
     const canDelete = isAgentNode && !protectedIds.has(node.id) && !(isBrain && team.mode === 'orchestrator')
+
+    // I/O: filter messages for this agent
+    const { inputText, outputText } = getNodeIO(agentId, runMessages)
+    const hasIO = inputText || outputText
 
     // Calculate screen position of popup
     const bounds = getNodesBounds([node])
@@ -211,6 +222,62 @@ export function NodeDetailPopup({ node, team, agents, executionStates, onDelete,
                 </>
             )}
 
+            {/* I/O Inspector */}
+            {hasIO && (
+                <>
+                    <hr className="border-white/5 mb-2" />
+                    <div className="space-y-1.5 mb-3">
+                        <p className="text-[10px] font-medium uppercase tracking-wider text-gray-600">I/O Inspector</p>
+
+                        {/* Input */}
+                        {inputText && (
+                            <div>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowInput(!showInput)}
+                                    className="flex items-center gap-1 text-[10px] text-sky-400 hover:text-sky-300 transition-colors w-full"
+                                >
+                                    <ArrowDownToLine className="h-3 w-3" />
+                                    <span className="font-medium">Input</span>
+                                    {showInput
+                                        ? <ChevronDown className="h-2.5 w-2.5 ml-auto" />
+                                        : <ChevronRight className="h-2.5 w-2.5 ml-auto" />
+                                    }
+                                </button>
+                                {showInput && (
+                                    <pre className="mt-1 rounded-md bg-black/30 border border-white/5 p-2 text-[10px] text-gray-400 leading-relaxed max-h-32 overflow-y-auto whitespace-pre-wrap break-words">
+                                        {inputText}
+                                    </pre>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Output */}
+                        {outputText && (
+                            <div>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowOutput(!showOutput)}
+                                    className="flex items-center gap-1 text-[10px] text-emerald-400 hover:text-emerald-300 transition-colors w-full"
+                                >
+                                    <ArrowUpFromLine className="h-3 w-3" />
+                                    <span className="font-medium">Output</span>
+                                    {showOutput
+                                        ? <ChevronDown className="h-2.5 w-2.5 ml-auto" />
+                                        : <ChevronRight className="h-2.5 w-2.5 ml-auto" />
+                                    }
+                                </button>
+                                {showOutput && (
+                                    <pre className="mt-1 rounded-md bg-black/30 border border-white/5 p-2 text-[10px] text-gray-300 leading-relaxed max-h-32 overflow-y-auto whitespace-pre-wrap break-words">
+                                        {outputText}
+                                    </pre>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </>
+            )}
+
             {/* Brain protection notice */}
             {isBrain && team.mode === 'orchestrator' && (
                 <div className="flex items-start gap-1.5 rounded-md bg-amber-500/5 border border-amber-500/15 px-2.5 py-2 mb-3">
@@ -247,3 +314,35 @@ export function NodeDetailPopup({ node, team, agents, executionStates, onDelete,
         </div>
     )
 }
+
+/**
+ * Extract input/output text for a specific agent from team messages.
+ * Input = messages received by this agent (receiver_agent_id).
+ * Output = messages sent by this agent (sender_agent_id).
+ */
+function getNodeIO(
+    agentId: string | undefined,
+    messages?: TeamMessage[],
+): { inputText: string; outputText: string } {
+    if (!agentId || !messages || messages.length === 0) {
+        return { inputText: '', outputText: '' }
+    }
+
+    const inputMsgs = messages.filter(
+        (m) => m.receiver_agent_id === agentId && m.content,
+    )
+    const outputMsgs = messages.filter(
+        (m) => m.sender_agent_id === agentId && m.content && m.message_type !== 'delegation',
+    )
+
+    // Use the last input/output message (most recent)
+    const inputText = inputMsgs.length > 0
+        ? inputMsgs[inputMsgs.length - 1].content
+        : ''
+    const outputText = outputMsgs.length > 0
+        ? outputMsgs[outputMsgs.length - 1].content
+        : ''
+
+    return { inputText, outputText }
+}
+

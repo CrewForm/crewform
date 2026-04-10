@@ -5,6 +5,8 @@
  * Comprehensive keyboard shortcut handler for the workflow canvas.
  *
  * Centralizes all keyboard interactions:
+ *  - Ctrl+C: copy selected nodes
+ *  - Ctrl+V: paste copied nodes
  *  - Delete/Backspace: delete selected nodes
  *  - Ctrl+A: select all nodes
  *  - F: fit view
@@ -19,6 +21,8 @@ import { useEffect, useCallback } from 'react'
 interface CanvasKeyboardActions {
     onUndo: () => void
     onRedo: () => void
+    onCopy: () => void
+    onPaste: () => void
     onFitView: () => void
     onAutoLayout: () => void
     onToggleTranscript: () => void
@@ -48,6 +52,20 @@ export function useCanvasKeyboard(actions: CanvasKeyboardActions) {
         if (isCmd && e.shiftKey && e.key === 'z') {
             e.preventDefault()
             actions.onRedo()
+            return
+        }
+
+        // Copy: Ctrl+C
+        if (isCmd && e.key === 'c') {
+            e.preventDefault()
+            actions.onCopy()
+            return
+        }
+
+        // Paste: Ctrl+V
+        if (isCmd && e.key === 'v') {
+            e.preventDefault()
+            actions.onPaste()
             return
         }
 
@@ -96,3 +114,4 @@ export function useCanvasKeyboard(actions: CanvasKeyboardActions) {
         return () => window.removeEventListener('keydown', handleKeyDown)
     }, [handleKeyDown])
 }
+

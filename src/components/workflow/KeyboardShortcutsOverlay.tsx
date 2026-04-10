@@ -35,6 +35,8 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
         shortcuts: [
             { keys: '⌘ Z', description: 'Undo' },
             { keys: '⌘ ⇧ Z', description: 'Redo' },
+            { keys: '⌘ C', description: 'Copy selected nodes' },
+            { keys: '⌘ V', description: 'Paste nodes' },
             { keys: '⌘ A', description: 'Select all nodes' },
             { keys: 'Delete', description: 'Remove selected node' },
         ],
