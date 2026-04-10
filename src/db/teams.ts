@@ -71,7 +71,7 @@ export async function createTeam(input: CreateTeamInput): Promise<Team> {
 /** Update a team's details */
 export async function updateTeam(
     id: string,
-    updates: Partial<Pick<Team, 'name' | 'description' | 'config' | 'mode'>>,
+    updates: Partial<Pick<Team, 'name' | 'description' | 'config' | 'mode' | 'output_route_ids' | 'draft_config'>>,
 ): Promise<Team> {
     const result = await supabase
         .from('teams')
