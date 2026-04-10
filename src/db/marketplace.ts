@@ -844,3 +844,186 @@ export async function fetchTeamReviews(teamId: string): Promise<TeamReview[]> {
     if (result.error) throw result.error
     return result.data as TeamReview[]
 }
+
+// ─── Creator Analytics ──────────────────────────────────────────────────────
+
+export interface AgentAnalytics {
+    id: string
+    name: string
+    install_count: number
+    rating_avg: number
+    review_count: number
+    created_at: string
+}
+
+export interface InstallTrendPoint {
+    date: string      // YYYY-MM-DD
+    installs: number
+    cumulative: number
+}
+
+export interface RatingBucket {
+    rating: number     // 1–5
+    count: number
+}
+
+export interface RecentReview {
+    id: string
+    agent_name: string
+    rating: number
+    review_text: string
+    created_at: string
+}
+
+export interface CreatorAnalytics {
+    /** Per-agent breakdown */
+    agents: AgentAnalytics[]
+    /** Daily install trend (last 30 days) */
+    installTrend: InstallTrendPoint[]
+    /** Rating distribution (1–5 buckets) */
+    ratingDistribution: RatingBucket[]
+    /** Latest reviews across all published agents */
+    recentReviews: RecentReview[]
+    /** Aggregate totals */
+    totalInstalls: number
+    totalReviews: number
+    avgRating: number
+    publishedCount: number
+}
+
+/** Fetch comprehensive creator analytics for a workspace's published agents */
+export async function fetchCreatorAnalytics(workspaceId: string): Promise<CreatorAnalytics> {
+    // 1. Per-agent breakdown
+    const agentsResult = await supabase
+        .from('agents')
+        .select('id, name, install_count, rating_avg, created_at')
+        .eq('workspace_id', workspaceId)
+        .eq('is_published', true)
+        .order('install_count', { ascending: false })
+
+    const agents: AgentAnalytics[] = !agentsResult.error
+        ? (agentsResult.data as Array<{
+            id: string; name: string; install_count: number;
+            rating_avg: number; created_at: string
+        }>).map(a => ({ ...a, review_count: 0 }))
+        : []
+
+    const agentIds = agents.map(a => a.id)
+
+    // 2. Review counts per agent
+    if (agentIds.length > 0) {
+        const reviewCountResult = await supabase
+            .from('agent_reviews')
+            .select('agent_id')
+            .in('agent_id', agentIds)
+
+        if (!reviewCountResult.error) {
+            const counts = new Map<string, number>()
+            for (const r of reviewCountResult.data as Array<{ agent_id: string }>) {
+                counts.set(r.agent_id, (counts.get(r.agent_id) ?? 0) + 1)
+            }
+            for (const agent of agents) {
+                agent.review_count = counts.get(agent.id) ?? 0
+            }
+        }
+    }
+
+    // 3. Install trend (last 30 days)
+    const installTrend: InstallTrendPoint[] = []
+    if (agentIds.length > 0) {
+        const thirtyDaysAgo = new Date()
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+
+        const installsResult = await supabase
+            .from('agent_installs')
+            .select('installed_at')
+            .in('agent_id', agentIds)
+            .gte('installed_at', thirtyDaysAgo.toISOString())
+            .order('installed_at', { ascending: true })
+
+        if (!installsResult.error) {
+            // Bucket by day
+            const dailyMap = new Map<string, number>()
+            for (const row of installsResult.data as Array<{ installed_at: string }>) {
+                const day = row.installed_at.slice(0, 10) // YYYY-MM-DD
+                dailyMap.set(day, (dailyMap.get(day) ?? 0) + 1)
+            }
+
+            // Fill all 30 days (including zeros)
+            let cumulative = 0
+            for (let i = 30; i >= 0; i--) {
+                const d = new Date()
+                d.setDate(d.getDate() - i)
+                const key = d.toISOString().slice(0, 10)
+                const installs = dailyMap.get(key) ?? 0
+                cumulative += installs
+                installTrend.push({ date: key, installs, cumulative })
+            }
+        }
+    }
+
+    // 4. Rating distribution
+    const ratingDistribution: RatingBucket[] = [
+        { rating: 5, count: 0 },
+        { rating: 4, count: 0 },
+        { rating: 3, count: 0 },
+        { rating: 2, count: 0 },
+        { rating: 1, count: 0 },
+    ]
+    if (agentIds.length > 0) {
+        const ratingsResult = await supabase
+            .from('agent_reviews')
+            .select('rating')
+            .in('agent_id', agentIds)
+
+        if (!ratingsResult.error) {
+            for (const r of ratingsResult.data as Array<{ rating: number }>) {
+                const bucket = ratingDistribution.find(b => b.rating === r.rating)
+                if (bucket) bucket.count++
+            }
+        }
+    }
+
+    // 5. Recent reviews (last 10)
+    let recentReviews: RecentReview[] = []
+    if (agentIds.length > 0) {
+        const reviewsResult = await supabase
+            .from('agent_reviews')
+            .select('id, agent_id, rating, review_text, created_at')
+            .in('agent_id', agentIds)
+            .order('created_at', { ascending: false })
+            .limit(10)
+
+        if (!reviewsResult.error) {
+            const agentNameMap = new Map(agents.map(a => [a.id, a.name]))
+            recentReviews = (reviewsResult.data as Array<{
+                id: string; agent_id: string; rating: number;
+                review_text: string; created_at: string
+            }>).map(r => ({
+                id: r.id,
+                agent_name: agentNameMap.get(r.agent_id) ?? 'Unknown',
+                rating: r.rating,
+                review_text: r.review_text,
+                created_at: r.created_at,
+            }))
+        }
+    }
+
+    // 6. Aggregates
+    const totalInstalls = agents.reduce((sum, a) => sum + a.install_count, 0)
+    const totalReviews = ratingDistribution.reduce((sum, b) => sum + b.count, 0)
+    const avgRating = agents.length > 0
+        ? agents.reduce((sum, a) => sum + a.rating_avg, 0) / agents.length
+        : 0
+
+    return {
+        agents,
+        installTrend,
+        ratingDistribution,
+        recentReviews,
+        totalInstalls,
+        totalReviews,
+        avgRating,
+        publishedCount: agents.length,
+    }
+}

@@ -9,9 +9,10 @@ import {
     submitAgentRating, fetchAgentReviews,
     fetchMarketplaceTeams, fetchMarketplaceTeamTags,
     submitTeamForReview, submitTeamRating, fetchTeamReviews,
+    fetchCreatorAnalytics,
 } from '@/db/marketplace'
 import { installMarketplaceTeam } from '@/db/installTeam'
-import type { MarketplaceQueryOptions, MarketplaceSubmission, CreatorStats, AgentReview, TeamReview } from '@/db/marketplace'
+import type { MarketplaceQueryOptions, MarketplaceSubmission, CreatorStats, AgentReview, TeamReview, CreatorAnalytics } from '@/db/marketplace'
 import type { TeamInstallResult } from '@/db/installTeam'
 import type { Agent, Team } from '@/types'
 
@@ -213,5 +214,20 @@ export function useInstallTeam() {
             void queryClient.invalidateQueries({ queryKey: ['agents'] })
             void queryClient.invalidateQueries({ queryKey: ['marketplace-teams'] })
         },
+    })
+}
+
+// ─── Creator Analytics ──────────────────────────────────────────────────────
+
+/** Fetch comprehensive creator analytics (per-agent stats, install trends, rating distribution) */
+export function useCreatorAnalytics(workspaceId: string | null) {
+    return useQuery<CreatorAnalytics>({
+        queryKey: ['creator-analytics', workspaceId],
+        queryFn: () => {
+            if (!workspaceId) throw new Error('Missing workspaceId')
+            return fetchCreatorAnalytics(workspaceId)
+        },
+        enabled: !!workspaceId,
+        staleTime: 60 * 1000,
     })
 }
