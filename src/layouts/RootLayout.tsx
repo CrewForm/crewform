@@ -29,6 +29,9 @@ import {
   Link2,
   MessageCircle,
   User,
+  Activity,
+  AlertTriangle,
+  PackageOpen,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
@@ -85,6 +88,18 @@ const settingsSubNav: {
   },
 ]
 
+/** Admin sub-navigation items */
+const adminSubNav: { to: string; icon: typeof BarChart3; label: string }[] = [
+  { to: '/admin', icon: BarChart3, label: 'Overview' },
+  { to: '/admin/workspaces', icon: Building2, label: 'Workspaces' },
+  { to: '/admin/abuse', icon: AlertTriangle, label: 'Abuse' },
+  { to: '/admin/activity', icon: Activity, label: 'Activity' },
+  { to: '/admin/beta-users', icon: Users, label: 'Beta Users' },
+  { to: '/admin/licenses', icon: ShieldCheck, label: 'Licenses' },
+  { to: '/admin/marketplace', icon: Store, label: 'Marketplace' },
+  { to: '/admin/review-queue', icon: PackageOpen, label: 'Review Queue' },
+]
+
 export function RootLayout() {
   const { user, signOut } = useAuth()
   const { isSuperAdmin } = useSuperAdmin()
@@ -96,14 +111,15 @@ export function RootLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const isOnSettings = location.pathname === '/settings' || location.pathname.startsWith('/settings/')
+  const isOnAdmin = location.pathname === '/admin' || location.pathname.startsWith('/admin/')
   const [settingsExpanded, setSettingsExpanded] = useState(isOnSettings)
+  const [adminExpanded, setAdminExpanded] = useState(isOnAdmin)
 
-  // Auto-expand settings when navigating to a settings page
+  // Auto-expand collapsible sections when navigating to them
   useEffect(() => {
-    if (isOnSettings) {
-      setSettingsExpanded(true)
-    }
-  }, [isOnSettings])
+    if (isOnSettings) setSettingsExpanded(true)
+    if (isOnAdmin) setAdminExpanded(true)
+  }, [isOnSettings, isOnAdmin])
 
   const metadata = (user?.user_metadata ?? {}) as Record<string, unknown>
   const displayName = (typeof metadata.full_name === 'string' ? metadata.full_name : null)
@@ -164,11 +180,6 @@ export function RootLayout() {
   // Collapsed mode: icon-only on tablet
   const collapsed = isTablet
 
-  // Build full nav items including admin if super admin
-  const allNavItems = isSuperAdmin
-    ? [...navItems, { to: '/admin' as const, icon: Shield, label: 'Admin' }]
-    : navItems
-
   return (
     <div className="flex h-screen overflow-hidden bg-gray-950">
       {/* Backdrop overlay for mobile sidebar */}
@@ -218,7 +229,7 @@ export function RootLayout() {
 
         {/* Navigation */}
         <nav className={cn('flex-1 overflow-y-auto py-4', collapsed ? 'px-2' : 'px-3')}>
-          {allNavItems.map(({ to, icon: Icon, label }) => (
+          {navItems.map(({ to, icon: Icon, label }) => (
             <NavLink
               key={to}
               to={to}
@@ -317,6 +328,74 @@ export function RootLayout() {
                 </div>
               </div>
             </div>
+          )}
+
+          {/* ─── Admin collapsible group (super admin only) ─── */}
+          {isSuperAdmin && (
+            collapsed ? (
+              <NavLink
+                to="/admin"
+                className={cn(
+                  'flex items-center justify-center rounded-lg p-2.5 text-sm font-medium transition-colors',
+                  isOnAdmin
+                    ? 'bg-gray-800 text-gray-100'
+                    : 'text-gray-400 hover:bg-gray-800/50 hover:text-gray-200',
+                )}
+                title="Admin"
+              >
+                <Shield className="h-5 w-5 shrink-0" />
+              </NavLink>
+            ) : (
+              <div className="mt-1">
+                <button
+                  type="button"
+                  onClick={() => setAdminExpanded(prev => !prev)}
+                  className={cn(
+                    'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                    isOnAdmin
+                      ? 'bg-gray-800 text-gray-100'
+                      : 'text-gray-400 hover:bg-gray-800/50 hover:text-gray-200',
+                  )}
+                >
+                  <Shield className="h-5 w-5 shrink-0" />
+                  <span className="flex-1 text-left">Admin</span>
+                  <ChevronDown
+                    className={cn(
+                      'h-4 w-4 shrink-0 transition-transform duration-200',
+                      adminExpanded && 'rotate-180',
+                    )}
+                  />
+                </button>
+
+                <div
+                  className={cn(
+                    'overflow-hidden transition-all duration-200',
+                    adminExpanded ? 'max-h-[400px] opacity-100' : 'max-h-0 opacity-0',
+                  )}
+                >
+                  <div className="mt-1 space-y-0.5 pl-2">
+                    {adminSubNav.map(({ to, icon: Icon, label }) => (
+                      <NavLink
+                        key={to}
+                        to={to}
+                        end
+                        className={({ isActive }) =>
+                          cn(
+                            'flex items-center gap-2.5 rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors',
+                            isActive
+                              ? 'bg-gray-800/80 text-gray-200'
+                              : 'text-gray-500 hover:bg-gray-800/40 hover:text-gray-300',
+                          )
+                        }
+                      >
+                        <Icon className="h-3.5 w-3.5 shrink-0" />
+                        {label}
+                      </NavLink>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )
           )}
         </nav>
 

@@ -33,6 +33,14 @@ const pageTitles: Record<string, string> = {
     '/settings/chat-widget': 'Chat Widget',
     '/settings/license': 'License',
     '/settings/profile': 'Profile',
+    '/admin': 'Overview',
+    '/admin/workspaces': 'Workspaces',
+    '/admin/abuse': 'Abuse',
+    '/admin/activity': 'Activity',
+    '/admin/beta-users': 'Beta Users',
+    '/admin/licenses': 'Licenses',
+    '/admin/marketplace': 'Marketplace',
+    '/admin/review-queue': 'Review Queue',
 }
 
 export function TopBar({ onMenuToggle, isMobile }: TopBarProps) {
