@@ -99,20 +99,18 @@ export function useCanvasClipboard({
         // Auto-connect pasted nodes based on team mode
         const modeEdges = createModeEdges(newNodes, nodes, teamMode, layoutDirection, timestamp)
 
-        setNodes((currentNodes) => {
-            setEdges((currentEdges) => {
-                pushState(currentNodes, currentEdges)
-                // Deselect existing nodes
-                const deselected = currentNodes.map((n) => ({ ...n, selected: false }))
-                const allNodes = [...deselected, ...newNodes]
-                const allEdges = [...currentEdges, ...newEdges, ...modeEdges]
-                setNodes(allNodes)
-                void saveGraph(allNodes, allEdges)
-                return allEdges
-            })
-            return currentNodes
-        })
-    }, [nodes, setNodes, setEdges, saveGraph, pushState, teamMode, layoutDirection])
+        // Snapshot for undo
+        pushState(nodes, edges)
+
+        // Deselect existing, add new nodes
+        const deselectedNodes = nodes.map((n) => ({ ...n, selected: false }))
+        const allNodes = [...deselectedNodes, ...newNodes]
+        const allEdges = [...edges, ...newEdges, ...modeEdges]
+
+        setNodes(allNodes)
+        setEdges(allEdges)
+        void saveGraph(allNodes, allEdges)
+    }, [nodes, edges, setNodes, setEdges, saveGraph, pushState, teamMode, layoutDirection])
 
     return { copy, paste, hasClipboard: () => clipboardRef.current !== null }
 }

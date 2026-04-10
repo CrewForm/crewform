@@ -116,9 +116,10 @@
    ═══════════════════════════════════════════════════════════════════════════════ */
 
 .workflow-glass-node {
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    background: rgba(26, 26, 26, 0.75);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    background: rgba(26, 26, 26, 0.85);
+    will-change: transform;
     box-shadow:
         0 4px 16px rgba(0, 0, 0, 0.3),
         0 0 0 1px rgba(255, 255, 255, 0.04) inset;

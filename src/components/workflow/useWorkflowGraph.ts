@@ -20,6 +20,7 @@ import type {
     CollaborationConfig,
 } from '@/types'
 import type { AgentNodeData } from './nodes/AgentNode'
+import type { NoteNodeData, NoteColor } from './nodes/NoteNode'
 
 const Y_SPACING = 120
 const X_CENTER = 300
@@ -225,6 +226,10 @@ function pipelineToGraph(config: PipelineConfig, agents: Agent[]): { nodes: Node
         markerEnd: ARROW_MARKER,
     })
 
+    // Restore sticky notes from config
+    const noteNodes = restoreNoteNodes(config as unknown as Record<string, unknown>)
+    nodes.push(...noteNodes)
+
     return { nodes, edges }
 }
 
@@ -312,6 +317,10 @@ function orchestratorToGraph(config: OrchestratorConfig, agents: Agent[]): { nod
         markerEnd: ARROW_MARKER_PURPLE,
     })
 
+    // Restore sticky notes from config
+    const noteNodes = restoreNoteNodes(config as unknown as Record<string, unknown>)
+    nodes.push(...noteNodes)
+
     return { nodes, edges }
 }
 
@@ -354,6 +363,10 @@ function collaborationToGraph(config: CollaborationConfig, agents: Agent[]): { n
             })
         }
     }
+
+    // Restore sticky notes from config
+    const noteNodes = restoreNoteNodes(config as unknown as Record<string, unknown>)
+    nodes.push(...noteNodes)
 
     return { nodes, edges }
 }
@@ -424,9 +437,47 @@ export function validateConfig(
 function extractNodePositions(nodes: Node[]): Record<string, { x: number; y: number }> {
     const positions: Record<string, { x: number; y: number }> = {}
     for (const node of nodes) {
+        // Exclude note nodes — they are persisted separately in _canvas_notes
+        if (node.type === 'noteNode') continue
         positions[node.id] = { x: node.position.x, y: node.position.y }
     }
     return positions
+}
+
+// ─── Note extraction / restoration ───────────────────────────────────────────
+
+interface CanvasNote {
+    id: string
+    content: string
+    color: NoteColor
+    x: number
+    y: number
+}
+
+function extractCanvasNotes(nodes: Node[]): CanvasNote[] {
+    return nodes
+        .filter((n) => n.type === 'noteNode')
+        .map((n) => {
+            const data = n.data as unknown as NoteNodeData
+            return {
+                id: n.id,
+                content: data.content,
+                color: data.color ?? 'yellow',
+                x: n.position.x,
+                y: n.position.y,
+            }
+        })
+}
+
+function restoreNoteNodes(config: Record<string, unknown>): Node[] {
+    const notes = (config._canvas_notes ?? []) as CanvasNote[]
+    return notes.map((note) => ({
+        id: note.id,
+        type: 'noteNode' as const,
+        position: { x: note.x, y: note.y },
+        data: { content: note.content, color: note.color },
+        draggable: true,
+    }))
 }
 
 // ─── Graph → Config (reverse) ────────────────────────────────────────────────
@@ -677,6 +728,8 @@ export function graphToConfig(
     if (layoutDirection) {
         (config as unknown as Record<string, unknown>).layout_direction = layoutDirection
     }
+    // Persist sticky notes
+    (config as unknown as Record<string, unknown>)._canvas_notes = extractCanvasNotes(nodes)
     return config
 }
 
