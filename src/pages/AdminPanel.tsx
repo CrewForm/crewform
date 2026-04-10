@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 CrewForm
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import { useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import {
-    Shield, BarChart3, Building2, Search,
-    Loader2, Users, Bot, ListTodo, PackageOpen, Store, XCircle, ShieldCheck,
-    Activity, Coins, Zap, UserCheck, Ban, Trash2, ShieldOff, AlertTriangle, KeyRound,
+    Building2, Search,
+    Loader2, Users, Bot, ListTodo, XCircle,
+    Coins, Zap, UserCheck, Ban, Trash2, ShieldOff, AlertTriangle, KeyRound,
     TrendingUp, ArrowUpRight,
 } from 'lucide-react'
 import {
@@ -22,6 +23,10 @@ import { cn } from '@/lib/utils'
 
 type AdminTab = 'overview' | 'workspaces' | 'abuse' | 'beta-users' | 'activity' | 'review-queue' | 'marketplace' | 'licenses'
 
+const validTabs = new Set<string>([
+  'overview', 'workspaces', 'abuse', 'beta-users', 'activity', 'review-queue', 'marketplace', 'licenses',
+])
+
 const PLAN_COLORS: Record<string, string> = {
     free: 'text-gray-400 bg-gray-500/10',
     pro: 'text-blue-400 bg-blue-500/10',
@@ -33,50 +38,15 @@ const PLAN_COLORS: Record<string, string> = {
  * Master Admin Panel — platform overview, workspace management.
  */
 export function AdminPanel() {
-    const [activeTab, setActiveTab] = useState<AdminTab>('overview')
+    const { tab: tabParam } = useParams<{ tab?: string }>()
+
+    const activeTab = useMemo<AdminTab>(() => {
+        if (tabParam && validTabs.has(tabParam)) return tabParam as AdminTab
+        return 'overview'
+    }, [tabParam])
 
     return (
         <div className="min-h-screen bg-surface-primary p-6 lg:p-8">
-            {/* Header */}
-            <div className="mb-6 flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/10">
-                    <Shield className="h-5 w-5 text-red-400" />
-                </div>
-                <div>
-                    <h1 className="text-2xl font-semibold text-gray-100">Admin Panel</h1>
-                    <p className="text-xs text-gray-500">Super administrator dashboard</p>
-                </div>
-            </div>
-
-            {/* Tabs */}
-            <div className="mb-6 flex overflow-x-auto border-b border-border">
-                {([
-                    { key: 'overview' as const, label: 'Overview', icon: BarChart3 },
-                    { key: 'workspaces' as const, label: 'Workspaces', icon: Building2 },
-                    { key: 'abuse' as const, label: 'Abuse', icon: AlertTriangle },
-                    { key: 'activity' as const, label: 'Activity', icon: Activity },
-                    { key: 'beta-users' as const, label: 'Beta Users', icon: Users },
-                    { key: 'licenses' as const, label: 'Licenses', icon: ShieldCheck },
-                    { key: 'marketplace' as const, label: 'Marketplace', icon: Store },
-                    { key: 'review-queue' as const, label: 'Review Queue', icon: PackageOpen },
-                ] as const).map(({ key, label, icon: Icon }) => (
-                    <button
-                        key={key}
-                        type="button"
-                        onClick={() => setActiveTab(key)}
-                        className={cn(
-                            'flex items-center gap-2 whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-medium transition-colors',
-                            activeTab === key
-                                ? 'border-red-400 text-gray-200'
-                                : 'border-transparent text-gray-500 hover:text-gray-300',
-                        )}
-                    >
-                        <Icon className="h-4 w-4" />
-                        {label}
-                    </button>
-                ))}
-            </div>
-
             {/* Tab content */}
             {activeTab === 'overview' && <OverviewTab />}
             {activeTab === 'workspaces' && <WorkspacesTab />}

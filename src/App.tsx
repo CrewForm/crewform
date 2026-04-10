@@ -82,6 +82,7 @@ export function App() {
 
             {/* Admin — super admin only */}
             <Route path="/admin" element={<AdminGuard><AdminPanel /></AdminGuard>} />
+            <Route path="/admin/:tab" element={<AdminGuard><AdminPanel /></AdminGuard>} />
           </Route>
 
           {/* 404 catch-all */}
