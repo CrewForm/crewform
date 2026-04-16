@@ -139,13 +139,19 @@ export function FeedbackWidget() {
     }
   }, [showSuccess])
 
+  const displayName = (() => {
+    const meta = (user?.user_metadata ?? {}) as Record<string, unknown>
+    return typeof meta.full_name === 'string' ? meta.full_name
+      : typeof meta.name === 'string' ? meta.name
+      : undefined
+  })()
+
   const handleSend = useCallback(async () => {
     if (!message.trim() || isSending) return
 
     setIsSending(true)
     try {
-      const accessToken = session?.access_token
-      if (!accessToken) {
+      if (!session?.access_token) {
         toast.error('You must be logged in to send feedback')
         return
       }
@@ -154,7 +160,8 @@ export function FeedbackWidget() {
         body: {
           category,
           message: message.trim(),
-          email: userEmail,
+          email: userEmail || undefined,
+          displayName,
         },
       })
 
@@ -172,7 +179,7 @@ export function FeedbackWidget() {
     } finally {
       setIsSending(false)
     }
-  }, [message, isSending, category, session, userEmail])
+  }, [message, isSending, category, session, userEmail, displayName])
 
   return (
     <>

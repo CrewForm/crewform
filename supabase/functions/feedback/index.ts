@@ -15,10 +15,9 @@
  *       GITHUB_REPO_ID, GITHUB_DISCUSSION_CATEGORY_IDS (JSON map)
  */
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { handleCors } from '../_shared/cors.ts';
 import { validateBody, z } from '../_shared/validate.ts';
-import { ok, badRequest, methodNotAllowed, serverError, unauthorized } from '../_shared/response.ts';
+import { ok, methodNotAllowed, serverError } from '../_shared/response.ts';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -29,6 +28,7 @@ const FeedbackSchema = z.object({
     category: FeedbackCategory,
     message: z.string().min(5, 'Message must be at least 5 characters').max(5000),
     email: z.string().email().optional(),
+    displayName: z.string().max(200).optional(),
 });
 
 // ─── GitHub helpers ─────────────────────────────────────────────────────────
@@ -213,44 +213,18 @@ Deno.serve(async (req: Request) => {
     }
 
     try {
-        // ── Auth (JWT only — this is for logged-in app users) ───────────
-        const authHeader = req.headers.get('Authorization');
-        if (!authHeader?.startsWith('Bearer ')) {
-            return unauthorized('Authentication required');
-        }
-
-        // We don't need to fully resolve workspace context — just extract the
-        // token to validate the user and get their email for the report.
-        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-        const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-        const token = authHeader.replace('Bearer ', '');
-        const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-            global: { headers: { Authorization: `Bearer ${token}` } },
-        });
-
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-        if (userError || !user) {
-            return unauthorized('Invalid or expired session');
-        }
-
-        // ── Rate limit ──────────────────────────────────────────────────
-        if (!checkRateLimit(user.id)) {
-            return new Response(
-                JSON.stringify({ error: 'Rate limit exceeded. Maximum 10 feedback submissions per hour.' }),
-                { status: 429, headers: { 'Content-Type': 'application/json', 'Retry-After': '60' } },
-            );
-        }
+        // ── Auth ────────────────────────────────────────────────────────
+        // The Supabase gateway verifies the JWT before the function runs,
+        // so by the time we get here the user is already authenticated.
+        // We extract user info from the request body sent by the widget.
 
         // ── Validate body ───────────────────────────────────────────────
         const parsed = await validateBody(req, FeedbackSchema);
         if ('error' in parsed) return parsed.error;
 
-        const { category, message, email } = parsed.data;
-        const userEmail = email ?? user.email ?? 'unknown';
-        const metadata = (user.user_metadata ?? {}) as Record<string, unknown>;
-        const displayName = (typeof metadata.full_name === 'string' ? metadata.full_name : null)
-            ?? (typeof metadata.name === 'string' ? metadata.name : null)
-            ?? userEmail;
+        const { category, message, email, displayName: bodyName } = parsed.data;
+        const userEmail = email ?? 'anonymous';
+        const displayName = bodyName ?? userEmail;
 
         // ── Build title and body ────────────────────────────────────────
         const catConfig = CATEGORY_CONFIG[category];
