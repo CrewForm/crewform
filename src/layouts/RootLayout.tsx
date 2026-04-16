@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 CrewForm
 
-import { useState, useCallback, useEffect, Suspense } from 'react'
+import { useState, useCallback, useEffect, Suspense, lazy } from 'react'
 import { Outlet, NavLink, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard,
@@ -42,6 +42,10 @@ import { MobileNav } from '@/components/layout/MobileNav'
 import { useWorkspace } from '@/hooks/useWorkspace'
 import { useEELicense } from '@/hooks/useEELicense'
 import { PageSkeleton } from '@/components/ui/PageSkeleton'
+
+const FeedbackWidget = lazy(() =>
+  import('@/components/shared/FeedbackWidget').then((m) => ({ default: m.FeedbackWidget }))
+)
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -462,6 +466,11 @@ export function RootLayout() {
 
       {/* Mobile bottom navigation */}
       {isMobile && <MobileNav />}
+
+      {/* Global feedback widget */}
+      <Suspense fallback={null}>
+        <FeedbackWidget />
+      </Suspense>
     </div>
   )
 }
