@@ -196,9 +196,13 @@ export async function seedDemoWorkspace(workspaceId: string): Promise<{
         agentByName.set(agent.name, agent)
     }
 
-    const researcher = agentByName.get('Research Analyst')!
-    const writer = agentByName.get('Content Writer')!
-    const emailer = agentByName.get('Email Drafter')!
+    const researcher = agentByName.get('Research Analyst')
+    const writer = agentByName.get('Content Writer')
+    const emailer = agentByName.get('Email Drafter')
+
+    if (!researcher || !writer || !emailer) {
+        throw new Error('Demo agent seeding failed: missing expected agents')
+    }
 
     // 2. Create the pipeline team
     const pipelineConfig: PipelineConfig = {

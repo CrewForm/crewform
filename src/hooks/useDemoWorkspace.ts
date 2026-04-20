@@ -13,7 +13,7 @@ export function useDemoWorkspace() {
     const { workspace, workspaceId } = useWorkspace()
     const queryClient = useQueryClient()
 
-    const settings = (workspace?.settings ?? {}) as Record<string, unknown>
+    const settings = workspace?.settings ?? {}
     const isDemoSeeded = settings.demo_seeded === true
     const isDemoDismissed = settings.demo_dismissed === true
 
