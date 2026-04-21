@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 CrewForm
 
-import { useState, type FormEvent } from 'react'
+import { useState, useRef, type FormEvent } from 'react'
 import type { AuthError, Provider } from '@supabase/supabase-js'
+import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile'
+
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined
 
 interface LoginFormProps {
-  onSignIn: (email: string, password: string) => Promise<{ error: AuthError | null }>
+  onSignIn: (email: string, password: string, captchaToken?: string) => Promise<{ error: AuthError | null }>
   onOAuth: (provider: Provider) => Promise<{ error: AuthError | null }>
   onToggle: () => void
   onForgotPassword: () => void
@@ -16,15 +19,25 @@ export function LoginForm({ onSignIn, onOAuth, onToggle, onForgotPassword }: Log
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null)
+  const turnstileRef = useRef<TurnstileInstance | null>(null)
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setError(null)
-    setLoading(true)
 
-    const { error: authError } = await onSignIn(email, password)
+    if (TURNSTILE_SITE_KEY && !captchaToken) {
+      setError('Please complete the verification')
+      return
+    }
+
+    setLoading(true)
+    const { error: authError } = await onSignIn(email, password, captchaToken ?? undefined)
     if (authError) {
       setError(authError.message)
+      // Reset Turnstile so user can retry
+      turnstileRef.current?.reset()
+      setCaptchaToken(null)
     }
     setLoading(false)
   }
@@ -84,9 +97,29 @@ export function LoginForm({ onSignIn, onOAuth, onToggle, onForgotPassword }: Log
         />
       </div>
 
+      {/* Cloudflare Turnstile — invisible bot protection */}
+      {TURNSTILE_SITE_KEY && (
+        <div className="flex justify-center">
+          <Turnstile
+            ref={turnstileRef}
+            siteKey={TURNSTILE_SITE_KEY}
+            onSuccess={(token) => setCaptchaToken(token)}
+            onError={() => {
+              setCaptchaToken(null)
+              setError('Verification failed. Please try again.')
+            }}
+            onExpire={() => setCaptchaToken(null)}
+            options={{
+              theme: 'dark',
+              size: 'flexible',
+            }}
+          />
+        </div>
+      )}
+
       <button
         type="submit"
-        disabled={loading}
+        disabled={loading || (!!TURNSTILE_SITE_KEY && !captchaToken)}
         className="w-full rounded-lg bg-blue-600 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {loading ? 'Signing in...' : 'Sign In'}
