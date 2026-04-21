@@ -12,8 +12,8 @@ interface AuthState {
 }
 
 interface UseAuthReturn extends AuthState {
-  signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>
-  signUp: (email: string, password: string, fullName?: string) => Promise<{ error: AuthError | null }>
+  signIn: (email: string, password: string, captchaToken?: string) => Promise<{ error: AuthError | null }>
+  signUp: (email: string, password: string, fullName?: string, captchaToken?: string) => Promise<{ error: AuthError | null }>
   signOut: () => Promise<void>
   signInWithOAuth: (provider: Provider) => Promise<{ error: AuthError | null }>
   resetPassword: (email: string) => Promise<{ error: AuthError | null }>
@@ -53,16 +53,21 @@ export function useAuth(): UseAuthReturn {
     }
   }, [])
 
-  const signIn = useCallback(async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+  const signIn = useCallback(async (email: string, password: string, captchaToken?: string) => {
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+      options: captchaToken ? { captchaToken } : undefined,
+    })
     return { error }
   }, [])
 
-  const signUp = useCallback(async (email: string, password: string, fullName?: string) => {
+  const signUp = useCallback(async (email: string, password: string, fullName?: string, captchaToken?: string) => {
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
+        captchaToken,
         data: {
           ...(fullName ? { full_name: fullName } : {}),
           is_beta: true,
