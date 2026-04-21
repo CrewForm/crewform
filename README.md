@@ -20,6 +20,7 @@ The first platform with native **MCP** (Tools) + **A2A** (Agent-to-Agent) + **AG
 [Website](https://crewform.tech) · [Docs](https://docs.crewform.tech) · [Discord](https://discord.gg/TAFasJCTWs) · [Twitter](https://twitter.com/CrewFormHQ)
 
 [![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/pH5MkZ?referralCode=g38HaT&utm_medium=integration&utm_source=template&utm_campaign=generic)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/CrewForm/crewform)
 
 </div>
 
@@ -199,9 +200,10 @@ npm run dev
 
 ### One-Click Deploy
 
-Deploy the CrewForm task runner to Railway with a single click:
+Deploy the CrewForm task runner with a single click:
 
 [![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/pH5MkZ?referralCode=g38HaT&utm_medium=integration&utm_source=template&utm_campaign=generic)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/CrewForm/crewform)
 
 You'll need to provide your own Supabase credentials and LLM API keys after deployment.
 
@@ -425,7 +427,7 @@ CrewForm uses an **open-core** model: a free Community Edition under AGPL-3.0 an
 | **Observability** | OpenTelemetry · Langfuse · Datadog · Jaeger |
 | **Integrations** | Zapier · Discord · Slack · Telegram · Email · Webhooks · Chat Widget |
 | **Validation** | Zod |
-| **Deployment** | Vercel · Docker Compose · Railway |
+| **Deployment** | Vercel · Docker Compose · Railway · Render |
 
 ## Contributing
 

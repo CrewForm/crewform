@@ -1,0 +1,34 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# CrewForm Task Runner — Render Blueprint
+# https://docs.render.com/infrastructure-as-code
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  - type: web
+    name: crewform-task-runner
+    runtime: docker
+    dockerfilePath: task-runner/Dockerfile
+    dockerContext: .
+    plan: starter
+    autoDeploy: true
+    healthCheckPath: /health
+    envVars:
+      # ── Required ────────────────────────────────────────────────────────
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: ENCRYPTION_KEY
+        sync: false
+      - key: WEBHOOK_SECRET
+        sync: false
+      # ── Auto-set by Render ──────────────────────────────────────────────
+      - key: PORT
+        value: 3001
+      # ── Optional AI Provider Keys (BYOK via Settings UI recommended) ──
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: GOOGLE_GENERATIVE_AI_API_KEY
+        sync: false
