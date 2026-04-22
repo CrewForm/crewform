@@ -139,6 +139,9 @@ CrewForm is the **first platform with native support for all three agentic proto
 </tr>
 <tr>
 <td align="center" width="25%">
+📋<br/><strong>Workflow Templates</strong><br/>Reusable blueprints with fill-in-the-blank variables
+</td>
+<td align="center" width="25%">
 🔀<br/><strong>Fan-Out Branching</strong><br/>Parallel pipeline steps with merge agents
 </td>
 <td align="center" width="25%">
@@ -147,11 +150,11 @@ CrewForm is the **first platform with native support for all three agentic proto
 <td align="center" width="25%">
 🔄<br/><strong>Fallback Models</strong><br/>Auto-switch to backup models on failure
 </td>
+</tr>
+<tr>
 <td align="center" width="25%">
 🏠<br/><strong>Self-Hostable</strong><br/>Docker Compose — your data, your infra
 </td>
-</tr>
-<tr>
 <td align="center" width="25%">
 🔑<br/><strong>BYOK</strong><br/>Your API keys, your cost — zero markup
 </td>
@@ -161,9 +164,12 @@ CrewForm is the **first platform with native support for all three agentic proto
 <td align="center" width="25%">
 🛡️<br/><strong>RBAC & Workspaces</strong><br/>Role-based access, multi-tenant isolation
 </td>
+</tr>
+<tr>
 <td align="center" width="25%">
 📊<br/><strong>Analytics</strong><br/>Track tokens, costs, and agent performance
 </td>
+<td colspan="3"></td>
 </tr>
 </table>
 
@@ -237,6 +243,7 @@ CrewForm gives you everything you need to orchestrate multi-agent AI workflows �
 - 🖥️ **AG-UI Protocol** — Real-time SSE event streaming for frontend integration — the standard for agent-to-UI communication
 - 📚 **Knowledge Base (RAG)** — Upload docs (TXT, MD, CSV, JSON), auto-chunk and embed with pgvector, then search via agents
 - 🏪 **Agent Marketplace** — Browse and install community-built agent templates, or publish your own
+- 📋 **Workflow Templates** — Bundle agents, teams, and triggers into reusable blueprints with `{{variable}}` placeholders; install with one click
 - ⚡ **Integrations Ecosystem** — Zapier (7,000+ apps), Discord, Slack, Telegram, Email, webhooks, and output routes
 - 🔒 **Secure by Default** — AES-256-GCM key encryption, Row-Level Security, GDPR-ready
 - 📊 **Built-in Analytics** — Track token usage, costs, and performance per agent and task
@@ -292,6 +299,7 @@ Each client gets their own workspace. Custom agents built around their tools and
 - 🔑 **BYOK (Bring Your Own Key)** — Pay your LLM provider directly. Zero markup, zero middleman
 - 🤖 **Agent Management** — Create, configure, and monitor AI agents from a visual UI
 - 🏪 **Marketplace** — Browse and install agent templates built by the community
+- 📋 **Workflow Templates** — Create reusable workflow blueprints with variable placeholders; 5 built-in starter templates
 - 👥 **Pipeline Mode** — Chain agents together in sequential workflows
 - ✅ **Single Tasks** — Send a prompt to any agent and get results in real-time
 - 🔌 **MCP Protocol** — Connect agents to external MCP tool servers for dynamic tool discovery, and expose agents as MCP tools for Claude Desktop and Cursor
@@ -374,6 +382,7 @@ CrewForm uses an **open-core** model: a free Community Edition under AGPL-3.0 an
 | [Visual Workflow Builder](https://docs.crewform.tech/visual-workflow-builder) | Interactive canvas with live execution observability |
 | [Chat Widget](https://docs.crewform.tech/chat-widget) | Embed agents on any website with a script tag |
 | [Observability](https://docs.crewform.tech/observability) | OpenTelemetry + Langfuse tracing setup |
+| [Workflow Templates](https://docs.crewform.tech/workflow-templates) | Create, install, and share reusable workflow blueprints |
 | [Changelog](https://docs.crewform.tech/changelog) | Release notes and version history |
 
 ## Architecture
@@ -517,6 +526,7 @@ CrewForm is a **visual, UI-first platform** — you create agents, teams, and ta
 | **Observability** | ✅ OTLP + Langfuse | Sometimes available |
 | **Fan-Out (Parallel)** | ✅ Built-in branching + merge | Rare in UI-first platforms |
 | **Agent Marketplace** | ✅ Browse, install, publish | Rare in open-source tools |
+| **Workflow Templates** | ✅ Variable-driven blueprints with one-click install | Not available |
 | **Data Portability** | ✅ JSON export/import for agents and teams | Usually locked to platform |
 | **Self-Hosting** | ✅ One-command Docker Compose | Often cloud-only or complex setup |
 | **Open Source** | ✅ AGPL-3.0 | Varies |

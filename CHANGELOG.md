@@ -6,6 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-04-22
+
+### Added
+
+- **Workflow Templates** — Reusable workflow blueprints that bundle agents, teams, and triggers into single installable packages:
+  - **Template Definition Schema** — `workflow_templates` table (Migration `076`) with JSONB template definitions, variables, install counters, and full RLS policies
+  - **Template Marketplace** — Browse and filter published templates by category, with install count and resource summaries
+  - **One-Click Install** — Install Modal auto-creates all agents, team configuration, and pipeline steps from a template; users fill in `{{variable}}` placeholders before install
+  - **Create Template Wizard** — 4-step wizard (Select Agents/Team → Auto-Scan Variables → Metadata & Trigger → Preview & Publish) accessible from Marketplace header and Agent Detail page
+  - **Variable Auto-Detection** — Wizard scans agent prompts for `{{variable}}` patterns and auto-generates variable definitions with labels, placeholders, and defaults
+  - **5 Built-in Starter Templates** — Weekly Sports Coach, Content Research Pipeline, Daily News Digest, Code Review Assistant, Weekly Report Generator
+  - **Template Categories** — Coaching, Research, Content, DevOps, Reporting, Sales & Marketing, Support, General
+  - **CRON & Webhook Triggers** — Templates can include scheduled triggers that are created alongside agents and teams
+
+### Documentation
+
+- **Workflow Templates Guide** — New documentation page covering browsing, installing, creating, and the template definition schema
+- **Changelog** — Updated with 1.9.0 release
+- **README** — Updated Features table, Marketplace description, Documentation table, and comparison table to include Workflow Templates
+
 ## [1.8.2] - 2026-04-11
 
 ### Added
