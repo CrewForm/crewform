@@ -59,7 +59,8 @@
                 "pipeline-teams",
                 "orchestration-teams",
                 "collaboration-teams",
-                "visual-workflow-builder"
+                "visual-workflow-builder",
+                "workflow-templates"
             ]
         },
         {
