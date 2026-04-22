@@ -2,7 +2,7 @@
 // Copyright (C) 2026 CrewForm
 
 import { useState, useDeferredValue } from 'react'
-import { Store, Loader2, CheckCircle2, XCircle, Upload, BarChart3, Bot, Users2 } from 'lucide-react'
+import { Store, Loader2, CheckCircle2, XCircle, Upload, BarChart3, Bot, Users2, LayoutTemplate } from 'lucide-react'
 import { useWorkspace } from '@/hooks/useWorkspace'
 import { useAuth } from '@/hooks/useAuth'
 import { useMarketplaceAgents, useMarketplaceTags, useMySubmissions, useMarketplaceTeams, useMarketplaceTeamTags } from '@/hooks/useMarketplace'
@@ -14,13 +14,16 @@ import { AgentDetailModal } from '@/components/marketplace/AgentDetailModal'
 import { TeamCard } from '@/components/marketplace/TeamCard'
 import { TeamDetailModal } from '@/components/marketplace/TeamDetailModal'
 import { CreatorDashboard } from '@/components/marketplace/CreatorDashboard'
+import { TemplateCard } from '@/components/marketplace/TemplateCard'
+import { TemplateInstallModal } from '@/components/marketplace/TemplateInstallModal'
+import { usePublishedTemplates } from '@/hooks/useWorkflowTemplates'
 import { ErrorState } from '@/components/shared/ErrorState'
 import type { MarketplaceSortOption } from '@/db/marketplace'
-import type { Agent, Team } from '@/types'
+import type { Agent, Team, WorkflowTemplate } from '@/types'
 import { cn } from '@/lib/utils'
 
 type MarketplaceTab = 'browse' | 'submissions' | 'creator'
-type BrowseType = 'agents' | 'teams'
+type BrowseType = 'agents' | 'teams' | 'templates'
 
 const STATUS_COLORS: Record<string, string> = {
   pending: 'text-amber-400 bg-amber-500/10',
@@ -39,6 +42,7 @@ export function Marketplace() {
   const [category, setCategory] = useState<string | null>(null)
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null)
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null)
+  const [selectedTemplate, setSelectedTemplate] = useState<WorkflowTemplate | null>(null)
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
   const deferredSearch = useDeferredValue(search)
@@ -59,9 +63,14 @@ export function Marketplace() {
   const { tags: agentTags } = useMarketplaceTags()
   const { tags: teamTags } = useMarketplaceTeamTags()
 
+  const { templates, isLoading: templatesLoading, error: templatesError } = usePublishedTemplates({
+    search: deferredSearch,
+    sort: sort === 'installs' ? 'installs' : sort === 'newest' ? 'newest' : 'name',
+  })
+
   const availableTags = browseType === 'agents' ? agentTags : teamTags
-  const isLoading = browseType === 'agents' ? agentsLoading : teamsLoading
-  const error = browseType === 'agents' ? agentsError : teamsError
+  const isLoading = browseType === 'agents' ? agentsLoading : browseType === 'teams' ? teamsLoading : templatesLoading
+  const error = browseType === 'agents' ? agentsError : browseType === 'teams' ? teamsError : templatesError
 
   const installAgentMutation = useInstallAgent()
   const installTeamMutation = useInstallTeam()
@@ -127,7 +136,7 @@ export function Marketplace() {
           <h1 className="text-2xl font-semibold text-gray-100">Marketplace</h1>
         </div>
         <p className="text-sm text-gray-500">
-          Browse, install, and publish agents and teams with the CrewForm community.
+          Browse, install, and publish agents, teams, and workflow templates with the CrewForm community.
         </p>
       </div>
 
@@ -186,6 +195,19 @@ export function Marketplace() {
               <Users2 className="h-3.5 w-3.5" />
               Teams
             </button>
+            <button
+              type="button"
+              onClick={() => handleBrowseTypeChange('templates')}
+              className={cn(
+                'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+                browseType === 'templates'
+                  ? 'bg-brand-primary/10 text-brand-primary'
+                  : 'text-gray-500 hover:text-gray-300',
+              )}
+            >
+              <LayoutTemplate className="h-3.5 w-3.5" />
+              Templates
+            </button>
           </div>
 
           {/* Filters */}
@@ -213,6 +235,25 @@ export function Marketplace() {
             <div className="flex items-center justify-center py-20">
               <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
             </div>
+          ) : browseType === 'templates' ? (
+            templates.length === 0 ? (
+              <div className="flex flex-col items-center justify-center rounded-lg border border-border bg-surface-card py-16">
+                <LayoutTemplate className="mb-4 h-12 w-12 text-gray-600" />
+                <h2 className="mb-2 text-lg font-medium text-gray-300">No templates found</h2>
+                <p className="text-sm text-gray-500">Workflow templates will appear here once published.</p>
+              </div>
+            ) : (
+              <>
+                <p className="mb-4 text-xs text-gray-500">
+                  {templates.length} template{templates.length !== 1 ? 's' : ''} found
+                </p>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {templates.map((t) => (
+                    <TemplateCard key={t.id} template={t} onClick={setSelectedTemplate} />
+                  ))}
+                </div>
+              </>
+            )
           ) : browseType === 'agents' ? (
             agents.length === 0 ? (
               <div className="flex flex-col items-center justify-center rounded-lg border border-border bg-surface-card py-16">
@@ -308,6 +349,16 @@ export function Marketplace() {
         onClose={() => setSelectedTeam(null)}
         onInstall={handleInstallTeam}
         isInstalling={installTeamMutation.isPending}
+      />
+
+      <TemplateInstallModal
+        template={selectedTemplate}
+        onClose={() => setSelectedTemplate(null)}
+        onSuccess={() => {
+          setToast({ type: 'success', message: `Template "${selectedTemplate?.name}" installed!` })
+          setSelectedTemplate(null)
+          setTimeout(() => setToast(null), 4000)
+        }}
       />
 
       {/* Toast notification */}

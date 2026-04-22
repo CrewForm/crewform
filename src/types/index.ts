@@ -447,3 +447,72 @@ export interface CustomTool {
 
 export type CustomToolRow = CustomTool
 
+// ─── Workflow Template ────────────────────────────────────────────────────────
+
+export interface TemplateVariable {
+  key: string
+  label: string
+  type: 'text' | 'select' | 'number'
+  placeholder: string
+  required: boolean
+  default: string
+  options?: string[]        // For 'select' type
+}
+
+export interface TemplateAgentDef {
+  name: string
+  description: string
+  system_prompt: string
+  model: string
+  provider: string
+  temperature: number
+  max_tokens: number | null
+  tags: string[]
+  tools: string[]
+}
+
+export interface TemplateTriggerDef {
+  type: 'cron' | 'webhook'
+  cron_expression: string
+  task_title_template: string
+  task_description_template: string
+}
+
+export interface TemplateTeamDef {
+  name: string
+  description: string
+  mode: TeamMode
+  steps: {
+    agent_index: number       // Index into agents array
+    step_name: string
+    instructions: string
+    expected_output: string
+  }[]
+}
+
+export interface TemplateDefinition {
+  agents: TemplateAgentDef[]
+  team: TemplateTeamDef | null
+  trigger: TemplateTriggerDef | null
+}
+
+export interface WorkflowTemplate {
+  id: string
+  workspace_id: string
+  creator_id: string | null
+  name: string
+  description: string
+  readme: string | null
+  category: string
+  tags: string[]
+  icon: string
+  template_definition: TemplateDefinition
+  variables: TemplateVariable[]
+  is_published: boolean
+  install_count: number
+  rating_avg: number
+  created_at: string
+  updated_at: string
+}
+
+export type WorkflowTemplateRow = WorkflowTemplate
