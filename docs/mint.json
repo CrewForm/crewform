@@ -49,6 +49,7 @@
             "pages": [
                 "quickstart",
                 "self-hosting",
+                "coolify-deployment",
                 "troubleshooting"
             ]
         },
