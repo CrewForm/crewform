@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.9.1] - 2026-04-23
+
+### Added
+
+- **7-Day Team Trial** — Every new signup automatically receives 7 days of full Team-tier access (Orchestrator Mode, Collaboration Mode, Custom Tools, Messaging Channels, A2A, Team Memory, RBAC). Trial status tracked via `trial_expires_at` column (Migration `077`) with automatic plan resolution
+- **Trial Banner** — Dashboard displays a contextual banner showing trial days remaining with upgrade CTA. Three visual states: active (green), expiring soon (amber), expired (red) with progress bar
+- **Coolify Deployment Guide** — Step-by-step documentation for deploying CrewForm on Coolify v4 via Docker Compose or Git-based methods, including Ollama integration with GPU passthrough
+- **Cloudflare Turnstile** — Bot protection added to login and signup forms
+
+### Fixed
+
+- **Trial Feature Gating** — `useEELicense` hook now falls back to workspace `effectivePlan` when no explicit `ee_licenses` row exists, correctly unlocking Orchestrator and Collaboration modes during active trial
+- **Auth Callback PKCE Timeout** — `/auth/callback` no longer shows a dead-end "Authentication timed out" error when email verification links open in a different browser context. Now checks for existing session (auto-redirects) or shows a friendly "Email verified!" success screen with Sign In button
+
+### Documentation
+
+- Coolify deployment guide added to docs (Getting Started section)
+- Changelog updated with 1.9.1 release
+
 ## [1.9.0] - 2026-04-22
 
 ### Added
