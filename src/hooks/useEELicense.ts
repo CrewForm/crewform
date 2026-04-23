@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { fetchEELicense } from '@/db/eeLicense'
 import type { EELicense } from '@/db/eeLicense'
 import { FEATURE_MIN_PLAN } from '@/lib/featureFlags'
+import { useWorkspace } from '@/hooks/useWorkspace'
 
 /** Plan hierarchy — higher index = more features */
 const PLAN_HIERARCHY: Record<string, number> = {
@@ -21,8 +22,13 @@ function planLevel(plan: string): number {
 /**
  * React Query hook to fetch and cache the active EE license for a workspace.
  * Returns license data and helper methods for feature checking.
+ *
+ * Trial-aware: when no EE license exists but the workspace has an active trial,
+ * features are resolved as if on the 'team' plan.
  */
 export function useEELicense(workspaceId: string | undefined) {
+    const { trialActive, effectivePlan } = useWorkspace()
+
     const { data: license, isLoading } = useQuery<EELicense | null>({
         queryKey: ['ee-license', workspaceId],
         queryFn: () => fetchEELicense(workspaceId ?? ''),
@@ -32,20 +38,21 @@ export function useEELicense(workspaceId: string | undefined) {
     })
 
     const isEnterprise = !!license
-    const plan = license?.plan ?? 'free'
+    const plan = license?.plan ?? (trialActive ? effectivePlan : 'free')
 
     /**
      * Check if a specific EE feature is enabled by the workspace license.
      * First checks the explicit features array (for custom overrides),
      * then falls back to plan-level entitlements from FEATURE_MIN_PLAN.
+     *
+     * When no license exists but a trial is active, features are resolved
+     * using the effective plan (which is 'team' during trial).
      */
     function hasFeature(feature: string): boolean {
-        if (!license) return false
-
         // Explicit feature in license record
-        if (license.features.includes(feature)) return true
+        if (license?.features.includes(feature)) return true
 
-        // Plan-based entitlement: if the workspace plan >= feature's minimum plan
+        // Plan-based entitlement: if the effective plan >= feature's minimum plan
         const minPlan = FEATURE_MIN_PLAN[feature]
         if (minPlan && planLevel(plan) >= planLevel(minPlan)) return true
 
@@ -60,3 +67,4 @@ export function useEELicense(workspaceId: string | undefined) {
         hasFeature,
     }
 }
+
