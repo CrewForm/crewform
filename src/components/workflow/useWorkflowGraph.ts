@@ -247,7 +247,31 @@ function pipelineToGraph(config: PipelineConfig, agents: Agent[]): { nodes: Node
     const logicEdges = restoreLogicEdges(config as unknown as Record<string, unknown>)
     edges.push(...logicEdges)
 
-    return { nodes, edges }
+    // Remove default pipeline edges that conflict with logic edges.
+    // If a logic edge exists FROM a given source, the default pipeline edge
+    // from that source is a "bypass" and should be suppressed.
+    const logicEdgeSources = new Set(logicEdges.map((e) => e.source))
+    // Also suppress default edges TO a node that a logic edge targets,
+    // when the same source→target pair exists in both default and logic edges
+    const logicEdgeTargets = new Set(logicEdges.map((e) => e.target))
+    const filteredEdges = edges.filter((e) => {
+        // Keep all logic edges themselves (they have labels or connect to logic nodes)
+        const isLogicEdge = logicEdges.some((le) => le.id === e.id)
+        if (isLogicEdge) return true
+        // If a default edge's source has outgoing logic edges, suppress it
+        // UNLESS it goes to a node that also receives no logic edge input
+        if (logicEdgeSources.has(e.source)) {
+            // This is a default edge from a node that has logic connections — skip it
+            return false
+        }
+        // If a default edge targets a node that already receives a logic edge, skip it
+        if (logicEdgeTargets.has(e.target) && e.target !== 'end') {
+            return false
+        }
+        return true
+    })
+
+    return { nodes, edges: filteredEdges }
 }
 
 // ─── Orchestrator → Graph ────────────────────────────────────────────────────
@@ -346,7 +370,18 @@ function orchestratorToGraph(config: OrchestratorConfig, agents: Agent[]): { nod
     const logicEdges = restoreLogicEdges(config as unknown as Record<string, unknown>)
     edges.push(...logicEdges)
 
-    return { nodes, edges }
+    // Remove default edges that conflict with logic edges
+    const logicEdgeSources = new Set(logicEdges.map((e) => e.source))
+    const logicEdgeTargets = new Set(logicEdges.map((e) => e.target))
+    const filteredEdges = edges.filter((e) => {
+        const isLogicEdge = logicEdges.some((le) => le.id === e.id)
+        if (isLogicEdge) return true
+        if (logicEdgeSources.has(e.source)) return false
+        if (logicEdgeTargets.has(e.target) && e.target !== 'end') return false
+        return true
+    })
+
+    return { nodes, edges: filteredEdges }
 }
 
 // ─── Collaboration → Graph ───────────────────────────────────────────────────
@@ -401,7 +436,18 @@ function collaborationToGraph(config: CollaborationConfig, agents: Agent[]): { n
     const logicEdges = restoreLogicEdges(config as unknown as Record<string, unknown>)
     edges.push(...logicEdges)
 
-    return { nodes, edges }
+    // Remove default edges that conflict with logic edges
+    const logicEdgeSources = new Set(logicEdges.map((e) => e.source))
+    const logicEdgeTargets = new Set(logicEdges.map((e) => e.target))
+    const filteredEdges = edges.filter((e) => {
+        const isLogicEdge = logicEdges.some((le) => le.id === e.id)
+        if (isLogicEdge) return true
+        if (logicEdgeSources.has(e.source)) return false
+        if (logicEdgeTargets.has(e.target) && e.target !== 'end') return false
+        return true
+    })
+
+    return { nodes, edges: filteredEdges }
 }
 
 // ─── Hook ────────────────────────────────────────────────────────────────────
