@@ -56,6 +56,13 @@ const ARROW_MARKER_AMBER_DASHED = {
     color: '#f59e0b',
 }
 
+const ARROW_MARKER_RED = {
+    type: MarkerType.ArrowClosed,
+    width: 16,
+    height: 16,
+    color: '#f87171',
+}
+
 /**
  * Returns the correct handle IDs for a given layout direction.
  * TB (top-to-bottom): source from bottom, target to top
@@ -614,16 +621,36 @@ function extractCanvasLogicEdges(edges: Edge[], nodes: Node[]): CanvasLogicEdge[
 
 function restoreLogicEdges(config: Record<string, unknown>): Edge[] {
     const logicEdges = (config._canvas_logic_edges ?? []) as CanvasLogicEdge[]
-    return logicEdges.map((le) => ({
-        id: le.id,
-        source: le.source,
-        target: le.target,
-        sourceHandle: le.sourceHandle,
-        targetHandle: le.targetHandle,
-        animated: true,
-        style: { stroke: '#6bedb9', strokeWidth: 2 },
-        markerEnd: ARROW_MARKER,
-    }))
+    return logicEdges.map((le) => {
+        // Determine edge style from conditional handle IDs
+        const isTrueBranch = le.sourceHandle === 'true-source'
+        const isFalseBranch = le.sourceHandle === 'false-source'
+        let stroke = '#6bedb9'
+        let marker = ARROW_MARKER
+        let label: string | undefined
+        if (isTrueBranch) {
+            stroke = '#6bedb9'
+            marker = ARROW_MARKER
+            label = 'True'
+        } else if (isFalseBranch) {
+            stroke = '#f87171'
+            marker = ARROW_MARKER_RED
+            label = 'False'
+        }
+        return {
+            id: le.id,
+            source: le.source,
+            target: le.target,
+            sourceHandle: le.sourceHandle,
+            targetHandle: le.targetHandle,
+            animated: true,
+            style: { stroke, strokeWidth: 2 },
+            markerEnd: marker,
+            label,
+            labelStyle: label ? { fill: stroke, fontWeight: 600, fontSize: 10 } : undefined,
+            labelBgStyle: label ? { fill: '#1a1a2e', fillOpacity: 0.9 } : undefined,
+        }
+    })
 }
 
 // ─── Graph → Config (reverse) ────────────────────────────────────────────────

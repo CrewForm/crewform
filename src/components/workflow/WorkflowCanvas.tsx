@@ -65,6 +65,13 @@ const ARROW_MARKER_PURPLE = {
     color: '#a78bfa',
 }
 
+const ARROW_MARKER_RED = {
+    type: MarkerType.ArrowClosed,
+    width: 16,
+    height: 16,
+    color: '#f87171',
+}
+
 const NODE_TYPES: NodeTypes = {
     agentNode: AgentNode,
     startNode: StartNode,
@@ -285,13 +292,32 @@ function WorkflowCanvasInner({ team, agents, onSaveConfig, onCanvasError, active
         // but logic node connections are allowed in all modes
         if (team.mode !== 'pipeline' && !isLogicNodeConnection) return
 
+        // Determine edge style based on conditional handle
+        const isTrueBranch = connection.sourceHandle === 'true-source'
+        const isFalseBranch = connection.sourceHandle === 'false-source'
+        let edgeStroke = '#6bedb9'
+        let edgeMarker = ARROW_MARKER_GREEN
+        let edgeLabel: string | undefined
+        if (isTrueBranch) {
+            edgeStroke = '#6bedb9'
+            edgeMarker = ARROW_MARKER_GREEN
+            edgeLabel = 'True'
+        } else if (isFalseBranch) {
+            edgeStroke = '#f87171'
+            edgeMarker = ARROW_MARKER_RED
+            edgeLabel = 'False'
+        }
+
         setEdges((eds) => {
             const updated = addEdge(
                 {
                     ...connection,
                     animated: true,
-                    style: { stroke: '#6bedb9', strokeWidth: 2 },
-                    markerEnd: ARROW_MARKER_GREEN,
+                    style: { stroke: edgeStroke, strokeWidth: 2 },
+                    markerEnd: edgeMarker,
+                    label: edgeLabel,
+                    labelStyle: edgeLabel ? { fill: edgeStroke, fontWeight: 600, fontSize: 10 } : undefined,
+                    labelBgStyle: edgeLabel ? { fill: '#1a1a2e', fillOpacity: 0.9 } : undefined,
                     sourceHandle: connection.sourceHandle ?? getHandleIds(layoutDirection).sourceHandle,
                     targetHandle: connection.targetHandle ?? getHandleIds(layoutDirection).targetHandle,
                 },
@@ -608,6 +634,22 @@ function WorkflowCanvasInner({ team, agents, onSaveConfig, onCanvasError, active
 
     // ─── Add sticky note ─────────────────────────────────────────────────────
 
+    // ─── Update node data (for logic node forms) ─────────────────────────────
+
+    const handleUpdateNodeData = useCallback((nodeId: string, newData: Record<string, unknown>) => {
+        setNodes((currentNodes) => {
+            const updated = currentNodes.map((n) =>
+                n.id === nodeId ? { ...n, data: { ...n.data, ...newData } } : n
+            )
+            setEdges((currentEdges) => {
+                pushState(currentNodes, currentEdges)
+                void saveGraph(updated, currentEdges)
+                return currentEdges
+            })
+            return updated
+        })
+    }, [setNodes, setEdges, pushState, saveGraph])
+
     const handleAddNote = useCallback((screenX: number, screenY: number) => {
         const bounds = document.querySelector('.react-flow')?.getBoundingClientRect()
         if (!bounds) return
@@ -905,7 +947,7 @@ function WorkflowCanvasInner({ team, agents, onSaveConfig, onCanvasError, active
             )}
 
             {/* Detail Popup (portal-style, positioned via fixed) */}
-            {showPopup && selectedNode && selectedNode.type === 'agentNode' && (
+            {showPopup && selectedNode && (selectedNode.type === 'agentNode' || selectedNode.type === 'conditionalNode' || selectedNode.type === 'httpNode') && (
                 <NodeDetailPopup
                     node={selectedNode}
                     team={team}
@@ -913,6 +955,7 @@ function WorkflowCanvasInner({ team, agents, onSaveConfig, onCanvasError, active
                     executionStates={executionStates}
                     runMessages={runMessages}
                     onDelete={handleDeleteNode}
+                    onUpdateNodeData={handleUpdateNodeData}
                     onClose={() => { setShowPopup(false); setSelectedNodeId(null) }}
                 />
             )}
