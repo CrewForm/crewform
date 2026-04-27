@@ -236,6 +236,10 @@ function pipelineToGraph(config: PipelineConfig, agents: Agent[]): { nodes: Node
     const logicNodes = restoreLogicNodes(config as unknown as Record<string, unknown>)
     nodes.push(...logicNodes)
 
+    // Restore logic edges from config
+    const logicEdges = restoreLogicEdges(config as unknown as Record<string, unknown>)
+    edges.push(...logicEdges)
+
     return { nodes, edges }
 }
 
@@ -331,6 +335,10 @@ function orchestratorToGraph(config: OrchestratorConfig, agents: Agent[]): { nod
     const logicNodes = restoreLogicNodes(config as unknown as Record<string, unknown>)
     nodes.push(...logicNodes)
 
+    // Restore logic edges from config
+    const logicEdges = restoreLogicEdges(config as unknown as Record<string, unknown>)
+    edges.push(...logicEdges)
+
     return { nodes, edges }
 }
 
@@ -381,6 +389,10 @@ function collaborationToGraph(config: CollaborationConfig, agents: Agent[]): { n
     // Restore logic nodes (conditional, HTTP) from config
     const logicNodes = restoreLogicNodes(config as unknown as Record<string, unknown>)
     nodes.push(...logicNodes)
+
+    // Restore logic edges from config
+    const logicEdges = restoreLogicEdges(config as unknown as Record<string, unknown>)
+    edges.push(...logicEdges)
 
     return { nodes, edges }
 }
@@ -451,8 +463,8 @@ export function validateConfig(
 function extractNodePositions(nodes: Node[]): Record<string, { x: number; y: number }> {
     const positions: Record<string, { x: number; y: number }> = {}
     for (const node of nodes) {
-        // Exclude note nodes — they are persisted separately in _canvas_notes
-        if (node.type === 'noteNode') continue
+        // Exclude note and logic nodes — they are persisted separately
+        if (node.type === 'noteNode' || node.type === 'conditionalNode' || node.type === 'httpNode') continue
         positions[node.id] = { x: node.position.x, y: node.position.y }
     }
     return positions
@@ -572,6 +584,48 @@ function restoreLogicNodes(config: Record<string, unknown>): Node[] {
     })
 }
 
+// ─── Logic node edge extraction / restoration ────────────────────────────────
+
+interface CanvasLogicEdge {
+    id: string
+    source: string
+    target: string
+    sourceHandle?: string
+    targetHandle?: string
+}
+
+function extractCanvasLogicEdges(edges: Edge[], nodes: Node[]): CanvasLogicEdge[] {
+    const logicNodeIds = new Set(
+        nodes
+            .filter((n) => n.type === 'conditionalNode' || n.type === 'httpNode')
+            .map((n) => n.id)
+    )
+    // Persist any edge where source OR target is a logic node
+    return edges
+        .filter((e) => logicNodeIds.has(e.source) || logicNodeIds.has(e.target))
+        .map((e) => ({
+            id: e.id,
+            source: e.source,
+            target: e.target,
+            sourceHandle: e.sourceHandle ?? undefined,
+            targetHandle: e.targetHandle ?? undefined,
+        }))
+}
+
+function restoreLogicEdges(config: Record<string, unknown>): Edge[] {
+    const logicEdges = (config._canvas_logic_edges ?? []) as CanvasLogicEdge[]
+    return logicEdges.map((le) => ({
+        id: le.id,
+        source: le.source,
+        target: le.target,
+        sourceHandle: le.sourceHandle,
+        targetHandle: le.targetHandle,
+        animated: true,
+        style: { stroke: '#6bedb9', strokeWidth: 2 },
+        markerEnd: ARROW_MARKER,
+    }))
+}
+
 // ─── Graph → Config (reverse) ────────────────────────────────────────────────
 
 /**
@@ -619,6 +673,9 @@ function resolvePipelineOrder(nodes: Node[], edges: Edge[]): Node[] {
         if (node && node.type === 'startNode' && nodeId !== 'start') {
             ordered.push(node)
         }
+        // Logic nodes (conditional, HTTP) are pass-through — we don't collect
+        // them as pipeline steps, but we still traverse through their edges
+        // to reach downstream agents.
 
         const targets = edgeMap.get(nodeId) ?? []
         if (targets.length === 1) {
@@ -824,6 +881,8 @@ export function graphToConfig(
     ;(config as unknown as Record<string, unknown>)._canvas_notes = extractCanvasNotes(nodes)
     // Persist logic nodes (conditional, HTTP)
     ;(config as unknown as Record<string, unknown>)._canvas_logic_nodes = extractCanvasLogicNodes(nodes)
+    // Persist logic edges (connections to/from conditional/HTTP nodes)
+    ;(config as unknown as Record<string, unknown>)._canvas_logic_edges = extractCanvasLogicEdges(edges, nodes)
     return config
 }
 
