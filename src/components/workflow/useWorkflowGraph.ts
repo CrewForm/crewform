@@ -21,6 +21,8 @@ import type {
 } from '@/types'
 import type { AgentNodeData } from './nodes/AgentNode'
 import type { NoteNodeData, NoteColor } from './nodes/NoteNode'
+import type { ConditionalNodeData, ConditionRule } from './nodes/ConditionalNode'
+import type { HttpNodeData, HttpHeader, HttpMethod } from './nodes/HttpNode'
 
 const Y_SPACING = 120
 const X_CENTER = 300
@@ -230,6 +232,10 @@ function pipelineToGraph(config: PipelineConfig, agents: Agent[]): { nodes: Node
     const noteNodes = restoreNoteNodes(config as unknown as Record<string, unknown>)
     nodes.push(...noteNodes)
 
+    // Restore logic nodes (conditional, HTTP) from config
+    const logicNodes = restoreLogicNodes(config as unknown as Record<string, unknown>)
+    nodes.push(...logicNodes)
+
     return { nodes, edges }
 }
 
@@ -321,6 +327,10 @@ function orchestratorToGraph(config: OrchestratorConfig, agents: Agent[]): { nod
     const noteNodes = restoreNoteNodes(config as unknown as Record<string, unknown>)
     nodes.push(...noteNodes)
 
+    // Restore logic nodes (conditional, HTTP) from config
+    const logicNodes = restoreLogicNodes(config as unknown as Record<string, unknown>)
+    nodes.push(...logicNodes)
+
     return { nodes, edges }
 }
 
@@ -367,6 +377,10 @@ function collaborationToGraph(config: CollaborationConfig, agents: Agent[]): { n
     // Restore sticky notes from config
     const noteNodes = restoreNoteNodes(config as unknown as Record<string, unknown>)
     nodes.push(...noteNodes)
+
+    // Restore logic nodes (conditional, HTTP) from config
+    const logicNodes = restoreLogicNodes(config as unknown as Record<string, unknown>)
+    nodes.push(...logicNodes)
 
     return { nodes, edges }
 }
@@ -478,6 +492,84 @@ function restoreNoteNodes(config: Record<string, unknown>): Node[] {
         data: { content: note.content, color: note.color },
         draggable: true,
     }))
+}
+
+// ─── Logic node extraction / restoration ─────────────────────────────────────
+
+interface CanvasLogicNode {
+    id: string
+    type: 'conditionalNode' | 'httpNode'
+    x: number
+    y: number
+    /** ConditionalNode data */
+    label?: string
+    conditions?: ConditionRule[]
+    /** HttpNode data */
+    url?: string
+    method?: HttpMethod
+    headers?: HttpHeader[]
+    body?: string
+    timeout?: number
+}
+
+function extractCanvasLogicNodes(nodes: Node[]): CanvasLogicNode[] {
+    return nodes
+        .filter((n) => n.type === 'conditionalNode' || n.type === 'httpNode')
+        .map((n) => {
+            const base: CanvasLogicNode = {
+                id: n.id,
+                type: n.type as 'conditionalNode' | 'httpNode',
+                x: n.position.x,
+                y: n.position.y,
+            }
+            if (n.type === 'conditionalNode') {
+                const data = n.data as unknown as ConditionalNodeData
+                base.label = data.label
+                base.conditions = data.conditions
+            } else if (n.type === 'httpNode') {
+                const data = n.data as unknown as HttpNodeData
+                base.label = data.label
+                base.url = data.url
+                base.method = data.method
+                base.headers = data.headers
+                base.body = data.body
+                base.timeout = data.timeout
+            }
+            return base
+        })
+}
+
+function restoreLogicNodes(config: Record<string, unknown>): Node[] {
+    const logicNodes = (config._canvas_logic_nodes ?? []) as CanvasLogicNode[]
+    return logicNodes.map((ln) => {
+        if (ln.type === 'conditionalNode') {
+            return {
+                id: ln.id,
+                type: 'conditionalNode' as const,
+                position: { x: ln.x, y: ln.y },
+                data: {
+                    label: ln.label ?? 'Condition',
+                    conditions: ln.conditions ?? [{ field: 'output', operator: 'contains', value: '' }],
+                } satisfies ConditionalNodeData,
+                draggable: true,
+            }
+        }
+        // httpNode
+        return {
+            id: ln.id,
+            type: 'httpNode' as const,
+            position: { x: ln.x, y: ln.y },
+            data: {
+                label: ln.label ?? 'HTTP Request',
+                url: ln.url ?? '',
+                method: ln.method ?? 'GET',
+                headers: ln.headers ?? [],
+                body: ln.body ?? '',
+                timeout: ln.timeout ?? 30,
+            } satisfies HttpNodeData,
+            draggable: true,
+        }
+    })
 }
 
 // ─── Graph → Config (reverse) ────────────────────────────────────────────────
@@ -726,10 +818,12 @@ export function graphToConfig(
     }
     // Persist layout direction preference in config
     if (layoutDirection) {
-        (config as unknown as Record<string, unknown>).layout_direction = layoutDirection
+        ;(config as unknown as Record<string, unknown>).layout_direction = layoutDirection
     }
     // Persist sticky notes
-    (config as unknown as Record<string, unknown>)._canvas_notes = extractCanvasNotes(nodes)
+    ;(config as unknown as Record<string, unknown>)._canvas_notes = extractCanvasNotes(nodes)
+    // Persist logic nodes (conditional, HTTP)
+    ;(config as unknown as Record<string, unknown>)._canvas_logic_nodes = extractCanvasLogicNodes(nodes)
     return config
 }
 

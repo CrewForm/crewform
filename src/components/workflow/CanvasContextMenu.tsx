@@ -182,6 +182,20 @@ export function CanvasContextMenu({
             icon: Plus,
             onClick: () => { setShowAgentPicker(true) },
         })
+        if (onAddConditional) {
+            items.push({
+                label: 'Insert Conditional',
+                icon: GitBranch,
+                onClick: () => { onAddConditional(state.x, state.y); onClose() },
+            })
+        }
+        if (onAddHttp) {
+            items.push({
+                label: 'Insert HTTP Request',
+                icon: Globe,
+                onClick: () => { onAddHttp(state.x, state.y); onClose() },
+            })
+        }
         items.push('separator')
         items.push({
             label: 'Fit View',
