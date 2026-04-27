@@ -70,11 +70,11 @@ function ConditionalNodeComponent({ data, selected }: NodeProps) {
     const nodeData = data as unknown as ConditionalNodeData
     const execState = nodeData.executionState ?? 'idle'
     const borderClass = EXEC_BORDER[execState]
-    const condition = nodeData.conditions?.[0]
+    const condition = nodeData.conditions[0] as ConditionalNodeData['conditions'][number] | undefined
 
     // Build human-readable condition preview
     let conditionPreview = 'No condition set'
-    if (condition) {
+    if (condition != null) {
         const op = OPERATOR_LABELS[condition.operator]
         if (condition.operator === 'is_empty' || condition.operator === 'is_not_empty') {
             conditionPreview = `${condition.field} ${op}`

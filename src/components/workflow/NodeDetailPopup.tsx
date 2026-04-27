@@ -308,7 +308,7 @@ export function NodeDetailPopup({ node, team, agents, executionStates, runMessag
                     <hr className="border-white/5 mb-2" />
                     <div className="space-y-1.5 mb-3">
                         <p className="text-[10px] font-medium uppercase tracking-wider text-gray-600">Condition Config</p>
-                        {((node.data as unknown as ConditionalNodeData).conditions ?? []).map((c, i) => {
+                        {(node.data as unknown as ConditionalNodeData).conditions.map((c, i) => {
                             const opLabel: Record<ConditionOperator, string> = {
                                 contains: 'contains', not_contains: 'not contains',
                                 equals: '==', not_equals: '!=',
@@ -352,14 +352,14 @@ export function NodeDetailPopup({ node, team, agents, executionStates, runMessag
                                     <div className="rounded-md bg-cyan-500/5 border border-cyan-500/10 px-2.5 py-2">
                                         <div className="flex items-center gap-1.5 text-[10px]">
                                             <span className={`font-bold ${methodColors[httpData.method] ?? 'text-gray-400'}`}>
-                                                {httpData.method || 'GET'}
+                                                {httpData.method}
                                             </span>
                                             <span className="text-gray-400 font-mono truncate">
                                                 {httpData.url || 'No URL set'}
                                             </span>
                                         </div>
                                     </div>
-                                    {httpData.headers?.length > 0 && (
+                                    {httpData.headers.length > 0 && (
                                         <div>
                                             <p className="text-[10px] text-gray-600">Headers ({httpData.headers.length})</p>
                                             {httpData.headers.slice(0, 3).map((h, i) => (

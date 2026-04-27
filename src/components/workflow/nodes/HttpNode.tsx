@@ -62,7 +62,7 @@ function HttpNodeComponent({ data, selected }: NodeProps) {
     const nodeData = data as unknown as HttpNodeData
     const execState = nodeData.executionState ?? 'idle'
     const borderClass = EXEC_BORDER[execState]
-    const methodStyle = METHOD_COLORS[nodeData.method || 'GET']
+    const methodStyle = METHOD_COLORS[nodeData.method]
     const execBadge = EXEC_BADGE[execState]
 
     // Shorten URL for display
@@ -127,7 +127,7 @@ function HttpNodeComponent({ data, selected }: NodeProps) {
             {/* Method badge + execution status */}
             <div className="mt-2 flex items-center gap-1.5">
                 <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ${methodStyle.bg} ${methodStyle.text}`}>
-                    {nodeData.method || 'GET'}
+                    {nodeData.method}
                 </span>
                 {nodeData.lastStatusCode && execState !== 'idle' && (
                     <span className={`rounded-full px-2 py-0.5 text-[9px] font-medium ${
