@@ -272,10 +272,18 @@ function WorkflowCanvasInner({ team, agents, onSaveConfig, onCanvasError, active
         setContextMenu({ x: (event as React.MouseEvent).clientX, y: (event as React.MouseEvent).clientY, nodeId: null })
     }, [])
 
-    // ─── Edge creation (pipeline mode) ───────────────────────────────────────
+    // ─── Edge creation ───────────────────────────────────────────────────────
 
     const onConnect = useCallback((connection: Connection) => {
-        if (team.mode !== 'pipeline') return // Only pipeline supports manual edge creation
+        // Determine if this connection involves a logic node (conditional/HTTP)
+        const isLogicNodeConnection = nodes.some(
+            (n) => (n.id === connection.source || n.id === connection.target)
+                && (n.type === 'conditionalNode' || n.type === 'httpNode')
+        )
+
+        // Only pipeline supports manual agent-to-agent edge creation,
+        // but logic node connections are allowed in all modes
+        if (team.mode !== 'pipeline' && !isLogicNodeConnection) return
 
         setEdges((eds) => {
             const updated = addEdge(
@@ -297,7 +305,7 @@ function WorkflowCanvasInner({ team, agents, onSaveConfig, onCanvasError, active
             })
             return updated
         })
-    }, [team.mode, setEdges, setNodes, saveGraph, pushState, layoutDirection])
+    }, [team.mode, nodes, setEdges, setNodes, saveGraph, pushState, layoutDirection])
 
     // ─── Edge context menu (for pipeline step insertion) ─────────────────────
 
