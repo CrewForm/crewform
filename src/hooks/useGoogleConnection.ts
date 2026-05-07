@@ -11,7 +11,7 @@ import {
 export function useGoogleConnection(workspaceId?: string) {
     return useQuery({
         queryKey: ['google-connection', workspaceId],
-        queryFn: () => fetchGoogleConnection(workspaceId!),
+        queryFn: () => fetchGoogleConnection(workspaceId ?? ''),
         enabled: !!workspaceId,
     })
 }
@@ -19,9 +19,9 @@ export function useGoogleConnection(workspaceId?: string) {
 export function useDisconnectGoogle(workspaceId?: string) {
     const queryClient = useQueryClient()
     return useMutation({
-        mutationFn: () => deleteGoogleConnection(workspaceId!),
+        mutationFn: () => deleteGoogleConnection(workspaceId ?? ''),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['google-connection', workspaceId] })
+            void queryClient.invalidateQueries({ queryKey: ['google-connection', workspaceId] })
         },
     })
 }
