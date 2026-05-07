@@ -11,7 +11,7 @@ export interface OutputRoute {
     id: string
     workspace_id: string
     name: string
-    destination_type: 'http' | 'slack' | 'discord' | 'telegram' | 'teams' | 'asana' | 'trello' | 'notion' | 'github' | 'email' | 'smtp' | 'linear'
+    destination_type: 'http' | 'slack' | 'discord' | 'telegram' | 'teams' | 'asana' | 'trello' | 'notion' | 'github' | 'email' | 'smtp' | 'linear' | 'google_sheets' | 'google_gmail' | 'google_docs' | 'google_calendar'
     config: Record<string, unknown>
     events: string[]
     is_active: boolean
@@ -34,7 +34,7 @@ export interface WebhookLog {
 export interface CreateRouteInput {
     workspace_id: string
     name: string
-    destination_type: 'http' | 'slack' | 'discord' | 'telegram' | 'teams' | 'asana' | 'trello' | 'notion' | 'github' | 'email' | 'smtp' | 'linear'
+    destination_type: 'http' | 'slack' | 'discord' | 'telegram' | 'teams' | 'asana' | 'trello' | 'notion' | 'github' | 'email' | 'smtp' | 'linear' | 'google_sheets' | 'google_gmail' | 'google_docs' | 'google_calendar'
     config: Record<string, unknown>
     events: string[]
     is_active?: boolean

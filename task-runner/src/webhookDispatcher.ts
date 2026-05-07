@@ -11,7 +11,7 @@ interface OutputRoute {
     id: string;
     workspace_id: string;
     name: string;
-    destination_type: 'http' | 'slack' | 'discord' | 'telegram' | 'teams' | 'asana' | 'trello' | 'notion' | 'github' | 'email' | 'smtp' | 'linear';
+    destination_type: 'http' | 'slack' | 'discord' | 'telegram' | 'teams' | 'asana' | 'trello' | 'notion' | 'github' | 'email' | 'smtp' | 'linear' | 'google_sheets' | 'google_gmail' | 'google_docs' | 'google_calendar';
     config: Record<string, unknown>;
     events: string[];
     is_active: boolean;
@@ -389,6 +389,14 @@ async function deliver(
             return deliverSmtp(route, payload);
         case 'linear':
             return deliverLinear(route, payload);
+        case 'google_sheets':
+            return deliverGoogleSheets(route, payload);
+        case 'google_gmail':
+            return deliverGoogleGmail(route, payload);
+        case 'google_docs':
+            return deliverGoogleDocs(route, payload);
+        case 'google_calendar':
+            return deliverGoogleCalendar(route, payload);
         default:
             throw new Error(`Unknown destination type: ${route.destination_type}`);
     }
@@ -1589,6 +1597,371 @@ async function deliverLinear(
 
     const success = result.data?.issueCreate?.success ?? false;
     return { ok: success, statusCode: success ? 200 : 422 };
+}
+
+// ── Google Workspace (shared token helper) ───────────────────────────────────
+
+/**
+ * Get a valid Google access token for a workspace.
+ * Automatically refreshes expired tokens using the stored refresh_token.
+ */
+async function getGoogleAccessToken(workspaceId: string): Promise<string> {
+    const { data: conn, error } = await supabase
+        .from('google_connections')
+        .select('access_token, refresh_token, token_expiry')
+        .eq('workspace_id', workspaceId)
+        .single();
+
+    if (error || !conn) {
+        throw new Error('Google is not connected for this workspace. Go to Settings → Webhooks to connect.');
+    }
+
+    const { access_token, refresh_token, token_expiry } = conn as {
+        access_token: string;
+        refresh_token: string;
+        token_expiry: string;
+    };
+
+    // If token is still valid (with 60s buffer), return it
+    if (new Date(token_expiry).getTime() > Date.now() + 60_000) {
+        return access_token;
+    }
+
+    // Refresh the token
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+
+    if (!clientId || !clientSecret) {
+        throw new Error('Google OAuth not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET env vars.');
+    }
+
+    const resp = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+            client_id: clientId,
+            client_secret: clientSecret,
+            refresh_token: refresh_token,
+            grant_type: 'refresh_token',
+        }),
+        signal: AbortSignal.timeout(10000),
+    });
+
+    if (!resp.ok) {
+        const errBody = await resp.text().catch(() => '');
+        console.error(`[Google] Token refresh failed ${resp.status}: ${errBody.substring(0, 500)}`);
+        throw new Error('Failed to refresh Google access token. User may need to re-connect.');
+    }
+
+    const tokens = await resp.json() as {
+        access_token: string;
+        expires_in: number;
+    };
+
+    const newExpiry = new Date(Date.now() + tokens.expires_in * 1000).toISOString();
+
+    // Update stored token
+    await supabase
+        .from('google_connections')
+        .update({
+            access_token: tokens.access_token,
+            token_expiry: newExpiry,
+            updated_at: new Date().toISOString(),
+        })
+        .eq('workspace_id', workspaceId);
+
+    return tokens.access_token;
+}
+
+// ── Google Sheets ────────────────────────────────────────────────────────────
+
+/**
+ * Append a row to a Google Sheets spreadsheet.
+ *
+ * Config fields:
+ * - spreadsheet_id: The spreadsheet ID from the URL (required)
+ * - sheet_name: Sheet tab name (optional, default "Sheet1")
+ */
+async function deliverGoogleSheets(
+    route: OutputRoute,
+    payload: WebhookPayload,
+): Promise<{ ok: boolean; statusCode: number }> {
+    const spreadsheetId = route.config.spreadsheet_id as string;
+    const sheetName = (route.config.sheet_name as string) || 'Sheet1';
+
+    if (!spreadsheetId) {
+        throw new Error('Google Sheets integration requires spreadsheet_id');
+    }
+
+    const accessToken = await getGoogleAccessToken(route.workspace_id);
+    const output = payload.result_full || payload.error || 'No output';
+    const preview = output.length > 5000 ? `${output.substring(0, 5000)}...` : output;
+
+    const values = [[
+        payload.timestamp,
+        payload.agent_name,
+        payload.task_title,
+        payload.status,
+        payload.event,
+        preview,
+    ]];
+
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${encodeURIComponent(sheetName)}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`;
+
+    const resp = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ values }),
+        signal: AbortSignal.timeout(15000),
+    });
+
+    if (!resp.ok) {
+        const errBody = await resp.text().catch(() => '');
+        console.error(`[Google Sheets] API error ${resp.status}: ${errBody.substring(0, 500)}`);
+    }
+
+    return { ok: resp.ok, statusCode: resp.status };
+}
+
+// ── Google Gmail ─────────────────────────────────────────────────────────────
+
+/**
+ * Send an email via the user's connected Gmail account.
+ *
+ * Config fields:
+ * - to: Comma-separated recipient emails (required)
+ * - subject: Subject template with {{title}}, {{status}}, {{agent}} (optional)
+ */
+async function deliverGoogleGmail(
+    route: OutputRoute,
+    payload: WebhookPayload,
+): Promise<{ ok: boolean; statusCode: number }> {
+    const to = route.config.to as string;
+    const subjectTemplate = (route.config.subject as string) || '{{status}} {{title}}';
+
+    if (!to) {
+        throw new Error('Gmail integration requires at least one recipient email (to)');
+    }
+
+    const accessToken = await getGoogleAccessToken(route.workspace_id);
+    const output = payload.result_full || payload.error || 'No output';
+    const isTeamRun = !!payload.team_run_id;
+
+    const subject = subjectTemplate
+        .replace(/\{\{title\}\}/g, payload.task_title)
+        .replace(/\{\{status\}\}/g, payload.status === 'completed' ? '✅' : '❌')
+        .replace(/\{\{agent\}\}/g, payload.agent_name);
+
+    const htmlBody = buildEmailHtml(payload);
+
+    // Build RFC 2822 MIME message
+    const mimeMessage = [
+        `To: ${to}`,
+        `Subject: ${subject}`,
+        'MIME-Version: 1.0',
+        'Content-Type: text/html; charset=UTF-8',
+        '',
+        htmlBody,
+    ].join('\r\n');
+
+    // base64url encode
+    const encoded = Buffer.from(mimeMessage)
+        .toString('base64')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+
+    const resp = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ raw: encoded }),
+        signal: AbortSignal.timeout(15000),
+    });
+
+    if (!resp.ok) {
+        const errBody = await resp.text().catch(() => '');
+        console.error(`[Gmail] API error ${resp.status}: ${errBody.substring(0, 500)}`);
+    }
+
+    return { ok: resp.ok, statusCode: resp.status };
+}
+
+// ── Google Docs ──────────────────────────────────────────────────────────────
+
+/**
+ * Create a Google Doc with the full agent output.
+ *
+ * Config fields:
+ * - folder_id: Target Google Drive folder ID (optional, uses root if omitted)
+ */
+async function deliverGoogleDocs(
+    route: OutputRoute,
+    payload: WebhookPayload,
+): Promise<{ ok: boolean; statusCode: number }> {
+    const folderId = route.config.folder_id as string;
+    const accessToken = await getGoogleAccessToken(route.workspace_id);
+    const output = payload.result_full || payload.error || 'No output';
+    const isTeamRun = !!payload.team_run_id;
+    const emoji = payload.status === 'completed' ? '✅' : '❌';
+
+    const docTitle = `${emoji} ${isTeamRun ? 'Team Run' : 'Task'}: ${payload.task_title} — ${new Date(payload.timestamp).toLocaleDateString()}`;
+
+    // Step 1: Create the document
+    const createResp = await fetch('https://docs.googleapis.com/v1/documents', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ title: docTitle }),
+        signal: AbortSignal.timeout(15000),
+    });
+
+    if (!createResp.ok) {
+        const errBody = await createResp.text().catch(() => '');
+        console.error(`[Google Docs] Create error ${createResp.status}: ${errBody.substring(0, 500)}`);
+        return { ok: false, statusCode: createResp.status };
+    }
+
+    const doc = await createResp.json() as { documentId: string };
+    const documentId = doc.documentId;
+
+    // Step 2: Insert content
+    const contentText = [
+        `Agent: ${payload.agent_name}`,
+        `Status: ${payload.status}`,
+        `Event: ${payload.event}`,
+        `Timestamp: ${payload.timestamp}`,
+        '',
+        '---',
+        '',
+        output.length > 100000 ? `${output.substring(0, 100000)}\n\n[Output truncated — ${output.length} chars total]` : output,
+        '',
+        '---',
+        'Created by CrewForm (https://crewform.tech)',
+    ].join('\n');
+
+    await fetch(`https://docs.googleapis.com/v1/documents/${documentId}:batchUpdate`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+            requests: [{
+                insertText: {
+                    location: { index: 1 },
+                    text: contentText,
+                },
+            }],
+        }),
+        signal: AbortSignal.timeout(15000),
+    });
+
+    // Step 3: Move to folder if specified
+    if (folderId) {
+        try {
+            // Get current parents
+            const fileResp = await fetch(
+                `https://www.googleapis.com/drive/v3/files/${documentId}?fields=parents`,
+                {
+                    headers: { Authorization: `Bearer ${accessToken}` },
+                    signal: AbortSignal.timeout(10000),
+                },
+            );
+            if (fileResp.ok) {
+                const fileData = await fileResp.json() as { parents?: string[] };
+                const currentParents = fileData.parents?.join(',') ?? '';
+
+                await fetch(
+                    `https://www.googleapis.com/drive/v3/files/${documentId}?addParents=${encodeURIComponent(folderId)}&removeParents=${encodeURIComponent(currentParents)}`,
+                    {
+                        method: 'PATCH',
+                        headers: { Authorization: `Bearer ${accessToken}` },
+                        signal: AbortSignal.timeout(10000),
+                    },
+                );
+            }
+        } catch {
+            // Folder move failure is non-fatal
+            console.warn('[Google Docs] Failed to move document to folder, document created in root');
+        }
+    }
+
+    return { ok: true, statusCode: 200 };
+}
+
+// ── Google Calendar ──────────────────────────────────────────────────────────
+
+/**
+ * Create a Google Calendar event to review agent output.
+ *
+ * Config fields:
+ * - calendar_id: Calendar ID (optional, default "primary")
+ * - duration_minutes: Event duration in minutes (optional, default 30)
+ */
+async function deliverGoogleCalendar(
+    route: OutputRoute,
+    payload: WebhookPayload,
+): Promise<{ ok: boolean; statusCode: number }> {
+    const calendarId = (route.config.calendar_id as string) || 'primary';
+    const durationMinutes = parseInt(String(route.config.duration_minutes ?? '30'), 10) || 30;
+    const accessToken = await getGoogleAccessToken(route.workspace_id);
+    const isTeamRun = !!payload.team_run_id;
+    const emoji = payload.status === 'completed' ? '✅' : '❌';
+
+    const summary = `${emoji} Review: ${payload.task_title}`;
+    const description = [
+        `${isTeamRun ? 'Team' : 'Agent'}: ${payload.agent_name}`,
+        `Status: ${payload.status}`,
+        `Event: ${payload.event}`,
+        '',
+        'Preview:',
+        (payload.result_full || payload.error || 'No output').substring(0, 2000),
+        '',
+        'Created by CrewForm (https://crewform.tech)',
+    ].join('\n');
+
+    // Schedule 1 hour from now
+    const startTime = new Date(Date.now() + 60 * 60 * 1000);
+    const endTime = new Date(startTime.getTime() + durationMinutes * 60 * 1000);
+
+    const resp = await fetch(
+        `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
+        {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${accessToken}`,
+            },
+            body: JSON.stringify({
+                summary,
+                description,
+                start: { dateTime: startTime.toISOString() },
+                end: { dateTime: endTime.toISOString() },
+                reminders: {
+                    useDefault: false,
+                    overrides: [
+                        { method: 'popup', minutes: 10 },
+                    ],
+                },
+            }),
+            signal: AbortSignal.timeout(15000),
+        },
+    );
+
+    if (!resp.ok) {
+        const errBody = await resp.text().catch(() => '');
+        console.error(`[Google Calendar] API error ${resp.status}: ${errBody.substring(0, 500)}`);
+    }
+
+    return { ok: resp.ok, statusCode: resp.status };
 }
 
 // ─── Logging ────────────────────────────────────────────────────────────────

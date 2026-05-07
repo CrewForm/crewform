@@ -4,12 +4,13 @@
 import { useState } from 'react'
 import {
     Globe, MessageSquare, Send, Hash, Plus, Trash2, Power, PowerOff,
-    CheckCircle2, XCircle, ChevronDown, ChevronUp, Loader2, Zap, CheckSquare, Pencil, Columns3, BookOpen, Mail, Server, Layers,
+    CheckCircle2, XCircle, ChevronDown, ChevronUp, Loader2, Zap, CheckSquare, Pencil, Columns3, BookOpen, Mail, Server, Layers, Table2, FileText, CalendarDays, Link2Off,
 } from 'lucide-react'
 import { useWorkspace } from '@/hooks/useWorkspace'
 import { useWebhooks, useCreateWebhook, useUpdateWebhook, useDeleteWebhook, useWebhookLogs } from '@/hooks/useWebhooks'
 import type { OutputRoute, CreateRouteInput } from '@/db/webhooks'
 import { testRoute } from '@/db/webhooks'
+import { useGoogleConnection, useDisconnectGoogle, useInitiateGoogleOAuth } from '@/hooks/useGoogleConnection'
 import { cn } from '@/lib/utils'
 
 // ─── Constants ──────────────────────────────────────────────────────────────
@@ -23,7 +24,7 @@ function GitHubIcon({ className }: { className?: string }) {
     )
 }
 
-type DestinationType = 'http' | 'slack' | 'discord' | 'telegram' | 'teams' | 'asana' | 'trello' | 'notion' | 'github' | 'email' | 'smtp' | 'linear'
+type DestinationType = 'http' | 'slack' | 'discord' | 'telegram' | 'teams' | 'asana' | 'trello' | 'notion' | 'github' | 'email' | 'smtp' | 'linear' | 'google_sheets' | 'google_gmail' | 'google_docs' | 'google_calendar'
 
 const DESTINATION_META: Record<DestinationType, { label: string; icon: typeof Globe; color: string; bgColor: string }> = {
     http: { label: 'HTTP Webhook', icon: Globe, color: 'text-blue-400', bgColor: 'bg-blue-500/10' },
@@ -38,6 +39,10 @@ const DESTINATION_META: Record<DestinationType, { label: string; icon: typeof Gl
     email: { label: 'Email (Resend)', icon: Mail, color: 'text-amber-400', bgColor: 'bg-amber-500/10' },
     smtp: { label: 'SMTP Email', icon: Server, color: 'text-orange-400', bgColor: 'bg-orange-500/10' },
     linear: { label: 'Linear', icon: Layers, color: 'text-violet-300', bgColor: 'bg-violet-500/10' },
+    google_sheets: { label: 'Google Sheets', icon: Table2, color: 'text-green-400', bgColor: 'bg-green-500/10' },
+    google_gmail: { label: 'Gmail', icon: Mail, color: 'text-red-400', bgColor: 'bg-red-500/10' },
+    google_docs: { label: 'Google Docs', icon: FileText, color: 'text-blue-300', bgColor: 'bg-blue-400/10' },
+    google_calendar: { label: 'Google Calendar', icon: CalendarDays, color: 'text-yellow-400', bgColor: 'bg-yellow-500/10' },
 }
 
 const EVENT_OPTIONS = [
@@ -784,7 +789,192 @@ function DestinationConfigFields({
                     </div>
                 </div>
             )
+
+        case 'google_sheets':
+            return (
+                <div className="space-y-3">
+                    <GoogleConnectionBanner />
+                    <div>
+                        <label className="mb-1 block text-sm font-medium text-gray-400">Spreadsheet ID</label>
+                        <input
+                            type="text"
+                            value={config.spreadsheet_id ?? ''}
+                            onChange={(e) => updateField('spreadsheet_id', e.target.value)}
+                            placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms"
+                            className={inputClass}
+                        />
+                        <p className="mt-1 text-xs text-gray-600">
+                            The ID from the spreadsheet URL: docs.google.com/spreadsheets/d/<strong>ID</strong>/edit
+                        </p>
+                    </div>
+                    <div>
+                        <label className="mb-1 block text-sm font-medium text-gray-400">
+                            Sheet Name <span className="text-gray-600">(optional)</span>
+                        </label>
+                        <input
+                            type="text"
+                            value={config.sheet_name ?? ''}
+                            onChange={(e) => updateField('sheet_name', e.target.value)}
+                            placeholder="Sheet1"
+                            className={inputClass}
+                        />
+                    </div>
+                </div>
+            )
+
+        case 'google_gmail':
+            return (
+                <div className="space-y-3">
+                    <GoogleConnectionBanner />
+                    <div>
+                        <label className="mb-1 block text-sm font-medium text-gray-400">To Email(s)</label>
+                        <input
+                            type="text"
+                            value={config.to ?? ''}
+                            onChange={(e) => updateField('to', e.target.value)}
+                            placeholder="team@company.com, alerts@company.com"
+                            className={inputClass}
+                        />
+                        <p className="mt-1 text-xs text-gray-600">
+                            Sends from your connected Gmail account.
+                        </p>
+                    </div>
+                    <div>
+                        <label className="mb-1 block text-sm font-medium text-gray-400">
+                            Subject Template <span className="text-gray-600">(optional)</span>
+                        </label>
+                        <input
+                            type="text"
+                            value={config.subject ?? ''}
+                            onChange={(e) => updateField('subject', e.target.value)}
+                            placeholder="{{status}} {{title}}"
+                            className={inputClass}
+                        />
+                        <p className="mt-1 text-xs text-gray-600">
+                            Use <code className="text-red-400/70">{'{{title}}'}</code>, <code className="text-red-400/70">{'{{status}}'}</code>, <code className="text-red-400/70">{'{{agent}}'}</code> as placeholders.
+                        </p>
+                    </div>
+                </div>
+            )
+
+        case 'google_docs':
+            return (
+                <div className="space-y-3">
+                    <GoogleConnectionBanner />
+                    <div>
+                        <label className="mb-1 block text-sm font-medium text-gray-400">
+                            Drive Folder ID <span className="text-gray-600">(optional)</span>
+                        </label>
+                        <input
+                            type="text"
+                            value={config.folder_id ?? ''}
+                            onChange={(e) => updateField('folder_id', e.target.value)}
+                            placeholder="1a2B3c4D5e6F7g8H9i0J"
+                            className={inputClass}
+                        />
+                        <p className="mt-1 text-xs text-gray-600">
+                            Documents will be created in this folder. Leave empty for root.
+                            Find the ID from the folder URL: drive.google.com/drive/folders/<strong>ID</strong>
+                        </p>
+                    </div>
+                </div>
+            )
+
+        case 'google_calendar':
+            return (
+                <div className="space-y-3">
+                    <GoogleConnectionBanner />
+                    <div>
+                        <label className="mb-1 block text-sm font-medium text-gray-400">
+                            Calendar ID <span className="text-gray-600">(optional)</span>
+                        </label>
+                        <input
+                            type="text"
+                            value={config.calendar_id ?? ''}
+                            onChange={(e) => updateField('calendar_id', e.target.value)}
+                            placeholder="primary"
+                            className={inputClass}
+                        />
+                        <p className="mt-1 text-xs text-gray-600">
+                            Defaults to your primary calendar. Use a calendar ID for a specific calendar.
+                        </p>
+                    </div>
+                    <div>
+                        <label className="mb-1 block text-sm font-medium text-gray-400">
+                            Duration (minutes) <span className="text-gray-600">(optional)</span>
+                        </label>
+                        <input
+                            type="text"
+                            value={config.duration_minutes ?? '30'}
+                            onChange={(e) => updateField('duration_minutes', e.target.value)}
+                            placeholder="30"
+                            className={inputClass}
+                        />
+                        <p className="mt-1 text-xs text-gray-600">
+                            Creates a review event 1 hour from task completion.
+                        </p>
+                    </div>
+                </div>
+            )
     }
+}
+
+/**
+ * Inline banner that shows Google connection status inside Google-type config fields.
+ * Shows "Connect Google" button if not connected, or connected email if connected.
+ */
+function GoogleConnectionBanner() {
+    const { workspaceId } = useWorkspace()
+    const { data: googleConn, isLoading } = useGoogleConnection(workspaceId ?? undefined)
+    const disconnect = useDisconnectGoogle(workspaceId ?? undefined)
+    const connectMut = useInitiateGoogleOAuth()
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-800/50 p-3">
+                <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
+                <span className="text-xs text-gray-500">Checking Google connection...</span>
+            </div>
+        )
+    }
+
+    if (!googleConn) {
+        return (
+            <div className="flex items-center justify-between rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+                <div className="flex items-center gap-2">
+                    <Link2Off className="h-4 w-4 text-amber-400" />
+                    <span className="text-xs text-amber-300">Google account not connected</span>
+                </div>
+                <button
+                    type="button"
+                    onClick={() => connectMut.mutate()}
+                    disabled={connectMut.isPending}
+                    className="flex items-center gap-1.5 rounded-lg bg-brand-primary px-3 py-1.5 text-xs font-medium text-black hover:bg-brand-primary/90 disabled:opacity-50"
+                >
+                    {connectMut.isPending && <Loader2 className="h-3 w-3 animate-spin" />}
+                    Connect Google
+                </button>
+            </div>
+        )
+    }
+
+    return (
+        <div className="flex items-center justify-between rounded-lg border border-green-500/30 bg-green-500/5 p-3">
+            <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-green-400" />
+                <span className="text-xs text-green-300">
+                    Connected as <strong>{googleConn.google_email ?? 'Google account'}</strong>
+                </span>
+            </div>
+            <button
+                type="button"
+                onClick={() => { if (confirm('Disconnect Google? All Google output routes will stop working.')) disconnect.mutate() }}
+                className="text-xs text-gray-500 hover:text-red-400"
+            >
+                Disconnect
+            </button>
+        </div>
+    )
 }
 
 // ─── Webhook Card ───────────────────────────────────────────────────────────

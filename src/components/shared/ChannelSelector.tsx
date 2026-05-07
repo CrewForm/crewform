@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 CrewForm
 
-import { Globe, MessageSquare, Hash, Send, Users, CheckSquare, Radio, Columns3, BookOpen, Mail, Server, Layers } from 'lucide-react'
+import { Globe, MessageSquare, Hash, Send, Users, CheckSquare, Radio, Columns3, BookOpen, Mail, Server, Layers, Table2, FileText, CalendarDays } from 'lucide-react'
 import { useOutputRoutes } from '@/hooks/useChannels'
 import { cn } from '@/lib/utils'
 
@@ -27,6 +27,10 @@ const DESTINATION_ICONS: Record<string, typeof Globe> = {
     email: Mail,
     smtp: Server,
     linear: Layers,
+    google_sheets: Table2,
+    google_gmail: Mail,
+    google_docs: FileText,
+    google_calendar: CalendarDays,
 }
 
 const DESTINATION_COLORS: Record<string, { text: string; bg: string }> = {
@@ -42,6 +46,10 @@ const DESTINATION_COLORS: Record<string, { text: string; bg: string }> = {
     email: { text: 'text-amber-400', bg: 'bg-amber-500/10' },
     smtp: { text: 'text-orange-400', bg: 'bg-orange-500/10' },
     linear: { text: 'text-violet-300', bg: 'bg-violet-500/10' },
+    google_sheets: { text: 'text-green-400', bg: 'bg-green-500/10' },
+    google_gmail: { text: 'text-red-400', bg: 'bg-red-500/10' },
+    google_docs: { text: 'text-blue-300', bg: 'bg-blue-400/10' },
+    google_calendar: { text: 'text-yellow-400', bg: 'bg-yellow-500/10' },
 }
 
 interface OutputRouteSelectorProps {
