@@ -9,6 +9,44 @@ All notable changes to CrewForm will be documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.9.2] — 2026-05-08
+
+### Added
+
+- **Google Workspace Gateway** — OAuth 2.0 integration with 4 output destinations: Google Sheets (row append), Gmail (send from your account), Google Docs (auto-create documents), Google Calendar (create review events)
+- **Notion Output Route** — Create pages in a Notion database with task results
+- **GitHub Issues Output Route** — Create issues with labels and assignees
+- **Email (Resend) Output Route** — Managed email delivery with HTML templates
+- **SMTP Email Output Route** — Self-hosted email via nodemailer
+- **Linear Output Route** — Create issues via GraphQL with team label resolution
+- **Serverless Cron Evaluation** — Edge Function + pg_cron replaces always-on task runner for trigger scheduling (runs every 30 min)
+- **Canvas Logic Nodes** — Conditional (If-Else) and HTTP Request nodes with branching edges
+- **Human-Readable Cron Labels** — Friendly labels like "Every weekday at 9:00 AM" across all UIs
+- **Stale Model Validation** — Warning badge on deprecated model IDs
+- **Docker Research Crew** — Compose edition for research workflows
+
+### Fixed
+
+- Dependency vulnerabilities, canvas logic connections, bypass edge suppression, ESLint compliance
+
+### Documentation
+
+- Output Routes docs updated with 9 new destination types
+- Total output destinations: **16** (HTTP, Slack, Discord, Telegram, Teams, Asana, Trello, Notion, GitHub, Email, SMTP, Linear, Google Sheets, Gmail, Google Docs, Google Calendar)
+
+## [1.9.1] — 2026-04-23
+
+### Added
+
+- **7-Day Team Trial** — Every new signup gets full Team-tier access for 7 days with dashboard trial banner
+- **Coolify Deployment Guide** — Step-by-step docs for Coolify v4 deployment
+- **Cloudflare Turnstile** — Bot protection on login and signup forms
+
+### Fixed
+
+- Trial feature gating with `useEELicense` hook fallback
+- Auth callback PKCE timeout handling
+
 ## [1.9.0] — 2026-04-22
 
 ### Added

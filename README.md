@@ -340,7 +340,7 @@ Each client gets their own workspace. Custom agents built around their tools and
 
 - ⚡ **Zapier** — Connect CrewForm to 7,000+ apps. Trigger agents from Gmail, Slack, forms, or schedules
 - 📡 **Messaging Channels** — Trigger agents from Discord, Slack, Telegram, and Email
-- 📤 **Output Routes** — Deliver results to Discord channels, Slack, webhooks, MS Teams, and more
+- 📤 **Output Routes** — 16 destinations: Slack, Discord, Telegram, Teams, Asana, Trello, Notion, GitHub, Email, SMTP, Linear, Google Sheets, Gmail, Google Docs, Google Calendar, and HTTP webhooks
 - 📈 **Advanced Analytics** — Charts, CSV export, prompt history with diffs *(Pro)*
 - 💬 **Chat Widget** — Embed agents on any website *(Pro)*
 - 📋 **Audit Logs** — Full audit trail with Datadog/Splunk streaming *(Enterprise)*
@@ -423,8 +423,8 @@ CrewForm uses an **open-core** model: a free Community Edition under AGPL-3.0 an
 │  └──────────────┘  └──────────────┘  └───────────────────────┘   │
 ├──────────────────────────────────────────────────────────────────┤
 │                      Integrations                                │
-│  Channels (Discord · Slack · Telegram · Email) · Output Routes   │
-│  Zapier (7,000+ apps) · Webhooks · Chat Widget · REST API        │
+│  Channels (Discord · Slack · Telegram · Email) · Output Routes (16)│
+│  Zapier (7,000+ apps) · Google Workspace · Webhooks · REST API     │
 ├──────────────────────────────────────────────────────────────────┤
 │                    Observability                                 │
 │         OpenTelemetry · Langfuse · Datadog · Jaeger              │

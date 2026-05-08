@@ -13,6 +13,15 @@ Supported destinations:
 | [Microsoft Teams](#microsoft-teams) | Incoming Webhook — Adaptive Card |
 | [Asana](#asana) | Creates a task in a project via Personal Access Token |
 | [Trello](#trello) | Creates or updates a card on a board via API Key + Token |
+| [Notion](#notion) | Creates a page in a database via Integration Token |
+| [GitHub Issues](#github-issues) | Creates an issue in a repository via Personal Access Token |
+| [Email (Resend)](#email-resend) | Sends HTML email via Resend API |
+| [SMTP Email](#smtp-email) | Sends email via custom SMTP server (nodemailer) |
+| [Linear](#linear) | Creates an issue via GraphQL API with team label resolution |
+| [Google Sheets](#google-sheets) | Appends rows to a spreadsheet via OAuth 2.0 |
+| [Gmail](#gmail) | Sends email from your connected Google account via OAuth 2.0 |
+| [Google Docs](#google-docs) | Creates a document in Google Drive via OAuth 2.0 |
+| [Google Calendar](#google-calendar) | Creates a review event via OAuth 2.0 |
 
 ---
 
@@ -376,3 +385,178 @@ Logs are retained for 30 days.
 If you self-host CrewForm, no extra environment variables are needed for output routes — all credentials are stored in the database per-route. The task runner reads them at delivery time.
 
 See the [Self-Hosting Guide](./self-hosting.md) for general environment setup.
+
+---
+
+## Notion
+
+Creates a new page in a Notion database when a CrewForm task or team run completes or fails.
+
+### Setup
+
+1. Go to [notion.so/my-integrations](https://www.notion.so/my-integrations) → **New Integration**
+2. Give it a name (e.g. "CrewForm") and select your workspace
+3. Copy the **Internal Integration Token** (starts with `ntn_...`)
+4. In Notion, open the target database → **⋯ → Connections → Add connection** → select your integration
+
+### Configuration
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| **Integration Token** | ✅ | Notion Internal Integration Token |
+| **Database ID** | ✅ | ID from the database URL: `notion.so/<DATABASE_ID>?v=...` |
+
+### Page Format
+
+Each delivery creates a Notion page with:
+- **Title:** `[CrewForm] <task title> — <status>`
+- **Content:** Event type, agent details, timestamp, and full result as text blocks
+
+---
+
+## GitHub Issues
+
+Creates an issue in a GitHub repository when a CrewForm task or team run completes or fails.
+
+### Setup
+
+1. Go to [github.com/settings/tokens](https://github.com/settings/tokens) → **Generate new token (classic)**
+2. Select the `repo` scope
+3. Copy the **Personal Access Token**
+
+### Configuration
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| **Personal Access Token** | ✅ | GitHub PAT with `repo` scope |
+| **Repository** | ✅ | Format: `owner/repo` (e.g. `CrewForm/crewform`) |
+| **Labels** | Optional | Comma-separated labels to apply (e.g. `ai-output, review`) |
+| **Assignees** | Optional | Comma-separated GitHub usernames to assign |
+
+### Issue Format
+
+- **Title:** `[CrewForm] <task title> — <status>`
+- **Body:** Event type, agent details, timestamp, and full result in Markdown
+
+---
+
+## Email (Resend)
+
+Sends a styled HTML email via the [Resend](https://resend.com) API. Ideal for managed email delivery without configuring an SMTP server.
+
+### Setup
+
+1. Sign up at [resend.com](https://resend.com) and verify a sending domain
+2. Go to **API Keys** → create a new key
+3. Copy the **API Key**
+
+### Configuration
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| **API Key** | ✅ | Resend API key |
+| **From Email** | ✅ | Verified sender address (e.g. `alerts@yourdomain.com`) |
+| **To Email(s)** | ✅ | Comma-separated recipient addresses |
+| **Subject Template** | Optional | Supports `{{title}}`, `{{status}}`, `{{agent}}` placeholders |
+
+---
+
+## SMTP Email
+
+Sends email via any SMTP server using [nodemailer](https://nodemailer.com). Use this for self-hosted email or providers like Gmail SMTP, SendGrid, Mailgun, etc.
+
+### Configuration
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| **SMTP Host** | ✅ | SMTP server hostname (e.g. `smtp.gmail.com`) |
+| **SMTP Port** | ✅ | Port number (typically `587` for TLS, `465` for SSL) |
+| **Username** | ✅ | SMTP authentication username |
+| **Password** | ✅ | SMTP authentication password or app password |
+| **From Email** | ✅ | Sender email address |
+| **To Email(s)** | ✅ | Comma-separated recipient addresses |
+| **Subject Template** | Optional | Supports `{{title}}`, `{{status}}`, `{{agent}}` placeholders |
+
+> **Gmail SMTP:** Use an App Password (not your regular password). Go to Google Account → Security → 2-Step Verification → App passwords.
+
+---
+
+## Linear
+
+Creates an issue in Linear when a CrewForm task or team run completes or fails. Uses the Linear GraphQL API.
+
+### Setup
+
+1. Go to [linear.app/settings/api](https://linear.app/settings/api) → **Personal API keys** → create a key
+2. Copy the **API Key**
+3. Find your **Team Key** (the short prefix like `ENG`, `OPS` visible in issue IDs)
+
+### Configuration
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| **API Key** | ✅ | Linear Personal API key |
+| **Team Key** | ✅ | Team identifier (e.g. `ENG`) |
+| **Labels** | Optional | Comma-separated label names (matched against existing team labels) |
+
+### Issue Format
+
+- **Title:** `[CrewForm] <task title> — <status>`
+- **Description:** Full result in Markdown with agent and event metadata
+
+---
+
+## Google Workspace
+
+Google destinations use **OAuth 2.0** — you connect your Google account once per workspace, and CrewForm handles token refresh automatically.
+
+### Setup (One-Time)
+
+1. When creating a Google output route, click **Connect Google** in the configuration form
+2. Sign in with your Google account and grant the requested permissions
+3. CrewForm stores encrypted OAuth tokens — no API keys needed
+
+> **Self-Hosted:** You must configure a Google Cloud project with OAuth credentials. Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` on both Supabase Edge Functions and the task runner. See the [Self-Hosting Guide](./self-hosting.md) for details.
+
+### Google Sheets
+
+Appends task results as new rows in a Google Spreadsheet.
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| **Spreadsheet ID** | ✅ | ID from the spreadsheet URL: `docs.google.com/spreadsheets/d/<ID>/edit` |
+| **Sheet Name** | Optional | Target sheet tab (defaults to first sheet) |
+
+Each delivery appends a row with: Timestamp, Event, Task Title, Agent, Status, Result.
+
+### Gmail
+
+Sends an email from your connected Google account.
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| **To Email(s)** | ✅ | Comma-separated recipient addresses |
+| **Subject Template** | Optional | Supports `{{title}}`, `{{status}}`, `{{agent}}` placeholders |
+
+Emails are sent as the authenticated Google user with a styled HTML template.
+
+### Google Docs
+
+Creates a new Google Document with the full agent output.
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| **Drive Folder ID** | Optional | Target folder from URL: `drive.google.com/drive/folders/<ID>`. Defaults to root. |
+
+Each delivery creates a document named `[CrewForm] <task title> — <timestamp>` with the full result.
+
+### Google Calendar
+
+Creates a review event on your Google Calendar.
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| **Calendar ID** | Optional | Defaults to `primary`. Use a specific calendar ID for custom calendars. |
+| **Duration (minutes)** | Optional | Event duration in minutes (default: 30) |
+
+Events are scheduled 1 hour after task completion with the task title and result in the description.

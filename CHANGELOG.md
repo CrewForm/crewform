@@ -6,6 +6,45 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.9.2] - 2026-05-08
+
+### Added
+
+- **Google Workspace Gateway** — Full OAuth 2.0 integration with automatic token refresh. Connect once, unlock 4 Google output destinations:
+  - **Google Sheets** — Append task results as rows to any spreadsheet
+  - **Gmail** — Send results from your connected Gmail account with subject templates
+  - **Google Docs** — Auto-create documents with full agent output, optional folder targeting
+  - **Google Calendar** — Create review events scheduled 1 hour after task completion
+  - **OAuth Edge Functions** — `google-oauth-start` and `google-oauth-callback` for secure token exchange
+  - **GoogleConnectionBanner** — Inline connect/disconnect UI with status indicator inside config forms
+- **Notion Output Route** — Create pages in a Notion database with structured task results
+- **GitHub Issues Output Route** — Create GitHub issues with label and assignee support
+- **Email (Resend) Output Route** — Managed email delivery with HTML templates
+- **SMTP Email Output Route** — Self-hosted email via nodemailer with full SMTP configuration
+- **Linear Output Route** — Create issues via GraphQL with automatic team label resolution
+- **Serverless Cron Evaluation** — `cron-evaluate` Edge Function replaces always-on task runner for trigger evaluation:
+  - pg_cron schedules evaluation every 30 minutes via pg_net
+  - Full catch-up logic (48h lookback) for missed triggers
+  - Optional task runner wake ping via `TASK_RUNNER_URL` webhook
+  - Railway no longer needs to run 24/7 for cron triggers
+- **Canvas Logic Nodes** — Conditional (If-Else) and HTTP Request nodes on the visual workflow canvas with editable forms and conditional branching edges
+- **Cron Trigger Catch-Up** — Missed cron firings (up to 48h) are retroactively evaluated on runner startup
+- **Human-Readable Cron Labels** — All trigger UIs display friendly labels (e.g. "Every weekday at 9:00 AM")
+- **Stale Model Validation** — Agent UI flags deprecated or removed model IDs with a warning badge
+- **Docker Research Crew** — Docker Compose edition for research-focused agent workflows
+
+### Fixed
+
+- **Dependency Vulnerabilities** — Resolved HIGH and moderate severity npm audit findings
+- **Canvas Logic Connections** — Logic nodes can now be connected, persisted, and edited in the flow
+- **Canvas Bypass Edges** — Suppressed duplicate bypass edges when logic nodes are connected
+- **ESLint Compliance** — Resolved `no-unnecessary-condition`, `no-non-null-assertion`, and `no-floating-promises` lint errors
+
+### Documentation
+
+- **Output Routes** updated with Notion, GitHub Issues, Email, SMTP, Linear, and all 4 Google destinations
+- Changelog updated with 1.9.2 release
+
 ## [1.9.1] - 2026-04-23
 
 ### Added
