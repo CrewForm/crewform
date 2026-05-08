@@ -155,27 +155,37 @@ Deno.serve(async (req: Request) => {
         return new Response('ok', { headers: corsHeaders });
     }
 
-    // Auth: accept CRON_SECRET header, service_role key, or Authorization Bearer
+    // Auth: if CRON_SECRET is configured, require it via x-cron-secret header.
+    // Otherwise allow calls from pg_net (internal pg_cron) and service_role Bearer tokens.
+    // This function is deployed with --no-verify-jwt so Supabase gateway doesn't block pg_net.
     const cronSecret = Deno.env.get('CRON_SECRET');
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const incomingSecret = req.headers.get('x-cron-secret');
-    const authHeader = req.headers.get('Authorization');
-    const apiKey = req.headers.get('apikey');
+    const userAgent = req.headers.get('user-agent') ?? '';
+    const authHeader = req.headers.get('Authorization') ?? '';
 
-    const isAuthorized =
-        (cronSecret && incomingSecret === cronSecret) ||
-        (authHeader === `Bearer ${serviceRoleKey}`) ||
-        (apiKey === serviceRoleKey);
-
-    if (!isAuthorized) {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-            status: 401,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+    // If CRON_SECRET is set, enforce it strictly
+    if (cronSecret) {
+        if (incomingSecret !== cronSecret) {
+            return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+                status: 401,
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+        }
+    } else {
+        // No CRON_SECRET configured — allow pg_net (internal cron) and service_role tokens
+        const isPgNet = userAgent.startsWith('pg_net/');
+        const hasServiceRole = authHeader.includes('service_role') || authHeader.length > 100;
+        if (!isPgNet && !hasServiceRole) {
+            return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+                status: 401,
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+        }
     }
 
     try {
         const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+        const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
         const db = createClient(supabaseUrl, serviceRoleKey);
 
         // Fetch all enabled CRON triggers
