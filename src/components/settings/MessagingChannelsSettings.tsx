@@ -5,7 +5,7 @@ import { useState } from 'react'
 import {
     Send, MessageSquare, Hash, Mail, Plus, Trash2, Power, PowerOff,
     Loader2, ChevronDown, ChevronUp, ExternalLink, ArrowDownLeft, ArrowUpRight,
-    Copy, Check, Link2, Columns3,
+    Copy, Check, Link2, Columns3, Layers,
 } from 'lucide-react'
 import { useWorkspace } from '@/hooks/useWorkspace'
 import {
@@ -97,6 +97,22 @@ const PLATFORM_META: Record<ChannelPlatform, {
             { key: 'review_list_id', label: 'Review List ID (completed cards move here)', type: 'text', placeholder: '5f4e3d2c1b...', required: false },
         ],
     },
+    linear: {
+        label: 'Linear',
+        icon: Layers,
+        color: 'text-violet-300',
+        bgColor: 'bg-violet-500/10',
+        setupGuide: 'https://linear.app/settings/api',
+        connectCommand: '',
+        configFields: [
+            { key: 'api_key', label: 'Personal API Key', type: 'password', placeholder: 'lin_api_...', required: true },
+            { key: 'linear_team_id', label: 'Team ID', type: 'text', placeholder: 'Team UUID from Linear settings', required: true },
+            { key: 'trigger_on', label: 'Trigger On (comma-separated: create, state_change, label)', type: 'text', placeholder: 'create,state_change', required: true },
+            { key: 'trigger_states', label: 'Trigger States (comma-separated, e.g. Triage,Todo)', type: 'text', placeholder: 'Triage,Todo', required: false },
+            { key: 'trigger_labels', label: 'Trigger Labels (comma-separated)', type: 'text', placeholder: 'crewform,ai-task', required: false },
+            { key: 'done_state_name', label: 'Done State (move issue here on completion)', type: 'text', placeholder: 'Done', required: false },
+        ],
+    },
 }
 
 function generateConnectCode(): string {
@@ -131,7 +147,7 @@ export function MessagingChannelsSettings() {
                 <div>
                     <h2 className="text-lg font-medium text-gray-100">Messaging Channels</h2>
                     <p className="mt-1 text-sm text-gray-500">
-                        Send messages from Telegram, Discord, Slack, Email, or Trello to trigger your agents.
+                        Send messages from Telegram, Discord, Slack, Email, Trello, or Linear to trigger your agents.
                     </p>
                 </div>
                 <button
@@ -195,16 +211,31 @@ function CreateChannelForm({ workspaceId, onClose }: { workspaceId: string; onCl
     const meta = PLATFORM_META[platform]
     const isEmail = platform === 'email'
     const isTrello = platform === 'trello'
-    const skipManaged = isEmail || isTrello
+    const isLinear = platform === 'linear'
+    const skipManaged = isEmail || isTrello || isLinear
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
         if (!selectedId) return
+
+        // For Linear, parse comma-separated fields into arrays
+        let resolvedConfig: Record<string, unknown> = isManaged && !skipManaged ? {} : { ...config }
+        if (isLinear) {
+            const csvToArray = (val: string | undefined): string[] =>
+                val ? val.split(',').map(s => s.trim()).filter(Boolean) : []
+            resolvedConfig = {
+                ...config,
+                trigger_on: csvToArray(config.trigger_on),
+                trigger_states: csvToArray(config.trigger_states),
+                trigger_labels: csvToArray(config.trigger_labels),
+            }
+        }
+
         const input: CreateChannelInput = {
             workspace_id: workspaceId,
             platform,
             name: name || `${meta.label} Channel`,
-            config: isManaged && !skipManaged ? {} : config,
+            config: resolvedConfig,
             is_managed: isManaged && !skipManaged,
             connect_code: isManaged && !skipManaged ? generateConnectCode() : undefined,
             default_agent_id: routeType === 'agent' ? selectedId : undefined,
@@ -223,7 +254,7 @@ function CreateChannelForm({ workspaceId, onClose }: { workspaceId: string; onCl
             <h3 className="text-sm font-medium text-gray-200">New Messaging Channel</h3>
 
             {/* Platform selector */}
-            <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
                 {(Object.keys(PLATFORM_META) as ChannelPlatform[]).map(p => {
                     const m = PLATFORM_META[p]
                     const Icon = m.icon

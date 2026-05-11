@@ -1999,7 +1999,7 @@ function sleep(ms: number): Promise<void> {
 // ─── Source Channel Reply ───────────────────────────────────────────────────
 
 interface SourceChannel {
-    platform: 'telegram' | 'discord' | 'slack' | 'email' | 'trello';
+    platform: 'telegram' | 'discord' | 'slack' | 'email' | 'trello' | 'linear';
     bot_token?: string;
     chat_id?: string;
     message_id?: string;
@@ -2014,6 +2014,10 @@ interface SourceChannel {
     trello_api_key?: string;
     trello_token?: string;
     trello_review_list_id?: string;
+    // Linear-specific
+    linear_issue_id?: string;
+    linear_api_key?: string;
+    linear_done_state_name?: string;
 }
 
 /**
@@ -2065,6 +2069,9 @@ export async function replyToSourceChannel(
                     break;
                 case 'trello':
                     delivered = await replyTrello(sc, emoji, row.title, content);
+                    break;
+                case 'linear':
+                    delivered = await replyLinear(sc, emoji, row.title, content);
                     break;
                 default:
                     return;
@@ -2261,6 +2268,117 @@ async function replyTrello(sc: SourceChannel, emoji: string, title: string, cont
     }
 
     return resp.ok;
+}
+
+async function replyLinear(sc: SourceChannel, emoji: string, title: string, content: string): Promise<boolean> {
+    if (!sc.linear_api_key || !sc.linear_issue_id) return false;
+
+    const truncated = content.length > 10000
+        ? `${content.substring(0, 10000)}\n\n... truncated (${content.length} chars)`
+        : content;
+
+    const commentBody = `${emoji} **${title}**\n\n${truncated}`;
+
+    // Post comment on the issue
+    const commentMutation = `
+        mutation CommentCreate($input: CommentCreateInput!) {
+            commentCreate(input: $input) {
+                success
+                comment { id }
+            }
+        }
+    `;
+
+    const commentResp = await fetch('https://api.linear.app/graphql', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Authorization: sc.linear_api_key,
+        },
+        body: JSON.stringify({
+            query: commentMutation,
+            variables: {
+                input: {
+                    issueId: sc.linear_issue_id,
+                    body: commentBody,
+                },
+            },
+        }),
+        signal: AbortSignal.timeout(10000),
+    });
+
+    const commentResult = await commentResp.json();
+    const commentSuccess = commentResult.data?.commentCreate?.success === true;
+
+    if (!commentSuccess) {
+        const errors = commentResult.errors?.map((e: { message: string }) => e.message).join(', ') ?? 'unknown error';
+        console.error(`[Linear] Failed to post comment: ${errors}`);
+        return false;
+    }
+
+    // Optionally move issue to done state
+    if (sc.linear_done_state_name) {
+        try {
+            // Fetch the issue's team to find the target state
+            const stateQuery = `
+                query IssueTeamStates($issueId: String!) {
+                    issue(id: $issueId) {
+                        team {
+                            states { nodes { id name type } }
+                        }
+                    }
+                }
+            `;
+
+            const stateResp = await fetch('https://api.linear.app/graphql', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: sc.linear_api_key,
+                },
+                body: JSON.stringify({ query: stateQuery, variables: { issueId: sc.linear_issue_id } }),
+                signal: AbortSignal.timeout(10000),
+            });
+
+            const stateResult = await stateResp.json();
+            const states = stateResult.data?.issue?.team?.states?.nodes ?? [];
+            const targetState = states.find(
+                (s: { id: string; name: string }) => s.name.toLowerCase() === sc.linear_done_state_name!.toLowerCase(),
+            );
+
+            if (targetState) {
+                const updateMutation = `
+                    mutation IssueUpdate($id: String!, $input: IssueUpdateInput!) {
+                        issueUpdate(id: $id, input: $input) { success }
+                    }
+                `;
+
+                await fetch('https://api.linear.app/graphql', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: sc.linear_api_key,
+                    },
+                    body: JSON.stringify({
+                        query: updateMutation,
+                        variables: {
+                            id: sc.linear_issue_id,
+                            input: { stateId: targetState.id },
+                        },
+                    }),
+                    signal: AbortSignal.timeout(10000),
+                });
+
+                console.log(`[Linear] Moved issue ${sc.linear_issue_id} to state "${sc.linear_done_state_name}"`);
+            } else {
+                console.warn(`[Linear] Done state "${sc.linear_done_state_name}" not found for issue ${sc.linear_issue_id}`);
+            }
+        } catch (err: unknown) {
+            console.warn('[Linear] Failed to update issue state:', err instanceof Error ? err.message : String(err));
+        }
+    }
+
+    return true;
 }
 
 function escapeHtml(text: string): string {
