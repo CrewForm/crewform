@@ -1,0 +1,55 @@
+{
+  "name": "crewform",
+  "version": "0.1.0",
+  "description": "Run CrewForm AI agents from the command line — scriptable, CI/CD-friendly, Ollama-first.",
+  "keywords": [
+    "ai",
+    "agents",
+    "llm",
+    "cli",
+    "ollama",
+    "openai",
+    "anthropic",
+    "mcp",
+    "crewform"
+  ],
+  "license": "AGPL-3.0-or-later",
+  "author": "CrewForm",
+  "homepage": "https://crewform.tech",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vincentgrobler/crewform.git",
+    "directory": "cli"
+  },
+  "type": "module",
+  "bin": {
+    "crewform": "./dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "tsx src/cli.ts",
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.78.0",
+    "@google/generative-ai": "^0.24.1",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "chalk": "^5.4.1",
+    "commander": "^13.1.0",
+    "dotenv": "^17.3.1",
+    "openai": "^6.25.0",
+    "ora": "^8.2.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
