@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **CrewForm CLI (`npx crewform`)** — Standalone command-line tool for running AI agents locally without the web platform:
+  - **12 Commands** — `run`, `chat`, `init`, `validate`, `tools`, `login`, `logout`, `whoami`, `agents`, `teams`, `pull`, `push`
+  - **Local Agent Execution** — Run agents from JSON config files with streaming output, Ollama auto-detection, and 16 LLM provider support
+  - **Pipeline Teams** — Multi-agent pipeline execution with sequential steps, fan-out (parallel branches), merge agents, and configurable retry/skip/stop failure handling
+  - **MCP Client Integration** — Connect to MCP servers via `stdio`, `sse`, or `streamable-http` transports; agents can discover and call MCP tools during execution (`--mcp` flag)
+  - **Interactive Chat** — REPL with conversation history, token/cost tracking, and `/clear`, `/history`, `/stats`, `/exit` commands
+  - **Platform API Mode** — `crewform login` to authenticate with an API key, `crewform agents`/`teams` to browse workspace, `crewform pull` to download configs, `crewform push` to dispatch tasks remotely
+  - **Config Compatibility** — Accepts both simplified inline JSON and full `crewform-export` v1 format from the web app
+  - **Built-in Tools** — `web_search`, `http_request`, `code_interpreter`, `read_file`, `grammar_check`
+  - **Zero-Config Start** — `crewform init` scaffolds agent or team configs with Ollama model auto-detection
+
 ## [1.9.2] - 2026-05-08
 
 ### Added

@@ -5,7 +5,7 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import tseslint from 'typescript-eslint'
 
 export default tseslint.config(
-  { ignores: ['dist', 'crewform-docs', 'supabase/functions', 'e2e', 'playwright.config.ts', 'task-runner', 'ee', 'scripts', 'chat-widget'] },
+  { ignores: ['dist', 'crewform-docs', 'supabase/functions', 'e2e', 'playwright.config.ts', 'task-runner', 'ee', 'scripts', 'chat-widget', 'cli'] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.strictTypeChecked],
     files: ['**/*.{ts,tsx}'],
