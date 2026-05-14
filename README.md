@@ -169,7 +169,10 @@ CrewForm is the **first platform with native support for all three agentic proto
 <td align="center" width="25%">
 📊<br/><strong>Analytics</strong><br/>Track tokens, costs, and agent performance
 </td>
-<td colspan="3"></td>
+<td align="center" width="25%">
+⌨️<br/><strong>CLI Tool</strong><br/><code>npx crewform</code> — run agents from the terminal
+</td>
+<td colspan="2"></td>
 </tr>
 </table>
 
@@ -223,6 +226,35 @@ Deploy the CrewForm task runner with a single click:
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/CrewForm/crewform)
 
 You'll need to provide your own Supabase credentials and LLM API keys after deployment.
+
+### CLI (No Server Required)
+
+Run agents directly from your terminal — no browser, no Supabase, no Docker:
+
+```bash
+# Create an agent config
+npx crewform init
+
+# Run it (defaults to Ollama; or set OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.)
+npx crewform run agent.json "Summarise the latest AI news"
+
+# Interactive chat
+npx crewform chat agent.json
+
+# Run a multi-agent pipeline team
+npx crewform init --team
+npx crewform run team.json "Research and write about GraphQL"
+
+# Connect to MCP servers
+npx crewform run agent.json --mcp servers.json "Query my database"
+
+# Connect to your CrewForm workspace
+npx crewform login
+npx crewform agents
+npx crewform pull <agent-id>
+```
+
+> 📖 See the full [CLI Guide](cli/README.md) for all 12 commands, config formats, and platform integration.
 
 ## Table of Contents
 
@@ -394,6 +426,7 @@ CrewForm uses an **open-core** model: a free Community Edition under AGPL-3.0 an
 | [Chat Widget](https://docs.crewform.tech/chat-widget) | Embed agents on any website with a script tag |
 | [Observability](https://docs.crewform.tech/observability) | OpenTelemetry + Langfuse tracing setup |
 | [Workflow Templates](https://docs.crewform.tech/workflow-templates) | Create, install, and share reusable workflow blueprints |
+| [CLI Tool](cli/README.md) | Run agents from the terminal with `npx crewform` |
 | [Changelog](https://docs.crewform.tech/changelog) | Release notes and version history |
 
 ## Architecture
