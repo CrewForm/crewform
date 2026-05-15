@@ -204,7 +204,9 @@ function CreateChannelForm({ workspaceId, onClose }: { workspaceId: string; onCl
     const [isManaged, setIsManaged] = useState(true)
     const [routeType, setRouteType] = useState<'agent' | 'team'>('agent')
     const [selectedId, setSelectedId] = useState('')
+    const [linearStatus, setLinearStatus] = useState<string | null>(null)
     const createChannel = useCreateChannel()
+    const updateChannel = useUpdateChannel(workspaceId)
     const { agents } = useAgents(workspaceId)
     const { teams } = useTeams(workspaceId)
 
@@ -242,7 +244,55 @@ function CreateChannelForm({ workspaceId, onClose }: { workspaceId: string; onCl
             default_team_id: routeType === 'team' ? selectedId : undefined,
         }
         createChannel.mutate(input, {
-            onSuccess: () => { onClose() },
+            onSuccess: (channel) => {
+                // For Linear channels, auto-register the webhook
+                if (isLinear && config.api_key && config.linear_team_id) {
+                    setLinearStatus('Registering Linear webhook…')
+                    void (async () => {
+                        try {
+                            const { supabase } = await import('@/lib/supabase')
+                            const resp: { data: { webhook_id: string; webhook_secret: string; callback_url: string } | null; error: { message: string } | null } =
+                                await supabase.functions.invoke('linear-webhook-register', {
+                                    body: {
+                                        api_key: config.api_key,
+                                        team_id: config.linear_team_id,
+                                    },
+                                })
+
+                            if (resp.error) {
+                                console.error('[Linear] Webhook registration failed:', resp.error.message)
+                                setLinearStatus('⚠ Webhook registration failed — you can set it up manually in Linear.')
+                                setTimeout(onClose, 3000)
+                                return
+                            }
+
+                            const result = resp.data
+                            if (result) {
+                                // Update channel config with webhook secret
+                                updateChannel.mutate({
+                                    id: channel.id,
+                                    input: {
+                                        config: {
+                                            ...resolvedConfig,
+                                            webhook_secret: result.webhook_secret,
+                                            webhook_id: result.webhook_id,
+                                        },
+                                    },
+                                })
+                            }
+
+                            setLinearStatus('✓ Webhook registered — Linear issues will now trigger your agent.')
+                            setTimeout(onClose, 2000)
+                        } catch (err) {
+                            console.error('[Linear] Webhook registration error:', err)
+                            setLinearStatus('⚠ Channel created but webhook registration failed. Set up the webhook manually.')
+                            setTimeout(onClose, 3000)
+                        }
+                    })()
+                } else {
+                    onClose()
+                }
+            },
         })
     }
 
@@ -422,6 +472,21 @@ function CreateChannelForm({ workspaceId, onClose }: { workspaceId: string; onCl
                 </a>
             )}
 
+            {/* Linear webhook registration status */}
+            {linearStatus && (
+                <div className={cn(
+                    'rounded-lg border p-3 text-xs',
+                    linearStatus.startsWith('✓')
+                        ? 'border-emerald-700 bg-emerald-500/10 text-emerald-400'
+                        : linearStatus.startsWith('⚠')
+                            ? 'border-amber-700 bg-amber-500/10 text-amber-400'
+                            : 'border-gray-700 bg-gray-900/50 text-gray-400',
+                )}>
+                    {linearStatus.includes('Registering') && <Loader2 className="mr-1.5 inline-block h-3 w-3 animate-spin" />}
+                    {linearStatus}
+                </div>
+            )}
+
             {/* Actions */}
             <div className="flex items-center justify-end gap-2 pt-2">
                 <button
@@ -433,10 +498,10 @@ function CreateChannelForm({ workspaceId, onClose }: { workspaceId: string; onCl
                 </button>
                 <button
                     type="submit"
-                    disabled={createChannel.isPending}
+                    disabled={createChannel.isPending || !!linearStatus}
                     className="flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-1.5 text-sm font-medium text-black hover:bg-brand-primary/90 disabled:opacity-50"
                 >
-                    {createChannel.isPending && <Loader2 className="h-3 w-3 animate-spin" />}
+                    {(createChannel.isPending || linearStatus?.includes('Registering')) && <Loader2 className="h-3 w-3 animate-spin" />}
                     Create Channel
                 </button>
             </div>
