@@ -244,47 +244,51 @@ function CreateChannelForm({ workspaceId, onClose }: { workspaceId: string; onCl
             default_team_id: routeType === 'team' ? selectedId : undefined,
         }
         createChannel.mutate(input, {
-            onSuccess: async (channel) => {
+            onSuccess: (channel) => {
                 // For Linear channels, auto-register the webhook
                 if (isLinear && config.api_key && config.linear_team_id) {
                     setLinearStatus('Registering Linear webhook…')
-                    try {
-                        const { supabase } = await import('@/lib/supabase')
-                        const { data, error } = await supabase.functions.invoke('linear-webhook-register', {
-                            body: {
-                                api_key: config.api_key,
-                                team_id: config.linear_team_id,
-                            },
-                        })
+                    void (async () => {
+                        try {
+                            const { supabase } = await import('@/lib/supabase')
+                            const resp: { data: { webhook_id: string; webhook_secret: string; callback_url: string } | null; error: { message: string } | null } =
+                                await supabase.functions.invoke('linear-webhook-register', {
+                                    body: {
+                                        api_key: config.api_key,
+                                        team_id: config.linear_team_id,
+                                    },
+                                })
 
-                        if (error) {
-                            console.error('[Linear] Webhook registration failed:', error.message)
-                            setLinearStatus('⚠ Webhook registration failed — you can set it up manually in Linear.')
+                            if (resp.error) {
+                                console.error('[Linear] Webhook registration failed:', resp.error.message)
+                                setLinearStatus('⚠ Webhook registration failed — you can set it up manually in Linear.')
+                                setTimeout(onClose, 3000)
+                                return
+                            }
+
+                            const result = resp.data
+                            if (result) {
+                                // Update channel config with webhook secret
+                                updateChannel.mutate({
+                                    id: channel.id,
+                                    input: {
+                                        config: {
+                                            ...resolvedConfig,
+                                            webhook_secret: result.webhook_secret,
+                                            webhook_id: result.webhook_id,
+                                        },
+                                    },
+                                })
+                            }
+
+                            setLinearStatus('✓ Webhook registered — Linear issues will now trigger your agent.')
+                            setTimeout(onClose, 2000)
+                        } catch (err) {
+                            console.error('[Linear] Webhook registration error:', err)
+                            setLinearStatus('⚠ Channel created but webhook registration failed. Set up the webhook manually.')
                             setTimeout(onClose, 3000)
-                            return
                         }
-
-                        const result = data as { webhook_id: string; webhook_secret: string; callback_url: string }
-
-                        // Update channel config with webhook secret
-                        updateChannel.mutate({
-                            id: channel.id,
-                            input: {
-                                config: {
-                                    ...resolvedConfig,
-                                    webhook_secret: result.webhook_secret,
-                                    webhook_id: result.webhook_id,
-                                },
-                            },
-                        })
-
-                        setLinearStatus('✓ Webhook registered — Linear issues will now trigger your agent.')
-                        setTimeout(onClose, 2000)
-                    } catch (err) {
-                        console.error('[Linear] Webhook registration error:', err)
-                        setLinearStatus('⚠ Channel created but webhook registration failed. Set up the webhook manually.')
-                        setTimeout(onClose, 3000)
-                    }
+                    })()
                 } else {
                     onClose()
                 }
