@@ -11,6 +11,7 @@ Supported platforms:
 | [Discord](./discord-integration.md) | `/ask` slash command | Follow-up message (deferred) |
 | [Email](#email) | Email to a dedicated inbound address | Reply email via Resend |
 | [Trello](#trello) | Card created or moved to trigger list | Comment on the original card |
+| [Linear](#linear) | Issue created, state change, or label applied | Comment on the original issue |
 
 ---
 
@@ -40,7 +41,7 @@ Channels are separate from [Output Routes](./output-routes.md). Output routes pu
 
 ## Managed Bot vs Bring Your Own Bot (BYOB)
 
-All channel platforms (except Email and Trello) support two modes:
+All channel platforms (except Email, Trello, and Linear) support two modes:
 
 ### Managed Bot
 CrewForm hosts and operates the bot. You connect your chat to it using a **connect code** generated in Settings. Fast to set up — no bot registration needed.
@@ -358,6 +359,116 @@ curl -X POST "https://<your-project>.supabase.co/functions/v1/trello-webhook-reg
 ### Required Environment Variables (Self-Hosted)
 
 No additional environment variables are needed — all Trello credentials (API Key, Token) are stored per-channel in the database.
+
+---
+
+## Linear
+
+Linear channels trigger CrewForm agents when issues are created, moved to a specific state, or labelled. Agent results are posted back as **comments** on the original Linear issue, and the issue is optionally moved to a "Done" state.
+
+Linear channels are always **BYOB** — you provide a Linear Personal API Key.
+
+### Setup
+
+#### 1. Get a Linear Personal API Key
+
+1. Go to [linear.app/settings/api](https://linear.app/settings/api)
+2. Click **Create key** → give it a label (e.g. "CrewForm")
+3. Copy the key (`lin_api_...`)
+
+#### 2. Find Your Team ID
+
+1. In Linear, go to **Settings → Teams → [Your Team]**
+2. The Team ID (UUID) is visible in the URL: `https://linear.app/<workspace>/settings/teams/<TEAM_ID>`
+
+#### 3. Create the Channel in CrewForm
+
+1. Go to **Settings → Channels → New Channel → Linear**
+2. Enter your **Personal API Key** and **Team ID**
+3. Configure triggers:
+   - **Trigger On** — comma-separated list: `create`, `state_change`, `label`
+   - **Trigger States** *(optional)* — comma-separated state names, e.g. `Triage,Todo`
+   - **Trigger Labels** *(optional)* — comma-separated label names, e.g. `crewform,ai-task`
+   - **Done State** *(optional)* — move the issue to this state when the agent completes (e.g. `Done`)
+4. Set a **Default Agent** or **Default Team**
+5. Save — CrewForm automatically registers a webhook on your Linear team via the `linear-webhook-register` Edge Function
+
+### Trigger Configuration
+
+You can combine multiple trigger types for fine-grained control:
+
+| Trigger | Config | Behaviour |
+|---------|--------|-----------|
+| `create` | `trigger_on: create` | Agent runs on every new issue in the team |
+| `state_change` | `trigger_on: state_change` + `trigger_states: Triage` | Agent runs when an issue is moved to "Triage" |
+| `label` | `trigger_on: label` + `trigger_labels: crewform` | Agent runs when the "crewform" label is added |
+
+> **Tip:** Use `state_change` or `label` triggers to avoid processing every new issue. For example, label issues with "ai-task" to selectively trigger your agent.
+
+### How Issues Are Handled
+
+| Issue event | Behaviour |
+|-------------|-----------|
+| Issue created in the team | Task created (if `create` trigger is active) |
+| Issue moved to a trigger state | Task created (if `state_change` trigger is active) |
+| Trigger label added to an issue | Task created (if `label` trigger is active) |
+| Issue already mapped to a task | Skipped (no duplicate processing) |
+
+When the agent completes the task:
+
+1. The result is posted as a **comment** on the original Linear issue
+2. If a **Done State** is configured, the issue is moved to that state
+3. A `linear_issue_mappings` record links the Linear issue to the CrewForm task
+
+### Bidirectional Flow
+
+Linear channels provide a full round-trip:
+
+```
+Issue created / state changed / label added
+       │
+       ▼
+CrewForm creates task + issue mapping
+       │
+       ▼
+Agent processes the prompt (issue description)
+       │
+       ▼
+Result posted as comment on issue
+       │
+       ▼
+Issue moved to "Done" state (optional)
+```
+
+### Priority Mapping
+
+Linear issue priorities are mapped to CrewForm task priorities:
+
+| Linear Priority | CrewForm Priority |
+|----------------|-------------------|
+| No priority (0) | Low |
+| Urgent (1) | Urgent |
+| High (2) | High |
+| Medium (3) | Medium |
+| Low (4) | Low |
+
+### Webhook Management
+
+When you create a Linear channel, CrewForm automatically registers a webhook on your Linear team via the Linear GraphQL API. The webhook secret is stored in the channel config for HMAC signature verification.
+
+If you need to manually manage webhooks, use the Linear API:
+
+```bash
+# List webhooks
+curl -X POST https://api.linear.app/graphql \
+  -H "Authorization: lin_api_..." \
+  -H "Content-Type: application/json" \
+  -d '{"query": "{ webhooks { nodes { id url enabled } } }"}'
+```
+
+### Required Environment Variables (Self-Hosted)
+
+No additional environment variables are needed — the Linear API Key is stored per-channel in the database.
 
 ---
 
