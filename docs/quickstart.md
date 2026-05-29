@@ -2,6 +2,10 @@
 
 Get CrewForm running locally in under 5 minutes.
 
+<Tip>
+  Want the fastest product tour after setup? Follow [Run Your First Agent System](/first-agent-system) to activate the Research Brief demo and run a real multi-agent pipeline.
+</Tip>
+
 ## Prerequisites
 
 - **Node.js** 20+
