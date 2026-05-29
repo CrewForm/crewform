@@ -2,11 +2,11 @@
 
 <img src=".github/assets/crewform-banner.png" alt="CrewForm" width="400" />
 
-### Form your AI crew
+### The open control plane for interoperable AI agents
 
-**Open-source AI Agent Orchestration Platform — with all 3 agentic protocols**
+**Self-hostable agent orchestration runtime with MCP + A2A + AG-UI**
 
-The first platform with native **MCP** (Tools) + **A2A** (Agent-to-Agent) + **AG-UI** (Frontend Streaming)
+CrewForm helps teams build, run, and observe multi-agent systems across tools, agents, models, memory, workflows, and frontends — without vendor lock-in.
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![CI](https://github.com/CrewForm/crewform/actions/workflows/ci.yml/badge.svg)](https://github.com/CrewForm/crewform/actions/workflows/ci.yml)
@@ -34,7 +34,7 @@ The first platform with native **MCP** (Tools) + **A2A** (Agent-to-Agent) + **AG
 
 <div align="center">
   <img src=".github/assets/pipeline-run-hero.gif" alt="CrewForm Visual Workflow Builder" width="800" />
-  <p><em>Build AI agent pipelines visually — drag, connect, and watch them execute in real-time.</em></p>
+  <p><em>Design, run, and observe protocol-native agent workflows from one visual runtime.</em></p>
 </div>
 
 <details>
@@ -82,7 +82,7 @@ The first platform with native **MCP** (Tools) + **A2A** (Agent-to-Agent) + **AG
 
 ## 🔌 Protocols & Standards
 
-CrewForm is the **first platform with native support for all three agentic protocols**:
+CrewForm is a self-hostable runtime with native support for the three protocols that matter for interoperable agent systems:
 
 | Protocol | Direction | What It Does |
 |---|---|---|
@@ -90,7 +90,7 @@ CrewForm is the **first platform with native support for all three agentic proto
 | **A2A** (Agent-to-Agent Protocol) | ↔️ Bidirectional | **Consume:** Delegate tasks to external A2A agents. **Publish:** Expose your agents for other AI systems to call. Cross-framework agent interop. |
 | **AG-UI** (Agent-User Interface) | 📡 Streaming | Real-time SSE event streaming from agent to frontend. Supports text deltas, tool calls, state transitions, and rich interactions (approval, confirmation, choices). |
 
-> **Why this matters:** Most platforms support zero or one protocol. CrewForm gives your agents access to thousands of tools (MCP), cross-framework interop (A2A), and real-time UI streaming (AG-UI) — all out of the box.
+> **Why this matters:** Most platforms create isolated agent workflows. CrewForm gives your agents access to external tools (MCP), cross-framework agent interop (A2A), and real-time frontend streaming (AG-UI) — all from one runtime layer.
 
 ## ✨ Features at a Glance
 
@@ -275,23 +275,19 @@ npx crewform pull <agent-id>
 
 ## Why CrewForm?
 
-CrewForm gives you everything you need to orchestrate multi-agent AI workflows — a visual UI, team management, real-time monitoring, and an agent marketplace — while you keep full control of your API keys, your data, and your infrastructure.
+CrewForm is built as agent infrastructure, not just another workflow canvas. It gives you the runtime layer around multi-agent systems: protocols, execution, observability, deployment, memory, APIs, and visual operations.
 
-- 🖥️ **UI-First** — Create, configure, and monitor agents from a visual interface. No code required to get started
-- 🔑 **BYOK (Bring Your Own Key)** — Connect your own LLM provider keys. Pay your provider directly at their standard rates, zero markup
-- 🏠 **Self-Hostable** — Deploy on your own infrastructure with Docker. Your data stays with you
-- 🔀 **3 Orchestration Modes** — Pipeline (sequential), Orchestrator (brain + workers), and Collaboration (multi-agent discussion)
-- 🔌 **MCP Protocol** — Connect agents to thousands of external tool servers, **and** expose your agents as MCP tools for Claude Desktop, Cursor, and other MCP clients
-- 🤝 **A2A Protocol** — Agent-to-Agent interoperability — expose agents to external AI systems and delegate tasks to remote agents
-- 🖥️ **AG-UI Protocol** — Real-time SSE event streaming for frontend integration — the standard for agent-to-UI communication
-- 📚 **Knowledge Base (RAG)** — Upload docs (TXT, MD, CSV, JSON), auto-chunk and embed with pgvector, then search via agents
-- 🏪 **Agent Marketplace** — Browse and install community-built agent templates, or publish your own
-- 📋 **Workflow Templates** — Bundle agents, teams, and triggers into reusable blueprints with `{{variable}}` placeholders; install with one click
-- ⚡ **Integrations Ecosystem** — Zapier (7,000+ apps), Discord, Slack, Telegram, Email, webhooks, and output routes
-- 🔒 **Secure by Default** — AES-256-GCM key encryption, Row-Level Security, GDPR-ready
-- 📊 **Built-in Analytics** — Track token usage, costs, and performance per agent and task
+- 🔌 **Protocol-native runtime** — Use MCP as a client and server, delegate across A2A, and stream agent state to frontends with AG-UI
+- 🖥️ **Visual control plane** — Design, run, debug, and monitor agents, teams, handoffs, tool calls, and execution state from a visual UI
+- 🏠 **Infrastructure ownership** — Self-host with Docker, bring your own LLM keys, use local models with Ollama, and avoid hosted model markup
+- 📡 **Runtime observability** — Trace LLM calls, tool usage, team runs, costs, failures, and handoffs with OpenTelemetry and Langfuse
+- 🔀 **Flexible orchestration** — Run single-agent tasks, fixed pipelines, brain-and-worker orchestrators, or multi-agent collaboration threads
+- 📚 **Knowledge and memory** — Add RAG, pgvector search, team memory, output templates, and file artifacts to agent workflows
+- ⚡ **Integration surface** — Expose agents through REST APIs, webhooks, chat widgets, Zapier, messaging channels, MCP, and A2A
+- 🔒 **Secure workspace model** — Encrypted API keys, Row-Level Security, workspaces, RBAC, audit logs, and usage controls
+- 📦 **Portable workflows** — Export/import agents and teams, install templates, and package repeatable systems for clients or internal teams
 
-CrewForm is the **first platform with all three agentic protocols** — MCP (tools) + A2A (agents) + AG-UI (frontend). Built for developers and teams who want production-ready AI agent orchestration.
+The result is a shared control plane for teams moving from isolated agent experiments to reliable agent systems they can operate.
 
 ## How It Works
 
@@ -310,30 +306,33 @@ CrewForm supports 4 execution modes — choose the right one for your workflow:
 
 ## Who It's For
 
-### 🧑 Solo User — Freelancer / Indie Hacker
+### Platform Engineering Teams
 
-Pick agents from the marketplace (or build your own) and throw tasks at them — "Research competitors for X", "Write a blog post about Y", "Review this code". Agents work in the background; you get results.
+Give your organization a shared runtime for internal agents, model access, tool connections, memory, workflows, observability, and deployment.
 
-**Daily loop:** Dispatch tasks → review results → ship to clients.
+**Best for:** internal AI platforms, self-hosted agent infrastructure, compliance-conscious environments, and shared model/tool governance.
 
-### 👥 Small Team — Agency / Startup
+### AI Product Teams
 
-Set up a shared workspace with a crew of agents matching your workflow — a Researcher, a Coder, a Writer, a QA agent. Tasks get assigned, agents run in pipeline or collaboration mode, results land in one place.
+Add agent workflows to real products without rebuilding orchestration, streaming, tool use, memory, and runtime APIs from scratch.
 
-**Daily loop:** Create task → assign to agent → agent does the legwork → human reviews → done.
+**Best for:** embedded copilots, agent-powered SaaS features, customer-facing automations, chat widgets, and AG-UI progress streams.
 
-### 🏢 Enterprise — Agency / Multi-Tenant
+### Consultancies and Agencies
 
-Each client gets their own workspace. Custom agents built around their tools and data. Analytics show which agents perform, which cost most, where to optimise. BYOK means you control API spend.
+Deploy repeatable, client-owned AI systems with isolated workspaces, reusable templates, BYOK cost control, transparent traces, and production handoff paths.
+
+**Best for:** client automation projects, AI transformation teams, multi-tenant delivery, and packaged workflow templates.
+
+### AI Builders and Developers
+
+Move from scripts and prototypes to managed agent systems with visual operations, deployment, APIs, tracing, and protocol integrations.
+
+**Best for:** LangGraph/CrewAI-style prototypes becoming products, MCP/A2A demos, local model workflows, and multi-agent experiments.
 
 ---
 
-> **The core habit CrewForm builds:** I have a task → I assign it to an agent → I review the output. It becomes as natural as assigning work in Slack — the difference is the agent actually does the work.
-
-**Where it really shines:**
-- Repetitive but complex tasks (reports, summaries, code reviews)
-- Multi-step workflows with handoffs between skills (research → write → format)
-- Teams that want AI leverage without every member needing prompt engineering skills
+> **The core shift CrewForm supports:** move from isolated agent experiments to a shared runtime your team can deploy, observe, and operate.
 
 ## Key Features
 
@@ -408,6 +407,7 @@ CrewForm uses an **open-core** model: a free Community Edition under AGPL-3.0 an
 | Guide | Description |
 |-------|-------------|
 | [Quick Start](https://docs.crewform.tech/quickstart) | Get running in under 5 minutes |
+| [Run Your First Agent System](https://docs.crewform.tech/first-agent-system) | Golden-path demo: add one key, run a real pipeline, inspect the output |
 | [Agents Guide](https://docs.crewform.tech/agents) | Models, system prompts, and agent lifecycle |
 | [Pipeline Teams](https://docs.crewform.tech/pipeline-teams) | Multi-agent sequential workflows |
 | [Orchestration Teams](https://docs.crewform.tech/orchestration-teams) | Brain agent with delegation trees |
@@ -549,33 +549,33 @@ CrewForm integrates with **Zapier** (7,000+ apps), messaging channels (**Discord
 <details>
 <summary><strong>How does CrewForm differ from CrewAI or LangGraph?</strong></summary>
 
-CrewForm is a **visual, UI-first platform** — you create agents, teams, and tasks through a web interface with no Python required. CrewAI and LangGraph are code-first libraries. CrewForm also includes built-in billing, RBAC, marketplace, messaging channels, MCP protocol support, RAG knowledge base, A2A agent-to-agent interop, AG-UI real-time streaming, and a production-ready self-hosted deployment. CrewForm is the **first platform to support all three agentic protocols** (MCP + A2A + AG-UI).
+CrewAI and LangGraph are code-first orchestration libraries. CrewForm is a self-hostable control plane around agent systems: visual orchestration, task execution, workspaces, billing, RBAC, marketplace/templates, messaging channels, RAG, observability, REST APIs, and production deployment. It also treats interoperability as a core runtime concern with native MCP, A2A, and AG-UI support.
 </details>
 
 ## How CrewForm Compares
 
 | Capability | CrewForm | Others |
 |---|---|---|
-| **Visual UI** | ✅ Drag-and-drop canvas + live execution | Often code-only or basic flow editors |
+| **Visual Control Plane** | ✅ Drag-and-drop canvas + live execution | Often code-only or basic flow editors |
 | **Multi-Agent Teams** | ✅ 3 modes — Pipeline, Orchestrator, Collaboration | Usually single-mode or code-defined |
 | **MCP Protocol** | ✅ Client + Server (bidirectional) | Typically client-only or unsupported |
 | **A2A Protocol** | ✅ Bidirectional (consume + publish) | Not supported |
 | **AG-UI Protocol** | ✅ SSE + rich interactions | Not supported |
-| **All 3 Protocols** | ✅ MCP + A2A + AG-UI — native | Zero or one |
+| **Protocol-Native Runtime** | ✅ MCP + A2A + AG-UI — native | Usually zero or one |
 | **LLM Providers** | ✅ 16 + Ollama (local) | Often limited or requires plugins |
 | **BYOK (zero markup)** | ✅ Your keys, your cost | Often limited providers or markup fees |
 | **Local Models (Ollama)** | ✅ Native, fully air-gapped | Varies |
 | **RAG / Knowledge Base** | ✅ Hybrid search + retrieval tester | Sometimes available, often requires plugins |
 | **Chat Widget** | ✅ One script tag, streaming, domain security | Rare — usually requires custom dev |
 | **Observability** | ✅ OTLP + Langfuse | Sometimes available |
-| **Fan-Out (Parallel)** | ✅ Built-in branching + merge | Rare in UI-first platforms |
+| **Fan-Out (Parallel)** | ✅ Built-in branching + merge | Rare in visual tools |
 | **Agent Marketplace** | ✅ Browse, install, publish | Rare in open-source tools |
 | **Workflow Templates** | ✅ Variable-driven blueprints with one-click install | Not available |
 | **Data Portability** | ✅ JSON export/import for agents and teams | Usually locked to platform |
 | **Self-Hosting** | ✅ One-command Docker Compose | Often cloud-only or complex setup |
 | **Open Source** | ✅ AGPL-3.0 | Varies |
 
-> **CrewForm is the only platform with all three agentic protocols** (MCP + A2A + AG-UI) — giving your agents access to thousands of tools, cross-framework interop, and real-time UI streaming out of the box.
+> CrewForm combines native MCP, A2A, and AG-UI with a visual runtime, self-hosting, BYOK, knowledge, APIs, and observability so teams can operate interoperable agent systems instead of stitching isolated tools together.
 
 ## License
 
@@ -606,7 +606,7 @@ You can use, modify, and distribute the Community Edition freely. Enterprise fea
 
 <div align="center">
 
-**CrewForm** — Form your AI crew ⚡
+**CrewForm** — The open control plane for interoperable AI agents
 
 [Website](https://crewform.tech) · [Docs](https://docs.crewform.tech) · [Discord](https://discord.gg/TAFasJCTWs) · [Twitter](https://twitter.com/CrewFormHQ)
 

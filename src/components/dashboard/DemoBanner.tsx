@@ -2,9 +2,23 @@
 // Copyright (C) 2026 CrewForm
 
 import { useState } from 'react'
-import { Bot, Users, Sparkles, Trash2, Loader2, AlertTriangle, X, Key } from 'lucide-react'
+import { Bot, Sparkles, Trash2, Loader2, AlertTriangle, X, Key, Play, GitBranch } from 'lucide-react'
 import { useDemoWorkspace } from '@/hooks/useDemoWorkspace'
+import { useApiKeys } from '@/hooks/useApiKeys'
+import { useAuth } from '@/hooks/useAuth'
+import { useWorkspace } from '@/hooks/useWorkspace'
+import { useCreateTeamRun } from '@/hooks/useCreateTeamRun'
 import { useNavigate } from 'react-router-dom'
+
+const GOLDEN_PATH_PROMPT = `Research the market for AI customer support tools and produce a short executive brief.
+
+Focus on:
+- buyer pains and adoption drivers
+- major solution categories
+- opportunities for a self-hostable, interoperable agent platform
+- risks and assumptions we should validate next
+
+Write the final brief for a product and go-to-market team.`
 
 /**
  * Dashboard banner for activating or removing the demo workspace.
@@ -17,11 +31,16 @@ export function DemoBanner() {
     const {
         isDemoSeeded,
         isDemoDismissed,
+        demoTeamId,
         seedDemo,
         removeDemo,
         isSeeding,
         isRemoving,
     } = useDemoWorkspace()
+    const { workspaceId } = useWorkspace()
+    const { user } = useAuth()
+    const { keys, isLoading: isLoadingKeys } = useApiKeys(workspaceId)
+    const createRun = useCreateTeamRun()
     const navigate = useNavigate()
 
     const [showConfirmRemove, setShowConfirmRemove] = useState(false)
@@ -36,6 +55,36 @@ export function DemoBanner() {
             await seedDemo()
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to seed demo workspace')
+        }
+    }
+
+    const hasOpenAiKey = keys.some(
+        (key) => key.provider.toLowerCase() === 'openai' && key.is_active && key.is_valid,
+    )
+
+    const handleRunDemo = async () => {
+        setError(null)
+
+        if (!hasOpenAiKey) {
+            navigate('/settings')
+            return
+        }
+
+        if (!workspaceId || !user?.id || !demoTeamId) {
+            setError('Demo team is not ready yet. Try refreshing the page.')
+            return
+        }
+
+        try {
+            const run = await createRun.mutateAsync({
+                team_id: demoTeamId,
+                workspace_id: workspaceId,
+                input_task: GOLDEN_PATH_PROMPT,
+                created_by: user.id,
+            })
+            navigate(`/teams/${demoTeamId}/runs/${run.id}`)
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to start the demo run')
         }
     }
 
@@ -61,7 +110,7 @@ export function DemoBanner() {
                             <div className="flex-1">
                                 <p className="text-sm font-medium text-gray-200">Remove all demo data?</p>
                                 <p className="mt-1 text-xs text-gray-400">
-                                    This will permanently delete 5 demo agents and the Content Research Pipeline team.
+                                    This will permanently delete 5 demo agents and the Research Brief Pipeline team.
                                     Your own agents and data will not be affected.
                                 </p>
                                 <div className="mt-3 flex gap-2">
@@ -99,27 +148,44 @@ export function DemoBanner() {
                             <Sparkles className="h-4 w-4 text-brand-primary" />
                         </div>
                         <div>
-                            <p className="text-sm font-medium text-gray-200">Demo workspace active</p>
-                            <p className="text-xs text-gray-500">
-                                5 demo agents + 1 pipeline team loaded.{' '}
+                                <p className="text-sm font-medium text-gray-200">Research Brief demo ready</p>
+                                <p className="text-xs text-gray-500">
+                                Run a real 3-step pipeline and watch CrewForm create an executive brief.{' '}
                                 <button
                                     type="button"
-                                    onClick={() => navigate('/agents')}
+                                    onClick={() => demoTeamId ? navigate(`/teams/${demoTeamId}`) : navigate('/teams')}
                                     className="text-brand-primary hover:underline"
                                 >
-                                    View agents →
+                                    View team →
                                 </button>
                             </p>
                         </div>
                     </div>
-                    <button
-                        type="button"
-                        onClick={() => setShowConfirmRemove(true)}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs font-medium text-gray-400 transition-colors hover:border-red-500/30 hover:text-red-400"
-                    >
-                        <Trash2 className="h-3 w-3" />
-                        Remove Demo
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={() => void handleRunDemo()}
+                            disabled={isLoadingKeys || createRun.isPending}
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-brand-primary px-3 py-1.5 text-xs font-semibold text-gray-950 transition-colors hover:brightness-110 disabled:opacity-50"
+                        >
+                            {createRun.isPending ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : hasOpenAiKey ? (
+                                <Play className="h-3 w-3" />
+                            ) : (
+                                <Key className="h-3 w-3" />
+                            )}
+                            {createRun.isPending ? 'Starting…' : hasOpenAiKey ? 'Run Demo' : 'Add OpenAI Key'}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setShowConfirmRemove(true)}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs font-medium text-gray-400 transition-colors hover:border-red-500/30 hover:text-red-400"
+                        >
+                            <Trash2 className="h-3 w-3" />
+                            Remove
+                        </button>
+                    </div>
                 </div>
 
                 {error && (
@@ -152,20 +218,21 @@ export function DemoBanner() {
                     </div>
                     <div className="flex-1">
                         <h3 className="text-base font-semibold text-gray-100">
-                            Try CrewForm with demo agents
+                            Run your first agent system
                         </h3>
                         <p className="mt-1 text-sm text-gray-400 leading-relaxed">
-                            Populate your workspace with 5 pre-configured agents and a pipeline team
-                            to see what CrewForm can do. You'll still need to{' '}
+                            Set up a golden-path Research Brief Pipeline with pre-configured agents.
+                            Add one OpenAI key, run a real team workflow, then inspect the live run and output.
+                            You can{' '}
                             <button
                                 type="button"
                                 onClick={() => navigate('/settings')}
                                 className="inline-flex items-center gap-1 text-brand-primary hover:underline"
                             >
                                 <Key className="h-3 w-3" />
-                                add your own LLM API key
+                                add your API key first
                             </button>
-                            {' '}to run tasks.
+                            {' '}or set up the demo now.
                         </p>
 
                         {/* What you get */}
@@ -174,14 +241,14 @@ export function DemoBanner() {
                                 <Bot className="h-4 w-4 text-blue-400" />
                                 <div>
                                     <p className="text-xs font-medium text-gray-300">5 AI Agents</p>
-                                    <p className="text-[11px] text-gray-500">Research, Write, Code Review, Data, Email</p>
+                                    <p className="text-[11px] text-gray-500">Research, Analysis, Writing, Code, Email</p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2 rounded-lg border border-border/50 bg-gray-900/50 px-3 py-2">
-                                <Users className="h-4 w-4 text-green-400" />
+                                <GitBranch className="h-4 w-4 text-green-400" />
                                 <div>
-                                    <p className="text-xs font-medium text-gray-300">1 Pipeline Team</p>
-                                    <p className="text-[11px] text-gray-500">Research → Write → Email</p>
+                                    <p className="text-xs font-medium text-gray-300">Research Brief Pipeline</p>
+                                    <p className="text-[11px] text-gray-500">Research → Analyze → Write Brief</p>
                                 </div>
                             </div>
                         </div>
@@ -202,7 +269,7 @@ export function DemoBanner() {
                                 {isSeeding ? 'Setting up…' : 'Activate Demo Workspace'}
                             </button>
                             <span className="text-xs text-gray-600">
-                                One-click removable anytime
+                                Creates real agents and a real team, removable anytime
                             </span>
                         </div>
 

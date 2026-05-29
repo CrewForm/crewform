@@ -16,6 +16,7 @@ export function useDemoWorkspace() {
     const settings = workspace?.settings ?? {}
     const isDemoSeeded = settings.demo_seeded === true
     const isDemoDismissed = settings.demo_dismissed === true
+    const demoTeamId = typeof settings.demo_team_id === 'string' ? settings.demo_team_id : null
 
     const seedMutation = useMutation({
         mutationFn: async () => {
@@ -47,6 +48,7 @@ export function useDemoWorkspace() {
     return {
         isDemoSeeded,
         isDemoDismissed,
+        demoTeamId,
         seedDemo: seedMutation.mutateAsync,
         removeDemo: removeMutation.mutateAsync,
         isSeeding: seedMutation.isPending,

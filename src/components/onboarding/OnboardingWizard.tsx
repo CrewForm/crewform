@@ -92,30 +92,30 @@ const FEATURE_CARDS = [
 const QUICKSTART_PATHS = [
     {
         icon: Key,
-        title: 'Add Your API Key',
-        desc: 'Go to Settings → API Keys to configure your LLM provider.',
+        title: 'Add One Provider Key',
+        desc: 'Configure OpenAI first so the demo pipeline can run end-to-end.',
         route: '/settings',
         color: 'text-blue-400',
         bg: 'bg-blue-500/10',
         border: 'border-blue-500/20',
     },
     {
+        icon: Rocket,
+        title: 'Run the Research Brief Demo',
+        desc: 'Activate a prebuilt 3-agent pipeline and watch a real team run.',
+        route: '/',
+        color: 'text-emerald-400',
+        bg: 'bg-emerald-500/10',
+        border: 'border-emerald-500/20',
+    },
+    {
         icon: Store,
-        title: 'Browse Marketplace',
-        desc: 'Install a pre-built agent or team template to get started instantly.',
+        title: 'Browse Templates',
+        desc: 'Install a pre-built agent or workflow template when you want more examples.',
         route: '/marketplace',
         color: 'text-amber-400',
         bg: 'bg-amber-500/10',
         border: 'border-amber-500/20',
-    },
-    {
-        icon: LayoutGrid,
-        title: 'Explore the Canvas',
-        desc: 'Open the visual canvas to build and visualize your agent workflows.',
-        route: '/canvas',
-        color: 'text-emerald-400',
-        bg: 'bg-emerald-500/10',
-        border: 'border-emerald-500/20',
     },
 ]
 
@@ -209,11 +209,11 @@ export function OnboardingWizard() {
                         </div>
                         <h2 className="mb-2 text-2xl font-bold text-gray-100">Welcome to CrewForm</h2>
                         <p className="mb-2 text-base text-gray-400">
-                            Build, deploy, and orchestrate AI agent teams.
+                            Build, run, and observe interoperable AI agent systems.
                         </p>
                         <p className="mb-8 text-sm text-gray-500 leading-relaxed max-w-md mx-auto">
-                            Let&apos;s take a quick look at what you can do. This only takes 30 seconds —
-                            or skip anytime to start exploring on your own.
+                            Let&apos;s take a quick look at the runtime layer: agents, teams, protocols,
+                            tools, memory, and live execution.
                         </p>
                         <button
                             type="button"
@@ -230,8 +230,8 @@ export function OnboardingWizard() {
                 {step === 'build' && (
                     <div>
                         <div className="text-center mb-6">
-                            <h2 className="mb-1 text-xl font-semibold text-gray-100">What You Can Build</h2>
-                            <p className="text-sm text-gray-500">CrewForm gives you everything to create powerful AI workflows.</p>
+                            <h2 className="mb-1 text-xl font-semibold text-gray-100">What You Can Run</h2>
+                            <p className="text-sm text-gray-500">CrewForm gives you a shared control plane for agent systems.</p>
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
@@ -344,8 +344,8 @@ export function OnboardingWizard() {
                 {step === 'start' && (
                     <div>
                         <div className="text-center mb-6">
-                            <h2 className="mb-1 text-xl font-semibold text-gray-100">3 Ways to Get Started</h2>
-                            <p className="text-sm text-gray-500">Pick any path — you can always do the others later.</p>
+                            <h2 className="mb-1 text-xl font-semibold text-gray-100">Fastest Path to a Real Run</h2>
+                            <p className="text-sm text-gray-500">Add one key, then run the prebuilt Research Brief Pipeline.</p>
                         </div>
 
                         <div className="space-y-3 mb-6">
@@ -408,26 +408,26 @@ export function OnboardingWizard() {
                         </div>
                         <h2 className="mb-2 text-2xl font-bold text-gray-100">You&apos;re Ready!</h2>
                         <p className="mb-6 text-sm text-gray-400 leading-relaxed max-w-md mx-auto">
-                            Your workspace is set up and waiting. Start by adding an API key and creating
-                            your first agent, or browse the marketplace for pre-built templates.
+                            Your workspace is ready for the golden path. Add one provider key,
+                            activate the Research Brief demo, and inspect a real team run.
                         </p>
 
                         <div className="flex flex-col items-center gap-3">
                             <button
                                 type="button"
-                                onClick={() => void handleComplete('/agents')}
+                                onClick={() => void handleComplete('/')}
                                 className="flex items-center gap-2 rounded-lg bg-brand-primary px-6 py-2.5 text-sm font-medium text-black hover:bg-brand-hover transition-colors"
                             >
-                                Start Building
+                                Open Golden Path
                                 <ArrowRight className="h-4 w-4" />
                             </button>
                             <div className="flex items-center gap-4">
                                 <button
                                     type="button"
-                                    onClick={() => void handleComplete('/marketplace')}
+                                    onClick={() => void handleComplete('/settings')}
                                     className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
                                 >
-                                    Browse Marketplace
+                                    Add API Key
                                 </button>
                                 <span className="text-gray-700">·</span>
                                 <a

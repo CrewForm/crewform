@@ -34,14 +34,14 @@ const DEMO_AGENTS: DemoAgentDef[] = [
     {
         name: 'Research Analyst',
         description: 'Expert researcher that analyzes topics, finds key insights, and provides structured summaries with sources.',
-        model: 'gpt-4o',
+        model: 'gpt-4o-mini',
         provider: 'openai',
         system_prompt: `You are an expert research analyst. Your job is to:
 
 1. Thoroughly research the given topic
 2. Identify key findings, trends, and insights
 3. Organize information into clear, structured sections
-4. Cite sources where possible
+4. Clearly separate known facts from assumptions
 5. Highlight any conflicting information or gaps in knowledge
 
 Always provide:
@@ -50,16 +50,16 @@ Always provide:
 - Detailed analysis (organized by subtopic)
 - Recommendations or next steps
 
-Be thorough, objective, and data-driven in your analysis.`,
+Be thorough, objective, and data-driven in your analysis. If live web search is not available, use your general knowledge and explicitly note where the user should verify current details.`,
         temperature: 0.3,
         max_tokens: null,
         tags: [DEMO_TAG],
-        tools: ['web_search'],
+        tools: [],
     },
     {
         name: 'Content Writer',
         description: 'Professional content writer that transforms research and ideas into polished articles, blog posts, and documentation.',
-        model: 'gpt-4o',
+        model: 'gpt-4o-mini',
         provider: 'openai',
         system_prompt: `You are a professional content writer. Your job is to:
 
@@ -85,7 +85,7 @@ You can write: blog posts, articles, documentation, newsletters, social media co
     {
         name: 'Code Reviewer',
         description: 'Senior code reviewer that analyzes code for bugs, security issues, performance problems, and adherence to best practices.',
-        model: 'gpt-4o',
+        model: 'gpt-4o-mini',
         provider: 'openai',
         system_prompt: `You are a senior software engineer and code reviewer. Your job is to:
 
@@ -110,7 +110,7 @@ Be constructive and educational — explain *why* something is an issue, not jus
     {
         name: 'Data Analyst',
         description: 'Data analyst that extracts insights from data, creates summaries, identifies trends, and spots anomalies.',
-        model: 'gpt-4o',
+        model: 'gpt-4o-mini',
         provider: 'openai',
         system_prompt: `You are a data analyst. Your job is to:
 
@@ -136,7 +136,7 @@ Present data clearly. Use tables, percentages, and comparisons to make numbers m
     {
         name: 'Email Drafter',
         description: 'Professional email writer that drafts clear, concise emails with appropriate tone for any audience.',
-        model: 'gpt-4o',
+        model: 'gpt-4o-mini',
         provider: 'openai',
         system_prompt: `You are a professional email writer. Your job is to:
 
@@ -197,10 +197,10 @@ export async function seedDemoWorkspace(workspaceId: string): Promise<{
     }
 
     const researcher = agentByName.get('Research Analyst')
+    const analyst = agentByName.get('Data Analyst')
     const writer = agentByName.get('Content Writer')
-    const emailer = agentByName.get('Email Drafter')
 
-    if (!researcher || !writer || !emailer) {
+    if (!researcher || !analyst || !writer) {
         throw new Error('Demo agent seeding failed: missing expected agents')
     }
 
@@ -210,24 +210,24 @@ export async function seedDemoWorkspace(workspaceId: string): Promise<{
             {
                 agent_id: researcher.id,
                 step_name: 'Research',
-                instructions: 'Research the given topic thoroughly. Provide a structured analysis with key findings, trends, and insights.',
-                expected_output: 'A comprehensive research summary with executive summary, key findings, and detailed analysis.',
+                instructions: 'Research the topic thoroughly. Identify the market, major categories, buyer pains, adoption drivers, risks, and assumptions that should be verified.',
+                expected_output: 'A structured research brief with market context, key findings, trends, assumptions, and verification notes.',
+                on_failure: 'retry',
+                max_retries: 1,
+            },
+            {
+                agent_id: analyst.id,
+                step_name: 'Analyze',
+                instructions: 'Analyze the research output. Prioritize insights by business impact, identify opportunities, and produce a concise outline for an executive brief.',
+                expected_output: 'Prioritized insights, opportunity areas, risks, and a recommended executive brief structure.',
                 on_failure: 'retry',
                 max_retries: 1,
             },
             {
                 agent_id: writer.id,
-                step_name: 'Write',
-                instructions: 'Transform the research into a polished, engaging article. Use the research output as your source material.',
-                expected_output: 'A well-structured article with introduction, body sections, and conclusion.',
-                on_failure: 'retry',
-                max_retries: 1,
-            },
-            {
-                agent_id: emailer.id,
-                step_name: 'Draft Email',
-                instructions: 'Draft a newsletter email summarizing the article. Include the key highlights and a link placeholder for the full article.',
-                expected_output: 'A professional newsletter email ready to send.',
+                step_name: 'Write Brief',
+                instructions: 'Turn the research and analysis into a polished executive brief in markdown. Keep it structured, practical, and easy to scan.',
+                expected_output: 'A publication-ready executive brief with summary, findings, opportunities, risks, and next steps.',
                 on_failure: 'stop',
                 max_retries: 0,
             },
@@ -239,8 +239,8 @@ export async function seedDemoWorkspace(workspaceId: string): Promise<{
         .from('teams')
         .insert({
             workspace_id: workspaceId,
-            name: 'Content Research Pipeline',
-            description: 'Demo pipeline: Research → Write → Email. Researches a topic, writes an article, and drafts a newsletter email.',
+            name: 'Research Brief Pipeline',
+            description: 'Golden path demo: Research → Analyze → Write Brief. Turns a topic into a structured executive brief.',
             mode: 'pipeline' as const,
             config: pipelineConfig,
         })
@@ -253,8 +253,8 @@ export async function seedDemoWorkspace(workspaceId: string): Promise<{
     // 3. Add team members
     const teamMembers = [
         { team_id: team.id, agent_id: researcher.id, role: 'worker' as const, position: 0 },
-        { team_id: team.id, agent_id: writer.id, role: 'worker' as const, position: 1 },
-        { team_id: team.id, agent_id: emailer.id, role: 'worker' as const, position: 2 },
+        { team_id: team.id, agent_id: analyst.id, role: 'worker' as const, position: 1 },
+        { team_id: team.id, agent_id: writer.id, role: 'worker' as const, position: 2 },
     ]
 
     const membersResult = await supabase
