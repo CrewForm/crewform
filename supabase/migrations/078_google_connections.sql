@@ -40,7 +40,7 @@ CREATE POLICY "google_connections_workspace_access"
 
 -- Service role can read/write (for Edge Functions + task runner)
 CREATE POLICY "google_connections_service_role"
-    ON public.google_connections FOR ALL
+    ON public.google_connections FOR ALL TO service_role
     USING (true)
     WITH CHECK (true);
 
