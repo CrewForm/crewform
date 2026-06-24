@@ -58,11 +58,11 @@ CREATE POLICY "Users can delete own workspace attachments"
 
 -- Service role (task runner) can read/insert attachments
 CREATE POLICY "Service role can read attachments"
-    ON public.file_attachments FOR SELECT
+    ON public.file_attachments FOR SELECT TO service_role
     USING (true);
 
 CREATE POLICY "Service role can insert attachments"
-    ON public.file_attachments FOR INSERT
+    ON public.file_attachments FOR INSERT TO service_role
     WITH CHECK (true);
 
 -- ─── Storage bucket ─────────────────────────────────────────────────────────

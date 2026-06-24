@@ -60,4 +60,4 @@ CREATE POLICY "team_memory_delete" ON public.team_memory
 -- ────────────────────────────────────────────────────────────────────────────
 
 CREATE POLICY "team_memory_insert_service" ON public.team_memory
-  FOR INSERT WITH CHECK (true);
+  FOR INSERT TO service_role WITH CHECK (true);

@@ -121,7 +121,7 @@ CREATE POLICY "knowledge_chunks_select" ON public.knowledge_chunks
 
 -- Insert/delete by service role (processing pipeline) — service role bypasses RLS
 CREATE POLICY "knowledge_chunks_insert" ON public.knowledge_chunks
-  FOR INSERT WITH CHECK (true);
+  FOR INSERT TO service_role WITH CHECK (true);
 
 CREATE POLICY "knowledge_chunks_delete" ON public.knowledge_chunks
   FOR DELETE USING (public.is_workspace_member(workspace_id));

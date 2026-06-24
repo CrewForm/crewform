@@ -71,7 +71,7 @@ CREATE POLICY chat_sessions_workspace_read ON chat_sessions
 
 -- Service role bypass for task runner writes
 CREATE POLICY chat_sessions_service_write ON chat_sessions
-    FOR ALL
+    FOR ALL TO service_role
     USING (true)
     WITH CHECK (true);
 

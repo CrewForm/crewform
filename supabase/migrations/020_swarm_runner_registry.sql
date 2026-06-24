@@ -189,6 +189,6 @@ $$;
 
 ALTER TABLE public.task_runners ENABLE ROW LEVEL SECURITY;
 
--- Admins can read runner status for observability
+-- Service role can read runner status; later migrations add super-admin observability.
 CREATE POLICY "task_runners_select" ON public.task_runners
-  FOR SELECT USING (true);
+  FOR SELECT TO service_role USING (true);
