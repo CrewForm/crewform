@@ -3,7 +3,7 @@
 --
 -- 079_cron_evaluate_schedule.sql — pg_cron job to evaluate triggers serverlessly
 --
--- Calls the cron-evaluate Edge Function every 30 minutes via pg_net.
+-- Calls the cron-evaluate Edge Function every minute via pg_net.
 -- This removes the need for the task runner to be always-on for cron evaluation.
 --
 
@@ -12,7 +12,7 @@ CREATE EXTENSION IF NOT EXISTS pg_cron WITH SCHEMA pg_catalog;
 CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA extensions;
 
 -- ────────────────────────────────────────────────────────────────────────────
--- Schedule: run every 30 minutes
+-- Schedule: run every minute
 -- ────────────────────────────────────────────────────────────────────────────
 
 -- Remove existing schedule if present (idempotent redeploy)
@@ -23,7 +23,7 @@ WHERE EXISTS (
 
 SELECT cron.schedule(
     'evaluate-cron-triggers',
-    '*/30 * * * *',
+    '* * * * *',
     $$
     SELECT extensions.http_post(
         url := current_setting('app.settings.supabase_url') || '/functions/v1/cron-evaluate',

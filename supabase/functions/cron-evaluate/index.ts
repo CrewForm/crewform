@@ -4,8 +4,8 @@
 /**
  * Cron Evaluate — serverless cron trigger evaluation.
  *
- * Called by Supabase pg_cron on a schedule (e.g. every 30 min or hourly).
- * Evaluates all enabled CRON triggers, creates pending tasks for any that
+ * Called by Supabase pg_cron every minute.
+ * Evaluates all enabled CRON triggers, creates executable work for any that
  * are due, and optionally pings the task runner to wake it up.
  *
  * This replaces the need for the Railway task runner to run 24/7 just for
@@ -21,13 +21,15 @@ import { corsHeaders } from '../_shared/cors.ts';
 
 interface CronTriggerRow {
     id: string;
-    agent_id: string;
+    agent_id: string | null;
+    team_id: string | null;
     workspace_id: string;
     cron_expression: string;
     task_title_template: string;
     task_description_template: string;
     context_options: string[];
     last_fired_at: string | null;
+    created_at: string;
 }
 
 // ─── CRON Parser (mirrored from triggerScheduler.ts) ────────────────────────
@@ -91,7 +93,7 @@ function cronMatchesDate(expression: string, date: Date): boolean {
 
 const MAX_CATCHUP_MS = 48 * 60 * 60 * 1000;
 
-function isTriggerDue(cronExpression: string, lastFiredAt: string | null): boolean {
+function isTriggerDue(cronExpression: string, lastFiredAt: string | null, createdAt: string): boolean {
     const now = new Date();
 
     // Current-minute match
@@ -111,15 +113,13 @@ function isTriggerDue(cronExpression: string, lastFiredAt: string | null): boole
         return true;
     }
 
-    // Catch-up: check for missed firings
-    if (!lastFiredAt) return false;
-
-    const lastFired = new Date(lastFiredAt);
-    const gapMs = now.getTime() - lastFired.getTime();
+    // Catch-up: check for missed firings since last fire, or trigger creation.
+    const baseline = new Date(lastFiredAt ?? createdAt);
+    const gapMs = now.getTime() - baseline.getTime();
 
     if (gapMs < 2 * 60 * 1000) return false;
 
-    const lookbackStart = new Date(Math.max(lastFired.getTime(), now.getTime() - MAX_CATCHUP_MS));
+    const lookbackStart = new Date(Math.max(baseline.getTime(), now.getTime() - MAX_CATCHUP_MS));
     const scanTime = new Date(lookbackStart);
     scanTime.setSeconds(0, 0);
     scanTime.setMinutes(scanTime.getMinutes() + 1);
@@ -128,7 +128,7 @@ function isTriggerDue(cronExpression: string, lastFiredAt: string | null): boole
         if (cronMatchesDate(cronExpression, scanTime)) {
             console.log(
                 `[CronEvaluate] Catch-up: missed firing at ${scanTime.toISOString()} ` +
-                `(last fired: ${lastFiredAt}, now: ${now.toISOString()})`,
+                `(baseline: ${lastFiredAt ?? createdAt}, now: ${now.toISOString()})`,
             );
             return true;
         }
@@ -136,6 +136,23 @@ function isTriggerDue(cronExpression: string, lastFiredAt: string | null): boole
     }
 
     return false;
+}
+
+async function resolveWorkspaceOwner(
+    db: ReturnType<typeof createClient>,
+    workspaceId: string,
+): Promise<string> {
+    const { data, error } = await db
+        .from('workspaces')
+        .select('owner_id')
+        .eq('id', workspaceId)
+        .single();
+
+    if (error || !data) {
+        throw new Error(`Could not resolve workspace owner: ${error?.message ?? 'workspace not found'}`);
+    }
+
+    return (data as { owner_id: string }).owner_id;
 }
 
 // ─── Template Rendering ─────────────────────────────────────────────────────
@@ -191,7 +208,7 @@ Deno.serve(async (req: Request) => {
         // Fetch all enabled CRON triggers
         const { data: triggers, error: fetchError } = await db
             .from('agent_triggers')
-            .select('id, agent_id, workspace_id, cron_expression, task_title_template, task_description_template, context_options, last_fired_at')
+            .select('id, agent_id, team_id, workspace_id, cron_expression, task_title_template, task_description_template, context_options, last_fired_at, created_at')
             .eq('trigger_type', 'cron')
             .eq('enabled', true)
             .not('cron_expression', 'is', null);
@@ -213,44 +230,89 @@ Deno.serve(async (req: Request) => {
         }
 
         let fired = 0;
+        let firedTasks = 0;
+        let firedTeamRuns = 0;
         const firedTriggerIds: string[] = [];
+        const taskIds: string[] = [];
+        const teamRunIds: string[] = [];
 
         for (const trigger of rows) {
             try {
-                if (!isTriggerDue(trigger.cron_expression, trigger.last_fired_at)) continue;
+                if (!isTriggerDue(trigger.cron_expression, trigger.last_fired_at, trigger.created_at)) continue;
 
-                console.log(`[CronEvaluate] Firing trigger ${trigger.id} for agent ${trigger.agent_id}`);
+                const target = trigger.team_id ? `team ${trigger.team_id}` : `agent ${trigger.agent_id}`;
+                console.log(`[CronEvaluate] Firing trigger ${trigger.id} for ${target}`);
 
                 const title = renderTemplate(trigger.task_title_template);
                 const description = renderTemplate(trigger.task_description_template);
+                const ownerId = await resolveWorkspaceOwner(db, trigger.workspace_id);
 
-                // Create the task as pending
-                const taskResult = await db
-                    .from('tasks')
-                    .insert({
-                        workspace_id: trigger.workspace_id,
-                        title,
-                        description,
-                        assigned_agent_id: trigger.agent_id,
-                        status: 'pending',
-                        priority: 'medium',
-                        created_by: trigger.agent_id,
-                        scheduled_for: new Date().toISOString(),
-                    })
-                    .select('id')
-                    .single();
+                let taskId: string | null = null;
+                let teamRunId: string | null = null;
 
-                if (taskResult.error) {
-                    await db.from('trigger_log').insert({
-                        trigger_id: trigger.id,
-                        status: 'failed',
-                        error: taskResult.error.message,
-                    });
-                    console.error(`[CronEvaluate] Failed to create task for trigger ${trigger.id}:`, taskResult.error.message);
-                    continue;
+                if (trigger.team_id) {
+                    const inputTask = description ? `${title}\n\n${description}` : title;
+                    const runResult = await db
+                        .from('team_runs')
+                        .insert({
+                            workspace_id: trigger.workspace_id,
+                            team_id: trigger.team_id,
+                            input_task: inputTask,
+                            status: 'pending',
+                            created_by: ownerId,
+                        })
+                        .select('id')
+                        .single();
+
+                    if (runResult.error) {
+                        await db.from('trigger_log').insert({
+                            trigger_id: trigger.id,
+                            status: 'failed',
+                            error: runResult.error.message,
+                        });
+                        console.error(`[CronEvaluate] Failed to create team run for trigger ${trigger.id}:`, runResult.error.message);
+                        continue;
+                    }
+
+                    teamRunId = (runResult.data as { id: string }).id;
+                    firedTeamRuns++;
+                    teamRunIds.push(teamRunId);
+                } else if (trigger.agent_id) {
+                    const taskResult = await db
+                        .from('tasks')
+                        .insert({
+                            workspace_id: trigger.workspace_id,
+                            title,
+                            description,
+                            assigned_agent_id: trigger.agent_id,
+                            status: 'dispatched',
+                            priority: 'medium',
+                            created_by: ownerId,
+                            scheduled_for: new Date().toISOString(),
+                            metadata: {
+                                source: 'cron_trigger',
+                                trigger_id: trigger.id,
+                            },
+                        })
+                        .select('id')
+                        .single();
+
+                    if (taskResult.error) {
+                        await db.from('trigger_log').insert({
+                            trigger_id: trigger.id,
+                            status: 'failed',
+                            error: taskResult.error.message,
+                        });
+                        console.error(`[CronEvaluate] Failed to create task for trigger ${trigger.id}:`, taskResult.error.message);
+                        continue;
+                    }
+
+                    taskId = (taskResult.data as { id: string }).id;
+                    firedTasks++;
+                    taskIds.push(taskId);
+                } else {
+                    throw new Error('Trigger has no agent_id or team_id');
                 }
-
-                const taskId = (taskResult.data as { id: string }).id;
 
                 // Update last_fired_at
                 await db
@@ -267,32 +329,46 @@ Deno.serve(async (req: Request) => {
 
                 fired++;
                 firedTriggerIds.push(trigger.id);
-                console.log(`[CronEvaluate] Created task ${taskId} from trigger ${trigger.id}`);
+                console.log(`[CronEvaluate] Created ${taskId ? `task ${taskId}` : `team run ${teamRunId}`} from trigger ${trigger.id}`);
             } catch (err) {
                 const errMsg = err instanceof Error ? err.message : String(err);
                 console.error(`[CronEvaluate] Error processing trigger ${trigger.id}: ${errMsg}`);
             }
         }
 
-        // If tasks were created, ping the task runner to wake it up
+        // If work was created, ping the task runner to wake it up
         if (fired > 0) {
             const taskRunnerUrl = Deno.env.get('TASK_RUNNER_URL');
             if (taskRunnerUrl) {
                 try {
                     const webhookSecret = Deno.env.get('WEBHOOK_SECRET') ?? '';
-                    await fetch(`${taskRunnerUrl}/webhook/task`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            ...(webhookSecret ? { 'x-webhook-secret': webhookSecret } : {}),
-                        },
-                        body: JSON.stringify({ source: 'cron-evaluate', fired }),
-                        signal: AbortSignal.timeout(10000),
-                    });
-                    console.log(`[CronEvaluate] Pinged task runner to pick up ${fired} task(s)`);
+                    const headers = {
+                        'Content-Type': 'application/json',
+                        ...(webhookSecret ? { 'x-webhook-secret': webhookSecret } : {}),
+                    };
+
+                    if (firedTasks > 0) {
+                        await fetch(`${taskRunnerUrl}/webhook/task`, {
+                            method: 'POST',
+                            headers,
+                            body: JSON.stringify({ source: 'cron-evaluate', fired: firedTasks }),
+                            signal: AbortSignal.timeout(10000),
+                        });
+                    }
+
+                    if (firedTeamRuns > 0) {
+                        await fetch(`${taskRunnerUrl}/webhook/team-run`, {
+                            method: 'POST',
+                            headers,
+                            body: JSON.stringify({ source: 'cron-evaluate', fired: firedTeamRuns }),
+                            signal: AbortSignal.timeout(10000),
+                        });
+                    }
+
+                    console.log(`[CronEvaluate] Pinged task runner to pick up ${firedTasks} task(s) and ${firedTeamRuns} team run(s)`);
                 } catch {
-                    // Non-fatal — tasks will be picked up on next poll/startup
-                    console.warn('[CronEvaluate] Could not reach task runner — tasks will be picked up on next poll');
+                    // Non-fatal — work will be picked up on next poll/startup
+                    console.warn('[CronEvaluate] Could not reach task runner — work will be picked up on next poll');
                 }
             }
         }
@@ -300,7 +376,11 @@ Deno.serve(async (req: Request) => {
         return new Response(JSON.stringify({
             evaluated: rows.length,
             fired,
+            fired_tasks: firedTasks,
+            fired_team_runs: firedTeamRuns,
             triggered_ids: firedTriggerIds,
+            task_ids: taskIds,
+            team_run_ids: teamRunIds,
             timestamp: new Date().toISOString(),
         }), {
             status: 200,

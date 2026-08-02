@@ -203,7 +203,7 @@ Deno.serve(async (req: Request) => {
                 message: 'Team run created and queued for execution.',
             });
         } else {
-            // Agent trigger → create a tasks row (existing behaviour)
+            // Agent trigger -> create an executable tasks row.
             const { data: task, error: taskError } = await supabase
                 .from('tasks')
                 .insert({
@@ -212,7 +212,7 @@ Deno.serve(async (req: Request) => {
                     workspace_id: triggerRecord.workspace_id,
                     assigned_agent_id: triggerRecord.agent_id,
                     created_by: ownerId,
-                    status: 'pending',
+                    status: 'dispatched',
                     priority: 'medium',
                     metadata: {
                         source: 'webhook_trigger',
@@ -258,4 +258,3 @@ Deno.serve(async (req: Request) => {
         return serverError(message);
     }
 });
-
