@@ -11,13 +11,15 @@ import { supabase } from './supabase';
 
 interface CronTriggerRow {
     id: string;
-    agent_id: string;
+    agent_id: string | null;
+    team_id: string | null;
     workspace_id: string;
     cron_expression: string;
     task_title_template: string;
     task_description_template: string;
     context_options: string[];
     last_fired_at: string | null;
+    created_at: string;
 }
 
 // ─── CRON Parser ────────────────────────────────────────────────────────────
@@ -102,11 +104,12 @@ const MAX_CATCHUP_MS = 48 * 60 * 60 * 1000;
  * 1. The current time matches the CRON expression, OR
  * 2. A firing was MISSED while the runner was offline (catch-up)
  *
- * Catch-up: scans each minute between last_fired_at and now (capped at 48h).
+ * Catch-up: scans each minute between last_fired_at (or created_at for first
+ * execution) and now, capped at 48h.
  * If any minute matched the cron expression and the trigger didn't fire, it fires now.
  * This ensures daily/weekly triggers work even when the runner isn't always-on.
  */
-function isTriggerDue(cronExpression: string, lastFiredAt: string | null): boolean {
+function isTriggerDue(cronExpression: string, lastFiredAt: string | null, createdAt: string): boolean {
     const now = new Date();
 
     // ── 1. Current-minute match (existing real-time check) ──
@@ -128,19 +131,14 @@ function isTriggerDue(cronExpression: string, lastFiredAt: string | null): boole
     }
 
     // ── 2. Catch-up: check for missed firings while runner was offline ──
-    if (!lastFiredAt) {
-        // Never fired — don't spam on first boot. Only fire on current-minute match.
-        return false;
-    }
-
-    const lastFired = new Date(lastFiredAt);
-    const gapMs = now.getTime() - lastFired.getTime();
+    const baseline = new Date(lastFiredAt ?? createdAt);
+    const gapMs = now.getTime() - baseline.getTime();
 
     // Only catch up if there's a meaningful gap (> 2 minutes, since we eval every 60s)
     if (gapMs < 2 * 60 * 1000) return false;
 
     // Cap lookback to prevent flooding after long outages
-    const lookbackStart = new Date(Math.max(lastFired.getTime(), now.getTime() - MAX_CATCHUP_MS));
+    const lookbackStart = new Date(Math.max(baseline.getTime(), now.getTime() - MAX_CATCHUP_MS));
 
     // Scan each minute from lookback start to now, looking for a missed cron match
     // For daily triggers with a 48h lookback, this is at most 2,880 iterations — trivial.
@@ -153,7 +151,7 @@ function isTriggerDue(cronExpression: string, lastFiredAt: string | null): boole
         if (cronMatchesDate(cronExpression, scanTime)) {
             console.log(
                 `[TriggerScheduler] Catch-up: missed firing at ${scanTime.toISOString()} ` +
-                `(last fired: ${lastFiredAt}, now: ${now.toISOString()})`,
+                `(baseline: ${lastFiredAt ?? createdAt}, now: ${now.toISOString()})`,
             );
             return true; // Missed this one — fire now
         }
@@ -161,6 +159,20 @@ function isTriggerDue(cronExpression: string, lastFiredAt: string | null): boole
     }
 
     return false;
+}
+
+async function resolveWorkspaceOwner(workspaceId: string): Promise<string> {
+    const { data, error } = await supabase
+        .from('workspaces')
+        .select('owner_id')
+        .eq('id', workspaceId)
+        .single();
+
+    if (error || !data) {
+        throw new Error(`Could not resolve workspace owner: ${error?.message ?? 'workspace not found'}`);
+    }
+
+    return (data as { owner_id: string }).owner_id;
 }
 
 // ─── Template Rendering ─────────────────────────────────────────────────────
@@ -298,7 +310,7 @@ export async function evaluateTriggers(): Promise<void> {
         // Fetch all enabled CRON triggers
         const result = await supabase
             .from('agent_triggers')
-            .select('id, agent_id, workspace_id, cron_expression, task_title_template, task_description_template, context_options, last_fired_at')
+            .select('id, agent_id, team_id, workspace_id, cron_expression, task_title_template, task_description_template, context_options, last_fired_at, created_at')
             .eq('trigger_type', 'cron')
             .eq('enabled', true)
             .not('cron_expression', 'is', null);
@@ -312,11 +324,11 @@ export async function evaluateTriggers(): Promise<void> {
 
         for (const trigger of triggers) {
             try {
-                if (!isTriggerDue(trigger.cron_expression, trigger.last_fired_at)) continue;
+                if (!isTriggerDue(trigger.cron_expression, trigger.last_fired_at, trigger.created_at)) continue;
 
-                console.log(`[TriggerScheduler] Firing trigger ${trigger.id} for agent ${trigger.agent_id}`);
+                const target = trigger.team_id ? `team ${trigger.team_id}` : `agent ${trigger.agent_id}`;
+                console.log(`[TriggerScheduler] Firing trigger ${trigger.id} for ${target}`);
 
-                // Create the task
                 const title = renderTemplate(trigger.task_title_template);
                 let description = renderTemplate(trigger.task_description_template);
 
@@ -332,33 +344,69 @@ export async function evaluateTriggers(): Promise<void> {
                     }
                 }
 
-                const taskResult = await supabase
-                    .from('tasks')
-                    .insert({
-                        workspace_id: trigger.workspace_id,
-                        title,
-                        description,
-                        assigned_agent_id: trigger.agent_id,
-                        status: 'pending',
-                        priority: 'medium',
-                        created_by: trigger.agent_id, // Agent self-creates
-                        scheduled_for: new Date().toISOString(),
-                    })
-                    .select('id')
-                    .single();
+                const ownerId = await resolveWorkspaceOwner(trigger.workspace_id);
+                let taskId: string | null = null;
+                let teamRunId: string | null = null;
 
-                if (taskResult.error) {
-                    // Log failure
-                    await supabase.from('trigger_log').insert({
-                        trigger_id: trigger.id,
-                        status: 'failed',
-                        error: taskResult.error.message,
-                    });
-                    console.error(`[TriggerScheduler] Failed to create task for trigger ${trigger.id}:`, taskResult.error.message);
-                    continue;
+                if (trigger.team_id) {
+                    const inputTask = description ? `${title}\n\n${description}` : title;
+                    const runResult = await supabase
+                        .from('team_runs')
+                        .insert({
+                            workspace_id: trigger.workspace_id,
+                            team_id: trigger.team_id,
+                            input_task: inputTask,
+                            status: 'pending',
+                            created_by: ownerId,
+                        })
+                        .select('id')
+                        .single();
+
+                    if (runResult.error) {
+                        await supabase.from('trigger_log').insert({
+                            trigger_id: trigger.id,
+                            status: 'failed',
+                            error: runResult.error.message,
+                        });
+                        console.error(`[TriggerScheduler] Failed to create team run for trigger ${trigger.id}:`, runResult.error.message);
+                        continue;
+                    }
+
+                    teamRunId = (runResult.data as { id: string }).id;
+                } else if (trigger.agent_id) {
+                    const taskResult = await supabase
+                        .from('tasks')
+                        .insert({
+                            workspace_id: trigger.workspace_id,
+                            title,
+                            description,
+                            assigned_agent_id: trigger.agent_id,
+                            status: 'dispatched',
+                            priority: 'medium',
+                            created_by: ownerId,
+                            scheduled_for: new Date().toISOString(),
+                            metadata: {
+                                source: 'cron_trigger',
+                                trigger_id: trigger.id,
+                            },
+                        })
+                        .select('id')
+                        .single();
+
+                    if (taskResult.error) {
+                        await supabase.from('trigger_log').insert({
+                            trigger_id: trigger.id,
+                            status: 'failed',
+                            error: taskResult.error.message,
+                        });
+                        console.error(`[TriggerScheduler] Failed to create task for trigger ${trigger.id}:`, taskResult.error.message);
+                        continue;
+                    }
+
+                    taskId = (taskResult.data as { id: string }).id;
+                } else {
+                    throw new Error('Trigger has no agent_id or team_id');
                 }
-
-                const taskId = (taskResult.data as { id: string }).id;
 
                 // Update last_fired_at
                 await supabase
@@ -373,7 +421,7 @@ export async function evaluateTriggers(): Promise<void> {
                     status: 'fired',
                 });
 
-                console.log(`[TriggerScheduler] Created task ${taskId} from trigger ${trigger.id}`);
+                console.log(`[TriggerScheduler] Created ${taskId ? `task ${taskId}` : `team run ${teamRunId}`} from trigger ${trigger.id}`);
             } catch (err: unknown) {
                 const errMsg = err instanceof Error ? err.message : String(err);
                 console.error(`[TriggerScheduler] Error processing trigger ${trigger.id}: ${errMsg}`);
