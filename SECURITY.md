@@ -12,7 +12,7 @@ As CrewForm is in active early development, security patches are applied to the 
 
 **Please do not report security vulnerabilities through public GitHub issues.**
 
-Instead, please report them via email to: **security@crewform.tech**
+Instead, please report them via email to: **team@crewform.tech**
 
 Include as much of the following as possible:
 
