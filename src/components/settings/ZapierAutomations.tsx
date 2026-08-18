@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 CrewForm
 
-import { useEffect, useRef, useState } from 'react'
+import { createElement, useEffect, useRef, useState } from 'react'
 import { ExternalLink, Zap, Loader2 } from 'lucide-react'
 
 // ─── Zapier Workflow Element ────────────────────────────────────────────────
@@ -113,16 +113,12 @@ export function ZapierAutomations() {
                 style={{ minHeight: sdkLoaded ? '500px' : undefined }}
             >
                 {sdkLoaded && (
-                    <div
-                        dangerouslySetInnerHTML={{
-                            __html: `<zapier-workflow-element
-                                client-id="${ZAPIER_CLIENT_ID}"
-                                theme="dark"
-                                intro-copy-display="show"
-                                manage-zaps-display="show"
-                            ></zapier-workflow-element>`,
-                        }}
-                    />
+                    <div>{createElement('zapier-workflow-element', {
+                        'client-id': ZAPIER_CLIENT_ID,
+                        theme: 'dark',
+                        'intro-copy-display': 'show',
+                        'manage-zaps-display': 'show',
+                    })}</div>
                 )}
             </div>
 

@@ -194,7 +194,6 @@ async function handleAsk(
         platform: 'discord',
         channel_id: channelId,
         guild_id: guildId,
-        bot_token: botToken,
         channel_db_id: channel.id,
     };
 

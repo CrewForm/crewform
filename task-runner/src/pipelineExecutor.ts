@@ -10,6 +10,7 @@ import { storeTeamMemory, retrieveRelevantMemories, buildMemoryContext } from '.
 import { executeWithToolLoop, getToolDefinitions } from './toolExecutor';
 import type { CustomToolConfig, ToolCallLog } from './toolExecutor';
 import type { TeamRun, Agent, ApiKey, PipelineConfig, PipelineStep, TeamHandoffContext, TokenUsage, FanOutBranchResult } from './types';
+import { validateProviderBaseUrl } from './urlSafety';
 
 /**
  * PipelineExecutor — processes a team run by executing pipeline steps sequentially.
@@ -415,7 +416,8 @@ async function executeStep(input: StepInput): Promise<StepResult | null> {
                 // Use OpenAI SDK for tool-use (all providers are OpenAI-compatible)
                 const OpenAI = (await import('openai')).default;
                 const baseURL = baseURLMap[provider];
-                const openai = new OpenAI({ apiKey: rawKey, ...(baseURL ? { baseURL } : {}) });
+                const validatedBaseUrl = baseURL ? (await validateProviderBaseUrl(baseURL)).toString() : undefined;
+                const openai = new OpenAI({ apiKey: rawKey, ...(validatedBaseUrl ? { baseURL: validatedBaseUrl } : {}) });
                 const tools = getToolDefinitions(agentTools, customToolConfigs);
 
                 const toolLoopResult = await executeWithToolLoop(

@@ -9,7 +9,7 @@ export interface AuthContext {
     plan: string;
     apiVersion: number;
     apiKeyRateLimit: number | null;
-    supabaseClient: ReturnType<typeof createClient>;
+    supabaseClient: ReturnType<typeof createClient<any>>;
 }
 
 /**
@@ -100,6 +100,11 @@ export async function authenticateRequest(req: Request): Promise<AuthContext> {
             permissions: Record<string, unknown>;
             rate_limit_per_min: number | null;
         };
+
+        const permission = ['GET', 'HEAD', 'OPTIONS'].includes(req.method) ? 'read' : 'write';
+        if (record.permissions?.[permission] !== true) {
+            throw new Error(`API key does not have ${permission} permission`);
+        }
 
         // Update last_used_at
         await serviceClient

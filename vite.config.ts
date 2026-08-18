@@ -10,7 +10,7 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      '@': path.resolve(import.meta.dirname, './src'),
     },
   },
   server: {
@@ -22,13 +22,12 @@ export default defineConfig({
     target: 'es2022',
     rollupOptions: {
       output: {
-        manualChunks: {
-          // Heavy charting library — only loaded on Analytics/Dashboard
-          recharts: ['recharts'],
-          // React core — stable, cached long-term
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          // Supabase client
-          supabase: ['@supabase/supabase-js'],
+        manualChunks(id) {
+          if (id.includes('/node_modules/recharts/')) return 'recharts'
+          if (id.includes('/node_modules/react/') || id.includes('/node_modules/react-dom/') || id.includes('/node_modules/react-router')) {
+            return 'react-vendor'
+          }
+          if (id.includes('/node_modules/@supabase/')) return 'supabase'
         },
       },
     },

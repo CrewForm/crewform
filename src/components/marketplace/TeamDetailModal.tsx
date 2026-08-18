@@ -4,6 +4,7 @@
 import { X, Download, Star, GitBranch, Users, Zap, Loader2 } from 'lucide-react'
 import type { Team } from '@/types'
 import { cn } from '@/lib/utils'
+import ReactMarkdown from 'react-markdown'
 
 interface TeamDetailModalProps {
     team: Team | null
@@ -107,20 +108,9 @@ export function TeamDetailModal({ team, onClose, onInstall, isInstalling }: Team
                     {/* README */}
                     {team.marketplace_readme && (
                         <div className="rounded-lg border border-border bg-surface-card p-4">
-                            <div
-                                className="prose prose-invert prose-sm max-w-none text-gray-300"
-                                dangerouslySetInnerHTML={{
-                                    __html: team.marketplace_readme
-                                        .replace(/^### (.*$)/gm, '<h4 class="text-gray-200 text-sm font-semibold mt-3 mb-1">$1</h4>')
-                                        .replace(/^## (.*$)/gm, '<h3 class="text-gray-100 text-sm font-bold mt-4 mb-1">$1</h3>')
-                                        .replace(/^# (.*$)/gm, '<h2 class="text-gray-100 text-base font-bold mt-4 mb-2">$1</h2>')
-                                        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                                        .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                                        .replace(/`(.*?)`/g, '<code class="rounded bg-surface-overlay px-1 py-0.5 text-[11px] text-brand-primary">$1</code>')
-                                        .replace(/^- (.*$)/gm, '<li class="ml-4 list-disc text-xs text-gray-400">$1</li>')
-                                        .replace(/\n/g, '<br />'),
-                                }}
-                            />
+                            <div className="prose prose-invert prose-sm max-w-none text-gray-300">
+                                <ReactMarkdown>{team.marketplace_readme}</ReactMarkdown>
+                            </div>
                         </div>
                     )}
                 </div>

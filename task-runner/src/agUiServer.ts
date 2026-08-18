@@ -7,6 +7,7 @@ import { supabase } from './supabase';
 import { agUiEventBus } from './agUiEventBus';
 import type { AgUiEvent } from './agUiEventBus';
 import type { InteractionResponse } from './types';
+import { hashApiKey } from './crypto';
 
 // ─── Auth ───────────────────────────────────────────────────────────────────
 
@@ -17,12 +18,14 @@ async function authenticateRequest(
     if (!authHeader?.startsWith('Bearer ')) return null;
 
     const token = authHeader.slice(7);
+    const tokenHash = hashApiKey(token);
 
     const { data } = await supabase
         .from('api_keys')
         .select('workspace_id')
         .eq('provider', 'ag-ui')
-        .eq('encrypted_key', token)
+        .eq('auth_hash', tokenHash)
+        .eq('is_active', true)
         .single();
 
     // Fall back to a2a key if no ag-ui specific key
@@ -31,7 +34,8 @@ async function authenticateRequest(
             .from('api_keys')
             .select('workspace_id')
             .eq('provider', 'a2a')
-            .eq('encrypted_key', token)
+            .eq('auth_hash', tokenHash)
+            .eq('is_active', true)
             .single();
 
         if (!a2aData) return null;
@@ -136,6 +140,18 @@ export async function handleAgUiRequest(
         const taskId = input.threadId;
         if (!taskId) {
             sendJson(res, 400, { error: 'threadId is required (maps to task ID)' });
+            return true;
+        }
+
+        const { data: task } = await supabase
+            .from('tasks')
+            .select('id')
+            .eq('id', taskId)
+            .eq('workspace_id', auth.workspaceId)
+            .eq('assigned_agent_id', agentId)
+            .single();
+        if (!task) {
+            sendJson(res, 404, { error: 'Task not found for this agent' });
             return true;
         }
 

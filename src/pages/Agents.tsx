@@ -33,7 +33,7 @@ export function Agents() {
           void importAgent(workspaceId ?? '', parsed.data as AgentExport).then((newId) => {
             toast.success('Agent imported successfully')
             void refetch()
-            navigate(`/agents/${newId}`)
+            void navigate(`/agents/${newId}`)
           }).catch((err: unknown) => {
             const msg = err instanceof Error ? err.message : 'Unknown error'
             toast.error(`Import failed: ${msg}`)
@@ -41,7 +41,7 @@ export function Agents() {
         } else {
           void importTeam(workspaceId ?? '', parsed.data as TeamExport).then((newId) => {
             toast.success('Team and agents imported successfully')
-            navigate(`/teams/${newId}`)
+            void navigate(`/teams/${newId}`)
           }).catch((err: unknown) => {
             const msg = err instanceof Error ? err.message : 'Unknown error'
             toast.error(`Import failed: ${msg}`)
@@ -131,7 +131,7 @@ export function Agents() {
             />
             <button
               type="button"
-              onClick={() => navigate('/agents/new')}
+              onClick={() => void navigate('/agents/new')}
               className="rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-brand-hover"
             >
               + New Agent
@@ -246,7 +246,7 @@ export function Agents() {
           <RoleGate minRole="member">
             <button
               type="button"
-              onClick={() => navigate('/agents/new')}
+              onClick={() => void navigate('/agents/new')}
               className="rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-brand-hover"
             >
               + Create Agent

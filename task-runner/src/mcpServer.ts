@@ -8,6 +8,7 @@ import { supabase } from './supabase';
 import { processTask } from './executor';
 import type { Task } from './types';
 import crypto from 'crypto';
+import { hashApiKey } from './crypto';
 
 function uuidv4(): string { return crypto.randomUUID(); }
 
@@ -46,13 +47,15 @@ async function authenticateRequest(
     if (!authHeader?.startsWith('Bearer ')) return null;
 
     const token = authHeader.slice(7);
+    const tokenHash = hashApiKey(token);
 
     // Check for a dedicated MCP server key
     const { data } = await supabase
         .from('api_keys')
         .select('workspace_id')
         .eq('provider', 'mcp-server')
-        .eq('encrypted_key', token)
+        .eq('auth_hash', tokenHash)
+        .eq('is_active', true)
         .single();
 
     if (data) return { workspaceId: data.workspace_id as string };
@@ -62,7 +65,8 @@ async function authenticateRequest(
         .from('api_keys')
         .select('workspace_id')
         .eq('provider', 'a2a')
-        .eq('encrypted_key', token)
+        .eq('auth_hash', tokenHash)
+        .eq('is_active', true)
         .single();
 
     if (a2aData) return { workspaceId: a2aData.workspace_id as string };

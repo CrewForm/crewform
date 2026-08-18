@@ -153,7 +153,7 @@ export function TeamDetail() {
         if (!team) return
         deleteMutation.mutate(
             { id: team.id, workspaceId: team.workspace_id },
-            { onSuccess: () => navigate('/teams') },
+            { onSuccess: () => void navigate('/teams') },
         )
     }
 
@@ -185,7 +185,7 @@ export function TeamDetail() {
             {/* Back */}
             <button
                 type="button"
-                onClick={() => navigate('/teams')}
+                onClick={() => void navigate('/teams')}
                 className="mb-4 flex items-center gap-1.5 text-sm text-gray-500 transition-colors hover:text-gray-300"
             >
                 <ArrowLeft className="h-4 w-4" />
@@ -592,7 +592,7 @@ export function TeamDetail() {
                             teamName={team.name}
                             teamMode={team.mode}
                             onClose={() => setShowRunModal(false)}
-                            onCreated={(runId) => navigate(`/teams/${team.id}/runs/${runId}`)}
+                            onCreated={(runId) => void navigate(`/teams/${team.id}/runs/${runId}`)}
                         />
                     )}
 

@@ -10,6 +10,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
+import { encryptSecret, sha256Hex } from '../_shared/encryption.ts';
 
 Deno.serve(async (req: Request) => {
     // This is a GET redirect from Google — no CORS preflight needed
@@ -35,18 +36,27 @@ Deno.serve(async (req: Request) => {
     }
 
     try {
-        // ── Decode state ───────────────────────────────────────────────
-        const stateData = JSON.parse(atob(state)) as { workspace_id: string; nonce: string };
-        const workspaceId = stateData.workspace_id;
+        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+        const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+        const serviceClient = createClient(supabaseUrl, supabaseServiceKey);
 
-        if (!workspaceId) {
+        // Consume the opaque state once, before exchanging the authorization code.
+        const { data: stateRow, error: stateError } = await serviceClient
+            .from('oauth_states')
+            .delete()
+            .eq('state_hash', await sha256Hex(state))
+            .eq('provider', 'google')
+            .gt('expires_at', new Date().toISOString())
+            .select('workspace_id')
+            .single();
+        const workspaceId = (stateRow as { workspace_id?: string } | null)?.workspace_id;
+        if (stateError || !workspaceId) {
             return Response.redirect(`${settingsUrl}?google_error=invalid_state`, 302);
         }
 
         // ── Exchange code for tokens ───────────────────────────────────
         const clientId = Deno.env.get('GOOGLE_CLIENT_ID')!;
         const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET')!;
-        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
         const redirectUri = `${supabaseUrl}/functions/v1/google-oauth-callback`;
 
         const tokenResp = await fetch('https://oauth2.googleapis.com/token', {
@@ -94,9 +104,6 @@ Deno.serve(async (req: Request) => {
         }
 
         // ── Store in google_connections ────────────────────────────────
-        const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-        const serviceClient = createClient(supabaseUrl, supabaseServiceKey);
-
         const tokenExpiry = new Date(Date.now() + tokens.expires_in * 1000).toISOString();
         const scopes = tokens.scope.split(' ');
 
@@ -104,8 +111,8 @@ Deno.serve(async (req: Request) => {
             .from('google_connections')
             .upsert({
                 workspace_id: workspaceId,
-                access_token: tokens.access_token,
-                refresh_token: tokens.refresh_token,
+                access_token: await encryptSecret(tokens.access_token),
+                refresh_token: await encryptSecret(tokens.refresh_token),
                 token_expiry: tokenExpiry,
                 scopes,
                 google_email: googleEmail,

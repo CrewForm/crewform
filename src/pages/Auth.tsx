@@ -8,6 +8,7 @@ import { LoginForm } from '@/components/auth/LoginForm'
 import { SignupForm } from '@/components/auth/SignupForm'
 import { ForgotPasswordForm } from '@/components/auth/ForgotPasswordForm'
 import { ResetPasswordForm } from '@/components/auth/ResetPasswordForm'
+import { safeInternalRedirect } from '@/lib/safeRedirect'
 
 type AuthMode = 'login' | 'signup' | 'forgot-password' | 'reset-password'
 
@@ -38,7 +39,7 @@ export function Auth() {
   // (AuthCallback is a separate page that would otherwise lose the ?redirect= param)
   useEffect(() => {
     const params = new URLSearchParams(location.search)
-    const redirect = params.get('redirect')
+    const redirect = safeInternalRedirect(params.get('redirect'))
     if (redirect && redirect !== '/') {
       sessionStorage.setItem('crewform:authRedirect', redirect)
     }
@@ -47,9 +48,9 @@ export function Auth() {
   useEffect(() => {
     if (!loading && user && mode !== 'reset-password') {
       const params = new URLSearchParams(location.search)
-      const redirect = params.get('redirect') ?? sessionStorage.getItem('crewform:authRedirect') ?? '/'
+      const redirect = safeInternalRedirect(params.get('redirect') ?? sessionStorage.getItem('crewform:authRedirect'))
       sessionStorage.removeItem('crewform:authRedirect')
-      navigate(redirect, { replace: true })
+      void navigate(redirect, { replace: true })
     }
   }, [user, loading, navigate, mode, location.search])
 

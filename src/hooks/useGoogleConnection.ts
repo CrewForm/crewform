@@ -26,9 +26,9 @@ export function useDisconnectGoogle(workspaceId?: string) {
     })
 }
 
-export function useInitiateGoogleOAuth() {
+export function useInitiateGoogleOAuth(workspaceId?: string) {
     return useMutation({
-        mutationFn: initiateGoogleOAuth,
+        mutationFn: () => initiateGoogleOAuth(workspaceId ?? ''),
         onSuccess: (authUrl) => {
             window.location.href = authUrl
         },

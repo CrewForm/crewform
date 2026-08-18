@@ -46,7 +46,7 @@ export function AcceptInvite() {
                     setState('success')
                     // Redirect to dashboard after a short delay
                     setTimeout(() => {
-                        navigate('/', { replace: true })
+                        void navigate('/', { replace: true })
                     }, 2000)
                 } else {
                     setState('error')
@@ -57,7 +57,7 @@ export function AcceptInvite() {
                 setErrorMsg(err instanceof Error ? err.message : 'An unexpected error occurred.')
             }
         })()
-    }, [user, authLoading, token, navigate])
+    }, [user, authLoading, token, navigate, queryClient])
 
     return (
         <div className="flex min-h-screen items-center justify-center bg-surface-primary px-4">
@@ -81,7 +81,7 @@ export function AcceptInvite() {
                         </p>
                         <button
                             type="button"
-                            onClick={() => navigate(`/auth?redirect=/invite/${token ?? ''}`, { replace: true })}
+                            onClick={() => void navigate(`/auth?redirect=/invite/${token ?? ''}`, { replace: true })}
                             className="w-full rounded-lg bg-brand-primary py-2.5 text-sm font-semibold text-black transition-colors hover:bg-brand-hover"
                         >
                             Sign In / Sign Up
@@ -116,7 +116,7 @@ export function AcceptInvite() {
                         <p className="mb-4 text-sm text-red-400">{errorMsg}</p>
                         <button
                             type="button"
-                            onClick={() => navigate('/', { replace: true })}
+                            onClick={() => void navigate('/', { replace: true })}
                             className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-gray-300 transition-colors hover:bg-surface-elevated"
                         >
                             Go to Dashboard

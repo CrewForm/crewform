@@ -91,7 +91,7 @@ export function TeamRunDetail() {
             {/* Back */}
             <button
                 type="button"
-                onClick={() => navigate(`/teams/${teamId ?? ''}`)}
+                onClick={() => void navigate(`/teams/${teamId ?? ''}`)}
                 className="mb-4 flex items-center gap-1.5 text-sm text-gray-500 transition-colors hover:text-gray-300"
             >
                 <ArrowLeft className="h-4 w-4" />

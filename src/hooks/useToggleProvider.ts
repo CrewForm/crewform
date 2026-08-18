@@ -12,7 +12,7 @@ export function useToggleProvider() {
     const queryClient = useQueryClient()
 
     return useMutation<ApiKey, Error, { id: string; isActive: boolean; workspaceId: string }>({
-        mutationFn: ({ id, isActive }) => toggleProviderActive(id, isActive),
+        mutationFn: ({ id, isActive, workspaceId }) => toggleProviderActive(workspaceId, id, isActive),
         onSuccess: (_data, { workspaceId }) => {
             void queryClient.invalidateQueries({ queryKey: ['apiKeys', workspaceId] })
         },

@@ -94,6 +94,14 @@ export function unauthorized(message: string, opts?: ResponseOptions): Response 
     });
 }
 
+/** 403 Forbidden */
+export function forbidden(message = 'Forbidden', opts?: ResponseOptions): Response {
+    return new Response(wrapError(message, 'forbidden', undefined, opts), {
+        status: 403,
+        headers: buildHeaders(opts),
+    });
+}
+
 /** 404 Not Found */
 export function notFound(resource: string, opts?: ResponseOptions): Response {
     return new Response(wrapError(`${resource} not found`, 'not_found', undefined, opts), {

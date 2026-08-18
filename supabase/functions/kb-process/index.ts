@@ -6,6 +6,7 @@
 
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { decryptSecret } from '../_shared/encryption.ts';
 
 const CHUNK_SIZE = 1000;      // ~500 tokens
 const CHUNK_OVERLAP = 200;    // overlap between chunks
@@ -93,7 +94,7 @@ interface EmbeddingProvider {
 }
 
 async function getEmbeddingProviders(
-    supabase: ReturnType<typeof createClient>,
+    supabase: ReturnType<typeof createClient<any>>,
     workspaceId: string,
 ): Promise<EmbeddingProvider[]> {
     const providers: EmbeddingProvider[] = [];
@@ -108,7 +109,7 @@ async function getEmbeddingProviders(
 
     if (openaiKey) {
         providers.push({
-            apiKey: (openaiKey as { encrypted_key: string }).encrypted_key,
+            apiKey: await decryptSecret((openaiKey as { encrypted_key: string }).encrypted_key),
             label: 'OpenAI',
         });
     }
@@ -123,7 +124,7 @@ async function getEmbeddingProviders(
 
     if (routerKey) {
         providers.push({
-            apiKey: (routerKey as { encrypted_key: string }).encrypted_key,
+            apiKey: await decryptSecret((routerKey as { encrypted_key: string }).encrypted_key),
             baseURL: 'https://openrouter.ai/api/v1',
             label: 'OpenRouter',
         });

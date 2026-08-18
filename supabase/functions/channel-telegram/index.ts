@@ -44,6 +44,10 @@ Deno.serve(async (req: Request) => {
     }
 
     try {
+        const webhookSecret = Deno.env.get('TELEGRAM_WEBHOOK_SECRET');
+        if (!webhookSecret || req.headers.get('x-telegram-bot-api-secret-token') !== webhookSecret) {
+            return new Response('Unauthorized', { status: 401 });
+        }
         const update = (await req.json()) as TelegramUpdate;
 
         if (!update.message?.text) {
@@ -53,6 +57,7 @@ Deno.serve(async (req: Request) => {
         const msg = update.message;
         const chatId = String(msg.chat.id);
         const messageText = msg.text;
+        if (!messageText) return ok({ ok: true, skipped: true });
         const senderName = msg.from
             ? `${msg.from.first_name}${msg.from.last_name ? ` ${msg.from.last_name}` : ''}`
             : 'Unknown';
@@ -166,7 +171,6 @@ Deno.serve(async (req: Request) => {
             platform: 'telegram',
             chat_id: chatId,
             message_id: String(msg.message_id),
-            bot_token: botToken,
             channel_db_id: channel.id,
         };
 

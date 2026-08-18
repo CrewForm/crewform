@@ -927,7 +927,7 @@ function GoogleConnectionBanner() {
     const { workspaceId } = useWorkspace()
     const { data: googleConn, isLoading } = useGoogleConnection(workspaceId ?? undefined)
     const disconnect = useDisconnectGoogle(workspaceId ?? undefined)
-    const connectMut = useInitiateGoogleOAuth()
+    const connectMut = useInitiateGoogleOAuth(workspaceId ?? undefined)
 
     if (isLoading) {
         return (

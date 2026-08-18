@@ -12,11 +12,9 @@ import type { ApiKey } from '@/types'
 
 /** Fetch all API keys for a workspace */
 export async function fetchApiKeys(workspaceId: string): Promise<ApiKey[]> {
-    const result = await supabase
-        .from('api_keys')
-        .select('*')
-        .eq('workspace_id', workspaceId)
-        .order('provider', { ascending: true })
+    const result = await supabase.functions.invoke('api-key-manager', {
+        body: { action: 'list', workspace_id: workspaceId },
+    })
 
     if (result.error) throw result.error
     return result.data as ApiKey[]
@@ -33,64 +31,36 @@ export interface UpsertApiKeyInput {
 }
 
 export async function upsertApiKey(input: UpsertApiKeyInput): Promise<ApiKey> {
-    // Check if key already exists for this provider
-    const existing = await supabase
-        .from('api_keys')
-        .select('id')
-        .eq('workspace_id', input.workspace_id)
-        .eq('provider', input.provider)
-        .maybeSingle()
-
-    if (existing.error) throw existing.error
-
-    if (existing.data) {
-        // Update existing
-        const result = await supabase
-            .from('api_keys')
-            .update({
-                encrypted_key: input.encrypted_key,
-                key_hint: input.key_hint,
-                is_valid: input.is_valid,
-                ...(input.base_url !== undefined ? { base_url: input.base_url } : {}),
-            })
-            .eq('id', existing.data.id)
-            .select()
-            .single()
-
-        if (result.error) throw result.error
-        return result.data as ApiKey
-    }
-
-    // Insert new
-    const result = await supabase
-        .from('api_keys')
-        .insert(input)
-        .select()
-        .single()
+    const result = await supabase.functions.invoke('api-key-manager', {
+        body: {
+            action: 'save',
+            workspace_id: input.workspace_id,
+            provider: input.provider,
+            raw_key: input.encrypted_key,
+            is_active: true,
+            base_url: input.base_url,
+        },
+    })
 
     if (result.error) throw result.error
     return result.data as ApiKey
 }
 
 /** Toggle is_active flag on an API key */
-export async function toggleProviderActive(id: string, isActive: boolean): Promise<ApiKey> {
-    const result = await supabase
-        .from('api_keys')
-        .update({ is_active: isActive })
-        .eq('id', id)
-        .select()
-        .single()
+export async function toggleProviderActive(workspaceId: string, id: string, isActive: boolean): Promise<ApiKey> {
+    const result = await supabase.functions.invoke('api-key-manager', {
+        body: { action: 'toggle', workspace_id: workspaceId, id, is_active: isActive },
+    })
 
     if (result.error) throw result.error
     return result.data as ApiKey
 }
 
 /** Delete an API key */
-export async function deleteApiKey(id: string): Promise<void> {
-    const result = await supabase
-        .from('api_keys')
-        .delete()
-        .eq('id', id)
+export async function deleteApiKey(workspaceId: string, id: string): Promise<void> {
+    const result = await supabase.functions.invoke('api-key-manager', {
+        body: { action: 'delete', workspace_id: workspaceId, id },
+    })
 
     if (result.error) throw result.error
 }

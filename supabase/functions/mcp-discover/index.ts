@@ -10,6 +10,7 @@
 
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { safeRemoteFetch } from '../_shared/urlSafety.ts';
 
 interface McpJsonRpcResponse {
     jsonrpc: '2.0';
@@ -91,7 +92,7 @@ Deno.serve(async (req: Request) => {
         // 1. Initialize
         let initRes: Response;
         try {
-            initRes = await fetch(body.server_url, {
+            initRes = await safeRemoteFetch(body.server_url, {
                 method: 'POST',
                 headers: mcpHeaders,
                 body: JSON.stringify({
@@ -130,7 +131,7 @@ Deno.serve(async (req: Request) => {
         console.log('[mcp-discover] Initialized, listing tools...');
 
         // 2. Send initialized notification (fire-and-forget)
-        void fetch(body.server_url, {
+        void safeRemoteFetch(body.server_url, {
             method: 'POST',
             headers: mcpHeaders,
             body: JSON.stringify({
@@ -142,7 +143,7 @@ Deno.serve(async (req: Request) => {
         // 3. List tools
         let toolsRes: Response;
         try {
-            toolsRes = await fetch(body.server_url, {
+            toolsRes = await safeRemoteFetch(body.server_url, {
                 method: 'POST',
                 headers: mcpHeaders,
                 body: JSON.stringify({

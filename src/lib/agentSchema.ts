@@ -23,13 +23,6 @@ export const BUILT_IN_TOOLS = [
         requiresProvider: undefined,
     },
     {
-        name: 'code_interpreter',
-        label: 'Code Interpreter',
-        description: 'Execute JavaScript code in a sandboxed environment.',
-        icon: '💻',
-        requiresProvider: undefined,
-    },
-    {
         name: 'read_file',
         label: 'Read File',
         description: 'Read contents of a file from a provided URL.',

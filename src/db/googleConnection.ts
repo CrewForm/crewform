@@ -18,26 +18,25 @@ export interface GoogleConnection {
 // ─── Queries ────────────────────────────────────────────────────────────────
 
 export async function fetchGoogleConnection(workspaceId: string): Promise<GoogleConnection | null> {
-    const { data, error } = await supabase
-        .from('google_connections')
-        .select('id, workspace_id, google_email, scopes, token_expiry, created_at, updated_at')
-        .eq('workspace_id', workspaceId)
-        .maybeSingle()
+    const response: { data: unknown; error: { message: string } | null } = await supabase.functions.invoke('google-connection-manager', {
+        body: { action: 'status', workspace_id: workspaceId },
+    })
+    const { data, error } = response
 
     if (error) throw new Error(error.message)
     return data as GoogleConnection | null
 }
 
 export async function deleteGoogleConnection(workspaceId: string): Promise<void> {
-    const { error } = await supabase
-        .from('google_connections')
-        .delete()
-        .eq('workspace_id', workspaceId)
+    const response: { data: unknown; error: { message: string } | null } = await supabase.functions.invoke('google-connection-manager', {
+        body: { action: 'delete', workspace_id: workspaceId },
+    })
+    const { error } = response
 
     if (error) throw new Error(error.message)
 }
 
-export async function initiateGoogleOAuth(): Promise<string> {
+export async function initiateGoogleOAuth(workspaceId: string): Promise<string> {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) throw new Error('Not authenticated')
 
@@ -49,6 +48,7 @@ export async function initiateGoogleOAuth(): Promise<string> {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${session.access_token}`,
             },
+            body: JSON.stringify({ workspace_id: workspaceId }),
         },
     )
 
