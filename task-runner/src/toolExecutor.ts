@@ -11,6 +11,7 @@ import { agUiEventBus, AgUiEventType } from './agUiEventBus';
 import type { TokenUsage } from './types';
 import { callMcpTool, parseMcpToolName } from './mcpClient';
 import type { McpServerConfig } from './mcpClient';
+import { readTextLimited, safeFetch } from './urlSafety';
 
 // ─── Tool Call Logging ───────────────────────────────────────────────────────
 
@@ -128,20 +129,6 @@ const TOOL_REGISTRY: Record<string, ToolDefinition> = {
                     body: { type: 'string', description: 'Request body for POST/PUT requests (JSON string)' },
                 },
                 required: ['url'],
-            },
-        },
-    },
-    code_interpreter: {
-        type: 'function',
-        function: {
-            name: 'code_interpreter',
-            description: 'Execute JavaScript code in a sandboxed environment. Returns the result of the last expression or console output.',
-            parameters: {
-                type: 'object',
-                properties: {
-                    code: { type: 'string', description: 'JavaScript code to execute' },
-                },
-                required: ['code'],
             },
         },
     },
@@ -264,8 +251,6 @@ export async function executeToolCall(
                     (args.method as string) || 'GET',
                     args.body as string | undefined,
                 );
-            case 'code_interpreter':
-                return executeCodeInterpreter(args.code as string);
             case 'read_file':
                 return await executeReadFile(args.url as string);
             case 'grammar_check':
@@ -380,8 +365,8 @@ async function executeHttpRequest(url: string, method: string, body?: string): P
         opts.headers = { ...opts.headers, 'Content-Type': 'application/json' };
     }
 
-    const response = await fetch(url, opts);
-    const text = await response.text();
+    const response = await safeFetch(url, opts);
+    const text = await readTextLimited(response, 16_000);
 
     const statusInfo = `HTTP ${response.status.toString()} ${response.statusText}`;
     const truncated = text.length > 4000 ? text.slice(0, 4000) + '\n... (truncated)' : text;
@@ -389,37 +374,8 @@ async function executeHttpRequest(url: string, method: string, body?: string): P
     return `${statusInfo}\n\n${truncated}`;
 }
 
-function executeCodeInterpreter(code: string): string {
-    // Sandboxed JS evaluation using Function constructor
-    // This is intentionally limited — no access to Node.js APIs
-    try {
-        const logs: string[] = [];
-        const mockConsole = {
-            log: (...args: unknown[]) => logs.push(args.map(String).join(' ')),
-            warn: (...args: unknown[]) => logs.push(`[warn] ${args.map(String).join(' ')}`),
-            error: (...args: unknown[]) => logs.push(`[error] ${args.map(String).join(' ')}`),
-        };
-
-        // Create sandboxed function
-        const fn = new Function('console', 'Math', 'JSON', 'Date', 'parseInt', 'parseFloat', 'isNaN', 'isFinite',
-            `"use strict";\n${code}`);
-        const result: unknown = fn(mockConsole, Math, JSON, Date, parseInt, parseFloat, isNaN, isFinite);
-
-        const output = logs.length > 0 ? logs.join('\n') : '';
-        const returnValue = result !== undefined ? String(result) : '';
-
-        if (output && returnValue) {
-            return `Console output:\n${output}\n\nReturn value: ${returnValue}`;
-        }
-        return output || returnValue || '(no output)';
-    } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        return `Code execution error: ${msg}`;
-    }
-}
-
 async function executeReadFile(url: string): Promise<string> {
-    const response = await fetch(url, {
+    const response = await safeFetch(url, {
         headers: { 'User-Agent': 'CrewForm-Agent/1.0' },
     });
 
@@ -427,7 +383,7 @@ async function executeReadFile(url: string): Promise<string> {
         return `Failed to read file: HTTP ${response.status.toString()} ${response.statusText}`;
     }
 
-    const text = await response.text();
+    const text = await readTextLimited(response, 32_000);
     return text.length > 8000 ? text.slice(0, 8000) + '\n... (truncated)' : text;
 }
 
@@ -512,13 +468,13 @@ async function executeCustomToolWebhook(
         ...tool.webhook_headers,
     };
 
-    const response = await fetch(tool.webhook_url, {
+    const response = await safeFetch(tool.webhook_url, {
         method: 'POST',
         headers,
         body: JSON.stringify(args),
     });
 
-    const text = await response.text();
+    const text = await readTextLimited(response, 16_000);
     const statusInfo = `HTTP ${response.status.toString()} ${response.statusText}`;
 
     if (!response.ok) {

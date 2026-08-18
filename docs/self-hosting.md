@@ -75,6 +75,8 @@ The frontend will be available at **http://localhost:3000**.
 | `VITE_SUPABASE_URL` | Your Supabase project URL |
 | `VITE_SUPABASE_ANON_KEY` | Supabase anon/public key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (task-runner) |
+| `API_KEY_ENCRYPTION_KEY` | Shared 32-byte hex/base64 AES-256 key used by Edge Functions and the task runner |
+| `WEBHOOK_SECRET` | Shared random secret authenticating database webhooks sent to the task runner |
 
 ### Optional Variables
 
@@ -85,7 +87,6 @@ The frontend will be available at **http://localhost:3000**.
 | `POSTGRES_PORT` | 5432 | PostgreSQL port |
 | `FRONTEND_PORT` | 3000 | Frontend port |
 | `VITE_APP_URL` | http://localhost:3000 | Public app URL |
-| `ENCRYPTION_KEY` | — | 32-byte hex for AES-256-GCM |
 | `OPENAI_API_KEY` | — | Fallback OpenAI key |
 | `ANTHROPIC_API_KEY` | — | Fallback Anthropic key |
 | `GOOGLE_GENERATIVE_AI_API_KEY` | — | Fallback Google AI key |

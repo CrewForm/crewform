@@ -4,6 +4,8 @@
 import { supabase } from './supabase';
 import { Resend } from 'resend';
 import nodemailer from 'nodemailer';
+import { safeFetch } from './urlSafety';
+import { decryptApiKey, encryptApiKey } from './crypto';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -296,7 +298,7 @@ async function dispatchZapierHooks(
 
         const deliveries = matchingSubs.map(async (sub) => {
             try {
-                const resp = await fetch(sub.target_url, {
+                const resp = await safeFetch(sub.target_url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload),
@@ -433,7 +435,7 @@ async function deliverHTTP(
         headers['X-CrewForm-Signature'] = `sha256=${hex}`;
     }
 
-    const resp = await fetch(url, {
+    const resp = await safeFetch(url, {
         method: 'POST',
         headers,
         body,
@@ -494,7 +496,7 @@ async function deliverSlack(
         ],
     };
 
-    const resp = await fetch(url, {
+    const resp = await safeFetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(slackBody),
@@ -538,7 +540,7 @@ async function deliverDiscord(
         ],
     };
 
-    const resp = await fetch(url, {
+    const resp = await safeFetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(discordBody),
@@ -573,7 +575,7 @@ async function deliverTelegram(
     }
 
     const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
-    const resp = await fetch(url, {
+    const resp = await safeFetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -656,7 +658,7 @@ async function deliverTeams(
         ],
     };
 
-    const resp = await fetch(url, {
+    const resp = await safeFetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(teamsBody),
@@ -1622,9 +1624,19 @@ async function getGoogleAccessToken(workspaceId: string): Promise<string> {
         token_expiry: string;
     };
 
+    const decryptedAccessToken = decryptApiKey(access_token);
+    const decryptedRefreshToken = decryptApiKey(refresh_token);
+    if (!access_token.startsWith('v1:') || !refresh_token.startsWith('v1:')) {
+        await supabase.from('google_connections').update({
+            access_token: encryptApiKey(decryptedAccessToken),
+            refresh_token: encryptApiKey(decryptedRefreshToken),
+            updated_at: new Date().toISOString(),
+        }).eq('workspace_id', workspaceId);
+    }
+
     // If token is still valid (with 60s buffer), return it
     if (new Date(token_expiry).getTime() > Date.now() + 60_000) {
-        return access_token;
+        return decryptedAccessToken;
     }
 
     // Refresh the token
@@ -1641,7 +1653,7 @@ async function getGoogleAccessToken(workspaceId: string): Promise<string> {
         body: new URLSearchParams({
             client_id: clientId,
             client_secret: clientSecret,
-            refresh_token: refresh_token,
+            refresh_token: decryptedRefreshToken,
             grant_type: 'refresh_token',
         }),
         signal: AbortSignal.timeout(10000),
@@ -1664,7 +1676,7 @@ async function getGoogleAccessToken(workspaceId: string): Promise<string> {
     await supabase
         .from('google_connections')
         .update({
-            access_token: tokens.access_token,
+            access_token: encryptApiKey(tokens.access_token),
             token_expiry: newExpiry,
             updated_at: new Date().toISOString(),
         })
@@ -2043,7 +2055,34 @@ export async function replyToSourceChannel(
         const row = data as { source_channel: SourceChannel | null; title: string };
         if (!row.source_channel) return;
 
-        const sc = row.source_channel;
+        const sc = { ...row.source_channel };
+        if (sc.channel_db_id) {
+            const { data: channel } = await supabase
+                .from('messaging_channels')
+                .select('config, is_managed')
+                .eq('id', sc.channel_db_id)
+                .single();
+            if (channel) {
+                const config = (channel.config ?? {}) as Record<string, unknown>;
+                const managed = channel.is_managed === true;
+                const secret = (name: string): string | undefined => {
+                    const value = managed ? process.env[name] : config[name.toLowerCase()];
+                    return typeof value === 'string' ? decryptApiKey(value) : undefined;
+                };
+                if (sc.platform === 'slack') sc.bot_token = secret('SLACK_BOT_TOKEN') ?? secret('bot_token');
+                if (sc.platform === 'telegram') sc.bot_token = secret('TELEGRAM_BOT_TOKEN') ?? secret('bot_token');
+                if (sc.platform === 'discord') sc.bot_token = secret('DISCORD_BOT_TOKEN') ?? secret('bot_token');
+                if (sc.platform === 'trello') {
+                    sc.trello_api_key = secret('TRELLO_API_KEY') ?? secret('api_key');
+                    sc.trello_token = secret('TRELLO_TOKEN') ?? secret('token');
+                    sc.trello_review_list_id = typeof config.review_list_id === 'string' ? config.review_list_id : undefined;
+                }
+                if (sc.platform === 'linear') {
+                    sc.linear_api_key = secret('LINEAR_API_KEY') ?? secret('api_key');
+                    sc.linear_done_state_name = typeof config.done_state_name === 'string' ? config.done_state_name : undefined;
+                }
+            }
+        }
         const isSuccess = status === 'completed';
         const emoji = isSuccess ? '✅' : '❌';
         const content = isSuccess

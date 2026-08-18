@@ -66,7 +66,7 @@ export function DemoBanner() {
         setError(null)
 
         if (!hasOpenAiKey) {
-            navigate('/settings')
+            void navigate('/settings')
             return
         }
 
@@ -82,7 +82,7 @@ export function DemoBanner() {
                 input_task: GOLDEN_PATH_PROMPT,
                 created_by: user.id,
             })
-            navigate(`/teams/${demoTeamId}/runs/${run.id}`)
+            void navigate(`/teams/${demoTeamId}/runs/${run.id}`)
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to start the demo run')
         }
@@ -153,7 +153,7 @@ export function DemoBanner() {
                                 Run a real 3-step pipeline and watch CrewForm create an executive brief.{' '}
                                 <button
                                     type="button"
-                                    onClick={() => demoTeamId ? navigate(`/teams/${demoTeamId}`) : navigate('/teams')}
+                                    onClick={() => demoTeamId ? void navigate(`/teams/${demoTeamId}`) : void navigate('/teams')}
                                     className="text-brand-primary hover:underline"
                                 >
                                     View team →
@@ -226,7 +226,7 @@ export function DemoBanner() {
                             You can{' '}
                             <button
                                 type="button"
-                                onClick={() => navigate('/settings')}
+                                onClick={() => void navigate('/settings')}
                                 className="inline-flex items-center gap-1 text-brand-primary hover:underline"
                             >
                                 <Key className="h-3 w-3" />

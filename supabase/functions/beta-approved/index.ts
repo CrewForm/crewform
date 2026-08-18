@@ -16,7 +16,8 @@
  */
 
 import { handleCors } from '../_shared/cors.ts';
-import { ok, badRequest, serverError } from '../_shared/response.ts';
+import { ok, badRequest, forbidden, serverError } from '../_shared/response.ts';
+import { authenticateRequest } from '../_shared/auth.ts';
 
 interface ApprovalPayload {
     email: string;
@@ -28,6 +29,9 @@ Deno.serve(async (req: Request) => {
     if (cors) return cors;
 
     try {
+        const auth = await authenticateRequest(req);
+        const { data: isAdmin } = await auth.supabaseClient.rpc('is_super_admin');
+        if (isAdmin !== true) return forbidden('Super-admin access required');
         const payload = (await req.json()) as ApprovalPayload;
 
         if (!payload.email) {

@@ -13,7 +13,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { handleCors } from '../_shared/cors.ts';
-import { ok, serverError, notFound } from '../_shared/response.ts';
+import { ok, serverError, notFound, unauthorized, forbidden } from '../_shared/response.ts';
 
 interface RegisterBody {
     channel_id: string;
@@ -38,6 +38,13 @@ Deno.serve(async (req: Request) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     try {
+        const authHeader = req.headers.get('Authorization');
+        if (!authHeader) return unauthorized('Unauthorized');
+        const userClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
+            global: { headers: { Authorization: authHeader } },
+        });
+        const { data: { user }, error: authError } = await userClient.auth.getUser();
+        if (authError || !user) return unauthorized('Unauthorized');
         if (req.method === 'POST') {
             const body = (await req.json()) as RegisterBody;
             const { api_key, token, board_id, channel_id } = body;
@@ -45,6 +52,12 @@ Deno.serve(async (req: Request) => {
             if (!api_key || !token || !board_id || !channel_id) {
                 return serverError('Missing required fields: api_key, token, board_id, channel_id');
             }
+            const { data: allowedChannel } = await userClient
+                .from('messaging_channels')
+                .select('id')
+                .eq('id', channel_id)
+                .single();
+            if (!allowedChannel) return forbidden('Channel access denied');
 
             // The callback URL is this project's channel-trello Edge Function
             const callbackUrl = `${supabaseUrl}/functions/v1/channel-trello`;

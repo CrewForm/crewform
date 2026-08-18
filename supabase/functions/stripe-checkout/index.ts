@@ -115,7 +115,7 @@ Deno.serve(async (req: Request) => {
         }
 
         // ── Create Checkout Session ────────────────────────────────────
-        const origin = req.headers.get('origin') ?? 'https://crewform.tech';
+        const origin = (Deno.env.get('APP_URL') ?? 'https://app.crewform.tech').replace(/\/$/, '');
 
         const session = await stripe.checkout.sessions.create({
             customer: customerId,

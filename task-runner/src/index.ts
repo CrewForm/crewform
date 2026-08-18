@@ -291,7 +291,7 @@ function createWebhookServer(): http.Server {
                 // Webhook endpoints
                 if (req.method === 'POST' && (req.url === '/webhook/task' || req.url === '/webhook/team-run')) {
                     // Validate webhook secret
-                    if (WEBHOOK_SECRET && req.headers['x-webhook-secret'] !== WEBHOOK_SECRET) {
+                    if (!WEBHOOK_SECRET || req.headers['x-webhook-secret'] !== WEBHOOK_SECRET) {
                         log('Webhook rejected — invalid secret');
                         res.writeHead(401, { 'Content-Type': 'application/json' });
                         res.end(JSON.stringify({ error: 'Unauthorized' }));
@@ -354,9 +354,7 @@ async function start() {
         log(`Polling fallback: ${POLL_MIN_MS}ms (min) → ${POLL_MAX_MS}ms (max)`);
         log(`Recovery sweep every ${RECOVERY_INTERVAL_MS}ms`);
         log(`Trigger evaluation every ${TRIGGER_EVAL_INTERVAL_MS}ms`);
-        if (!WEBHOOK_SECRET) {
-            log('⚠️  WEBHOOK_SECRET is not set — webhook endpoints are unprotected');
-        }
+        if (!WEBHOOK_SECRET) log('⚠️  WEBHOOK_SECRET is not set — webhook endpoints are disabled');
 
         // Start HTTP webhook server
         const server = createWebhookServer();

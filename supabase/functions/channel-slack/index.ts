@@ -13,6 +13,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { ok, serverError } from '../_shared/response.ts';
+import { constantTimeEqual, hmacHex } from '../_shared/webhookVerification.ts';
 
 interface SlackEventPayload {
     type: string;
@@ -46,7 +47,16 @@ Deno.serve(async (req: Request) => {
     }
 
     try {
-        const payload = (await req.json()) as SlackEventPayload;
+        const rawBody = await req.text();
+        const signingSecret = Deno.env.get('SLACK_SIGNING_SECRET');
+        const timestamp = req.headers.get('x-slack-request-timestamp');
+        const signature = req.headers.get('x-slack-signature');
+        if (!signingSecret || !timestamp || !signature || Math.abs(Date.now() / 1000 - Number(timestamp)) > 300) {
+            return new Response('Unauthorized', { status: 401 });
+        }
+        const expected = `v0=${await hmacHex('SHA-256', signingSecret, `v0:${timestamp}:${rawBody}`)}`;
+        if (!constantTimeEqual(expected, signature)) return new Response('Unauthorized', { status: 401 });
+        const payload = JSON.parse(rawBody) as SlackEventPayload;
 
         // Handle Slack's URL verification challenge
         if (payload.type === 'url_verification') {
@@ -148,7 +158,6 @@ Deno.serve(async (req: Request) => {
             platform: 'slack',
             channel_id: event.channel,
             thread_ts: event.thread_ts ?? event.ts,
-            bot_token: botToken,
             channel_db_id: channel.id,
         };
 

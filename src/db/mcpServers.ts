@@ -9,7 +9,7 @@ export interface McpServer {
     name: string
     description: string
     url: string
-    transport: 'streamable-http' | 'sse' | 'stdio'
+    transport: 'streamable-http' | 'sse'
     config: Record<string, unknown>
     is_enabled: boolean
     tools_cache: Array<{ name: string; description?: string }>
@@ -22,7 +22,7 @@ export interface CreateMcpServerInput {
     name: string
     description?: string
     url: string
-    transport: 'streamable-http' | 'sse' | 'stdio'
+    transport: 'streamable-http' | 'sse'
     config?: Record<string, unknown>
 }
 
@@ -30,7 +30,7 @@ export interface UpdateMcpServerInput {
     name?: string
     description?: string
     url?: string
-    transport?: 'streamable-http' | 'sse' | 'stdio'
+    transport?: 'streamable-http' | 'sse'
     config?: Record<string, unknown>
     is_enabled?: boolean
     tools_cache?: Array<{ name: string; description?: string }>
@@ -120,4 +120,3 @@ export async function discoverMcpTools(
 
     return tools
 }
-

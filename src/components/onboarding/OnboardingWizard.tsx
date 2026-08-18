@@ -139,10 +139,10 @@ export function OnboardingWizard() {
                 .update({ settings: { ...settings, onboarding_completed: true } })
                 .eq('id', workspaceId)
             void queryClient.invalidateQueries({ queryKey: ['workspace'] })
-            navigate(redirectTo ?? '/agents')
+            void navigate(redirectTo ?? '/agents')
         } catch {
             // Silent fail — user can always dismiss later
-            navigate(redirectTo ?? '/agents')
+            void navigate(redirectTo ?? '/agents')
         }
     }, [workspaceId, workspace, queryClient, navigate])
 

@@ -16,7 +16,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
 
   useEffect(() => {
     if (!loading && !user) {
-      navigate('/auth', { replace: true, state: { from: location.pathname } })
+      void navigate('/auth', { replace: true, state: { from: location.pathname } })
       return
     }
 
@@ -24,7 +24,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
     if (!loading && user) {
       const meta = user.user_metadata as Record<string, unknown>
       if (meta.is_beta === true && meta.beta_approved !== true) {
-        navigate('/beta-pending', { replace: true })
+        void navigate('/beta-pending', { replace: true })
       }
     }
   }, [user, loading, navigate, location.pathname])

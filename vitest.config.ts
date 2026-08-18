@@ -9,7 +9,7 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      '@': path.resolve(import.meta.dirname, './src'),
     },
   },
   test: {
@@ -17,6 +17,6 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     css: true,
-    exclude: ['e2e/**', 'task-runner/**', 'node_modules/**', 'crewform-landing/**'],
+    exclude: ['e2e/**', 'task-runner/**', '**/node_modules/**', 'crewform-landing/**', 'cli/**', 'zapier-app/**', 'chat-widget/**', 'dist/**'],
   },
 })

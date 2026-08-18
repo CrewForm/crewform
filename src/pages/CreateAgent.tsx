@@ -68,7 +68,7 @@ export function CreateAgent() {
             },
             {
                 onSuccess: () => {
-                    navigate('/agents', { replace: true })
+                    void navigate('/agents', { replace: true })
                 },
             },
         )
@@ -80,7 +80,7 @@ export function CreateAgent() {
             <div className="mb-8 flex items-center gap-3">
                 <button
                     type="button"
-                    onClick={() => navigate('/agents')}
+                    onClick={() => void navigate('/agents')}
                     className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-surface-elevated hover:text-gray-200"
                     aria-label="Back to agents"
                 >

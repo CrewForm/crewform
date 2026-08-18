@@ -18,6 +18,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { ok, serverError } from '../_shared/response.ts';
+import { constantTimeEqual } from '../_shared/webhookVerification.ts';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -93,7 +94,7 @@ async function verifyLinearSignature(
         .map((b) => b.toString(16).padStart(2, '0'))
         .join('');
 
-    return hexSig === signature;
+    return constantTimeEqual(hexSig, signature);
 }
 
 // ─── Main Handler ───────────────────────────────────────────────────────────
@@ -106,6 +107,9 @@ Deno.serve(async (req: Request) => {
     try {
         const rawBody = await req.text();
         const payload = JSON.parse(rawBody) as LinearWebhookPayload;
+        if (!payload.webhookTimestamp || Math.abs(Date.now() - payload.webhookTimestamp) > 5 * 60_000) {
+            return new Response('Stale webhook', { status: 401 });
+        }
 
         // Only handle Issue events
         if (payload.type !== 'Issue') {
@@ -144,15 +148,12 @@ Deno.serve(async (req: Request) => {
 
         // Process each matching channel
         for (const channel of matchingChannels) {
-            // Verify webhook signature if secret is configured
+            // Every configured Linear webhook must carry a valid signature.
             const webhookSecret = channel.config.webhook_secret as string | undefined;
-            if (webhookSecret) {
-                const signature = req.headers.get('linear-signature');
-                const valid = await verifyLinearSignature(rawBody, signature, webhookSecret);
-                if (!valid) {
-                    console.warn(`[channel-linear] Invalid signature for channel ${channel.id}`);
-                    continue;
-                }
+            const signature = req.headers.get('linear-signature');
+            if (!webhookSecret || !await verifyLinearSignature(rawBody, signature, webhookSecret)) {
+                console.warn(`[channel-linear] Missing or invalid signature for channel ${channel.id}`);
+                continue;
             }
 
             // Check trigger conditions
@@ -194,8 +195,6 @@ Deno.serve(async (req: Request) => {
             const sourceChannel = {
                 platform: 'linear',
                 linear_issue_id: issue.id,
-                linear_api_key: channel.config.api_key as string,
-                linear_done_state_name: (channel.config.done_state_name as string) || undefined,
                 channel_db_id: channel.id,
             };
 

@@ -165,7 +165,7 @@ export function AgentDetail() {
         if (!agent) return
         deleteMutation.mutate(
             { id: agent.id, workspaceId: agent.workspace_id },
-            { onSuccess: () => navigate('/agents', { replace: true }) },
+            { onSuccess: () => void navigate('/agents', { replace: true }) },
         )
     }
 
@@ -199,7 +199,7 @@ export function AgentDetail() {
                 </p>
                 <button
                     type="button"
-                    onClick={() => navigate('/agents')}
+                    onClick={() => void navigate('/agents')}
                     className="rounded-lg bg-surface-elevated px-4 py-2 text-sm font-medium text-gray-300 transition-colors hover:bg-surface-overlay"
                 >
                     Back to Agents
@@ -215,7 +215,7 @@ export function AgentDetail() {
                 <div className="flex items-center gap-3">
                     <button
                         type="button"
-                        onClick={() => navigate('/agents')}
+                        onClick={() => void navigate('/agents')}
                         className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-surface-elevated hover:text-gray-200"
                         aria-label="Back to agents"
                     >
@@ -1083,4 +1083,3 @@ function ActivityTab({ agentId }: { agentId: string }) {
         </div>
     )
 }
-

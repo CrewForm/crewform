@@ -114,7 +114,7 @@ export function CreateTeamModal({ onClose }: CreateTeamModalProps) {
             {
                 onSuccess: (team) => {
                     onClose()
-                    navigate(`/teams/${team.id}`)
+                    void navigate(`/teams/${team.id}`)
                 },
             },
         )

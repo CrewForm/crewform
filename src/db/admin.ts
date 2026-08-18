@@ -176,27 +176,19 @@ export async function fetchPlatformStats(): Promise<PlatformStats> {
 
 /** Update a workspace's plan (super admin override) */
 export async function overrideWorkspacePlan(workspaceId: string, plan: string): Promise<void> {
-    // Update subscription
-    const result = await supabase
-        .from('subscriptions')
-        .update({ plan })
-        .eq('workspace_id', workspaceId)
-
+    const result = await supabase.rpc('admin_override_workspace_plan', {
+        p_workspace_id: workspaceId,
+        p_plan: plan,
+    })
     if (result.error) throw result.error
-
-    // Also update workspace.plan for consistency
-    await supabase
-        .from('workspaces')
-        .update({ plan })
-        .eq('id', workspaceId)
 }
 
 /** Toggle beta status for a workspace */
 export async function toggleBeta(workspaceId: string, isBeta: boolean): Promise<void> {
-    const result = await supabase
-        .from('workspaces')
-        .update({ is_beta: isBeta })
-        .eq('id', workspaceId)
+    const result = await supabase.rpc('admin_set_workspace_beta', {
+        p_workspace_id: workspaceId,
+        p_is_beta: isBeta,
+    })
 
     if (result.error) throw result.error
 }

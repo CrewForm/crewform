@@ -17,6 +17,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { ok, badRequest, serverError } from '../_shared/response.ts';
+import { Webhook } from 'https://esm.sh/svix@1.45.1';
 
 /**
  * Resend email.received webhook payload
@@ -47,7 +48,19 @@ Deno.serve(async (req: Request) => {
     }
 
     try {
-        const payload = (await req.json()) as ResendWebhookPayload;
+        const rawBody = await req.text();
+        const webhookSecret = Deno.env.get('RESEND_WEBHOOK_SECRET');
+        if (!webhookSecret) return new Response('Webhook verification unavailable', { status: 503 });
+        let payload: ResendWebhookPayload;
+        try {
+            payload = new Webhook(webhookSecret).verify(rawBody, {
+                'svix-id': req.headers.get('svix-id') ?? '',
+                'svix-timestamp': req.headers.get('svix-timestamp') ?? '',
+                'svix-signature': req.headers.get('svix-signature') ?? '',
+            }) as ResendWebhookPayload;
+        } catch {
+            return new Response('Unauthorized', { status: 401 });
+        }
 
         // Validate this is an email.received event
         if (payload.type !== 'email.received' || !payload.data?.email_id) {

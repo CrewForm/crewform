@@ -11,8 +11,8 @@ export function useRemoveApiKey() {
     const queryClient = useQueryClient()
 
     return useMutation<undefined, Error, { id: string; workspaceId: string }>({
-        mutationFn: async ({ id }) => {
-            await deleteApiKey(id)
+        mutationFn: async ({ id, workspaceId }) => {
+            await deleteApiKey(workspaceId, id)
             return undefined
         },
         onSuccess: (_data, { workspaceId }) => {

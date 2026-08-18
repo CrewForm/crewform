@@ -7,6 +7,7 @@ import { supabase } from './supabase';
 import { processTask } from './executor';
 import type { Task } from './types';
 import crypto from 'crypto';
+import { hashApiKey } from './crypto';
 
 function uuidv4(): string { return crypto.randomUUID(); }
 
@@ -120,6 +121,7 @@ async function authenticateRequest(
     if (!authHeader?.startsWith('Bearer ')) return null;
 
     const token = authHeader.slice(7);
+    const tokenHash = hashApiKey(token);
 
     // Look up workspace by API key (check api_keys table for a "a2a" provider key)
     // For simplicity, we'll use the Supabase service key to validate
@@ -127,7 +129,8 @@ async function authenticateRequest(
         .from('api_keys')
         .select('workspace_id')
         .eq('provider', 'a2a')
-        .eq('encrypted_key', token)
+        .eq('auth_hash', tokenHash)
+        .eq('is_active', true)
         .single();
 
     if (!data) return null;
@@ -189,6 +192,7 @@ export async function handleA2ARequest(
             .from('agents')
             .select('id, name, description, tools')
             .eq('id', agentId)
+            .eq('is_a2a_published', true)
             .single();
 
         if (!agent) {
@@ -240,6 +244,7 @@ export async function handleA2ARequest(
             .select('id, name, description, tools, workspace_id')
             .eq('id', agentId)
             .eq('workspace_id', auth.workspaceId)
+            .eq('is_a2a_published', true)
             .single();
 
         if (!agent) {
@@ -275,10 +280,10 @@ async function handleJsonRpcMethod(
             return handleSendMessage(rpcReq, agent, workspaceId);
 
         case 'tasks/get':
-            return handleGetTask(rpcReq);
+            return handleGetTask(rpcReq, workspaceId);
 
         case 'tasks/cancel':
-            return handleCancelTask(rpcReq);
+            return handleCancelTask(rpcReq, workspaceId);
 
         default:
             return {
@@ -414,7 +419,7 @@ async function waitForTaskCompletion(
 
 // ─── tasks/get ──────────────────────────────────────────────────────────────
 
-async function handleGetTask(rpcReq: JsonRpcRequest): Promise<JsonRpcResponse> {
+async function handleGetTask(rpcReq: JsonRpcRequest, workspaceId: string): Promise<JsonRpcResponse> {
     const params = rpcReq.params ?? {};
     const taskId = params.id as string | undefined;
 
@@ -430,6 +435,7 @@ async function handleGetTask(rpcReq: JsonRpcRequest): Promise<JsonRpcResponse> {
         .from('tasks')
         .select('id, status, result, error')
         .eq('id', taskId)
+        .eq('workspace_id', workspaceId)
         .single();
 
     if (!data) {
@@ -460,7 +466,7 @@ async function handleGetTask(rpcReq: JsonRpcRequest): Promise<JsonRpcResponse> {
 
 // ─── tasks/cancel ───────────────────────────────────────────────────────────
 
-async function handleCancelTask(rpcReq: JsonRpcRequest): Promise<JsonRpcResponse> {
+async function handleCancelTask(rpcReq: JsonRpcRequest, workspaceId: string): Promise<JsonRpcResponse> {
     const params = rpcReq.params ?? {};
     const taskId = params.id as string | undefined;
 
@@ -476,6 +482,7 @@ async function handleCancelTask(rpcReq: JsonRpcRequest): Promise<JsonRpcResponse
         .from('tasks')
         .update({ status: 'cancelled' })
         .eq('id', taskId)
+        .eq('workspace_id', workspaceId)
         .in('status', ['pending', 'dispatched', 'running']);
 
     if (error) {

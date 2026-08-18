@@ -11,6 +11,7 @@ import { decryptApiKey } from './crypto';
 import { executeWithToolLoop, getToolDefinitions } from './toolExecutor';
 import type { CustomToolConfig, ToolCallLog } from './toolExecutor';
 import type { Agent, ApiKey, TokenUsage } from './types';
+import { validateProviderBaseUrl } from './urlSafety';
 
 export interface LLMCallInput {
     workspaceId: string;
@@ -166,7 +167,8 @@ export async function executeLLMCall(input: LLMCallInput): Promise<LLMCallResult
         // Use OpenAI SDK for tool-use loop
         const OpenAI = (await import('openai')).default;
         const baseURL = baseURLMap[provider];
-        const openai = new OpenAI({ apiKey: rawKey, ...(baseURL ? { baseURL } : {}) });
+        const validatedBaseUrl = baseURL ? (await validateProviderBaseUrl(baseURL)).toString() : undefined;
+        const openai = new OpenAI({ apiKey: rawKey, ...(validatedBaseUrl ? { baseURL: validatedBaseUrl } : {}) });
         void getToolDefinitions(agentTools, customToolConfigs); // validate
 
         const toolLoopResult = await executeWithToolLoop(

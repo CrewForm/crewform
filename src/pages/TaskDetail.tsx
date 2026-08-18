@@ -49,7 +49,7 @@ export function TaskDetail() {
             {/* Back */}
             <button
                 type="button"
-                onClick={() => navigate('/tasks')}
+                onClick={() => void navigate('/tasks')}
                 className="mb-4 flex items-center gap-2 text-sm text-gray-500 transition-colors hover:text-gray-300"
             >
                 <ArrowLeft className="h-4 w-4" />

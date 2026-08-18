@@ -18,6 +18,7 @@
 import { handleCors } from '../_shared/cors.ts';
 import { validateBody, z } from '../_shared/validate.ts';
 import { ok, methodNotAllowed, serverError } from '../_shared/response.ts';
+import { authenticateRequest } from '../_shared/auth.ts';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -213,18 +214,16 @@ Deno.serve(async (req: Request) => {
     }
 
     try {
-        // ── Auth ────────────────────────────────────────────────────────
-        // The Supabase gateway verifies the JWT before the function runs,
-        // so by the time we get here the user is already authenticated.
-        // We extract user info from the request body sent by the widget.
+        const auth = await authenticateRequest(req);
+        const { data: { user } } = await auth.supabaseClient.auth.getUser();
 
         // ── Validate body ───────────────────────────────────────────────
         const parsed = await validateBody(req, FeedbackSchema);
         if ('error' in parsed) return parsed.error;
 
         const { category, message, email, displayName: bodyName } = parsed.data;
-        const userEmail = email ?? 'anonymous';
-        const displayName = bodyName ?? userEmail;
+        const userEmail = user?.email ?? email ?? 'authenticated-user';
+        const displayName = bodyName ?? user?.user_metadata?.full_name ?? userEmail;
 
         // ── Build title and body ────────────────────────────────────────
         const catConfig = CATEGORY_CONFIG[category];

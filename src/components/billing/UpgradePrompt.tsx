@@ -38,7 +38,7 @@ export function UpgradePrompt({ resource, current, limit, message }: UpgradeProm
             </div>
             <button
                 type="button"
-                onClick={() => navigate('/settings', { state: { tab: 'billing' } })}
+                onClick={() => void navigate('/settings', { state: { tab: 'billing' } })}
                 className="flex items-center gap-1 whitespace-nowrap rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-black transition-colors hover:bg-amber-400"
             >
                 Upgrade

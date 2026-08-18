@@ -167,7 +167,7 @@ export function TrialBanner() {
                     {/* Upgrade CTA */}
                     <button
                         type="button"
-                        onClick={() => navigate('/settings/billing')}
+                        onClick={() => void navigate('/settings/billing')}
                         className={`shrink-0 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
                             isExpired
                                 ? 'bg-red-500/20 text-red-300 hover:bg-red-500/30'

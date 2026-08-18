@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
+import { safeInternalRedirect } from '@/lib/safeRedirect'
 
 /**
  * AuthCallback handles the redirect from OAuth providers and email
@@ -32,9 +33,9 @@ export function AuthCallback() {
                 // Successful token exchange — redirect to app
                 const pendingRedirect = sessionStorage.getItem('crewform:authRedirect')
                 sessionStorage.removeItem('crewform:authRedirect')
-                navigate(pendingRedirect ?? '/', { replace: true })
+                void navigate(safeInternalRedirect(pendingRedirect), { replace: true })
             } else if (event === 'PASSWORD_RECOVERY') {
-                navigate('/auth/reset-password', { replace: true })
+                void navigate('/auth/reset-password', { replace: true })
             }
         })
 
@@ -48,7 +49,7 @@ export function AuthCallback() {
                         // User is already authenticated — just redirect
                         const pendingRedirect = sessionStorage.getItem('crewform:authRedirect')
                         sessionStorage.removeItem('crewform:authRedirect')
-                        navigate(pendingRedirect ?? '/', { replace: true })
+                        void navigate(safeInternalRedirect(pendingRedirect), { replace: true })
                     } else {
                         // No session — likely opened verification link in different browser.
                         // The email IS verified, they just need to sign in.
@@ -81,7 +82,7 @@ export function AuthCallback() {
                     </p>
                     <button
                         type="button"
-                        onClick={() => navigate('/auth', { replace: true })}
+                        onClick={() => void navigate('/auth', { replace: true })}
                         className="inline-flex items-center gap-2 rounded-lg bg-brand-primary px-6 py-2.5 text-sm font-semibold text-black transition-colors hover:bg-brand-hover"
                     >
                         Sign In
@@ -105,7 +106,7 @@ export function AuthCallback() {
                     </p>
                     <button
                         type="button"
-                        onClick={() => navigate('/auth', { replace: true })}
+                        onClick={() => void navigate('/auth', { replace: true })}
                         className="inline-flex items-center gap-2 rounded-lg bg-brand-primary px-6 py-2.5 text-sm font-semibold text-black transition-colors hover:bg-brand-hover"
                     >
                         Back to Sign In
@@ -125,4 +126,3 @@ export function AuthCallback() {
         </div>
     )
 }
-

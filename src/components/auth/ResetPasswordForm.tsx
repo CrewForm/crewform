@@ -39,7 +39,7 @@ export function ResetPasswordForm({ onUpdatePassword }: ResetPasswordFormProps) 
             setSuccess(true)
             // Redirect to dashboard after a short delay
             setTimeout(() => {
-                navigate('/', { replace: true })
+                void navigate('/', { replace: true })
             }, 2000)
         }
         setLoading(false)

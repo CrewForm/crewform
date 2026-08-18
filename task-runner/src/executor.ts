@@ -15,6 +15,7 @@ import type { TraceContext } from './tracing';
 import type { ToolDefinition } from './toolExecutor';
 import type { CustomToolConfig, ToolCallLog } from './toolExecutor';
 import type { Task, Agent, ApiKey, TokenUsage } from './types';
+import { validateProviderBaseUrl } from './urlSafety';
 
 interface AgentTaskRecord {
     id: string;
@@ -633,7 +634,8 @@ async function executeToolUseTask(
         effectiveModel = model.replace(/^groq\//, '');
     }
 
-    const openai = new OpenAI({ apiKey, ...(baseURL ? { baseURL } : {}) });
+    const validatedBaseUrl = baseURL ? (await validateProviderBaseUrl(baseURL)).toString() : undefined;
+    const openai = new OpenAI({ apiKey, ...(validatedBaseUrl ? { baseURL: validatedBaseUrl } : {}) });
     const tools = getToolDefinitions(toolNames, customTools);
 
     const toolLoopResult = await executeWithToolLoop(

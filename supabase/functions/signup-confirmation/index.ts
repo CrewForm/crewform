@@ -39,6 +39,10 @@ Deno.serve(async (req: Request) => {
     if (cors) return cors;
 
     try {
+        const expectedSecret = Deno.env.get('DATABASE_WEBHOOK_SECRET');
+        if (!expectedSecret || req.headers.get('x-webhook-secret') !== expectedSecret) {
+            return new Response('Unauthorized', { status: 401 });
+        }
         const payload = (await req.json()) as WebhookPayload;
         const { record } = payload;
 

@@ -7,15 +7,16 @@
  * 3. Execute tool calls during the LLM tool-use loop
  * 4. Disconnect all clients after task completion
  *
- * Supports Streamable HTTP and SSE transports for remote servers,
- * and stdio transport for local/self-hosted servers.
+ * Supports remote Streamable HTTP and SSE transports. Process-spawning stdio
+ * transport is intentionally not supported because server configuration is
+ * tenant-controlled while the runner holds privileged credentials.
  */
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import type { ToolDefinition } from './toolExecutor';
+import { safeFetch, validateExternalUrl } from './urlSafety';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -23,12 +24,9 @@ export interface McpServerConfig {
     id: string;
     name: string;
     url: string;
-    transport: 'streamable-http' | 'sse' | 'stdio';
+    transport: 'streamable-http' | 'sse';
     config: {
         headers?: Record<string, string>;
-        env?: Record<string, string>;
-        command?: string;
-        args?: string[];
     };
 }
 
@@ -52,46 +50,41 @@ export async function connectToServer(server: McpServerConfig): Promise<Client> 
         return existing.client;
     }
 
+    const validatedUrl = await validateExternalUrl(server.url);
     const client = new Client(
         { name: 'crewform-agent', version: '1.0.0' },
         { capabilities: {} },
     );
 
     let transport;
+    const guardedFetch = (input: string | URL | Request, init?: RequestInit) => {
+        const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+        return safeFetch(url, init, 0);
+    };
 
     switch (server.transport) {
         case 'streamable-http': {
             transport = new StreamableHTTPClientTransport(
-                new URL(server.url),
+                validatedUrl,
                 {
                     requestInit: {
                         headers: server.config.headers ?? {},
                     },
+                    fetch: guardedFetch,
                 },
             );
             break;
         }
         case 'sse': {
             transport = new SSEClientTransport(
-                new URL(server.url),
+                validatedUrl,
                 {
                     requestInit: {
                         headers: server.config.headers ?? {},
                     },
+                    fetch: guardedFetch,
                 },
             );
-            break;
-        }
-        case 'stdio': {
-            const command = server.config.command ?? server.url;
-            transport = new StdioClientTransport({
-                command,
-                args: server.config.args ?? [],
-                env: {
-                    ...process.env,
-                    ...(server.config.env ?? {}),
-                } as Record<string, string>,
-            });
             break;
         }
         default:

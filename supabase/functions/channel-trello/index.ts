@@ -18,6 +18,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { ok, serverError } from '../_shared/response.ts';
+import { constantTimeEqual, hmacBase64 } from '../_shared/webhookVerification.ts';
 
 interface TrelloAction {
     type: string;
@@ -78,7 +79,14 @@ Deno.serve(async (req: Request) => {
     }
 
     try {
-        const payload = (await req.json()) as TrelloWebhookPayload;
+        const rawBody = await req.text();
+        const appSecret = Deno.env.get('TRELLO_APP_SECRET');
+        const signature = req.headers.get('x-trello-webhook');
+        const callbackUrl = `${Deno.env.get('SUPABASE_URL')!}/functions/v1/channel-trello`;
+        if (!appSecret || !signature || !constantTimeEqual(await hmacBase64('SHA-1', appSecret, rawBody + callbackUrl), signature)) {
+            return new Response('Unauthorized', { status: 401 });
+        }
+        const payload = JSON.parse(rawBody) as TrelloWebhookPayload;
         const action = payload.action;
 
         if (!action || !action.data?.card) {
@@ -143,9 +151,6 @@ Deno.serve(async (req: Request) => {
         const sourceChannel = {
             platform: 'trello',
             trello_card_id: card.id,
-            trello_api_key: channel.config.api_key as string,
-            trello_token: channel.config.token as string,
-            trello_review_list_id: (channel.config.review_list_id as string) || undefined,
             channel_db_id: channel.id,
         };
 

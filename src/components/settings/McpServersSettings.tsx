@@ -15,7 +15,7 @@ interface McpServerFormData {
     name: string
     description: string
     url: string
-    transport: 'streamable-http' | 'sse' | 'stdio'
+    transport: 'streamable-http' | 'sse'
     headers: string // JSON string for HTTP headers
 }
 
@@ -310,7 +310,6 @@ export function McpServersSettings() {
                             >
                                 <option value="streamable-http">Streamable HTTP (recommended)</option>
                                 <option value="sse">SSE (legacy)</option>
-                                <option value="stdio">Stdio (local/self-hosted only)</option>
                             </select>
                         </div>
                         <div>
@@ -380,40 +379,24 @@ function McpServerPublishing() {
         enabled: !!workspaceId,
     })
 
-    // Fetch existing MCP server API key
+    // Fetch only MCP key metadata. The secret is returned once when generated.
     const { data: mcpKeyRecord } = useQuery({
         queryKey: ['api-keys', workspaceId, 'mcp-server'],
         queryFn: async () => {
             if (!workspaceId) return null
-            const { data } = await supabase
-                .from('api_keys')
-                .select('id, encrypted_key')
-                .eq('workspace_id', workspaceId)
-                .eq('provider', 'mcp-server')
-                .single()
-            return data as { id: string; encrypted_key: string } | null
+            const response: { data: unknown; error: { message: string } | null } = await supabase.functions.invoke('api-key-manager', {
+                body: { action: 'list', workspace_id: workspaceId },
+            })
+            const { data, error } = response
+            if (error) throw new Error(error.message)
+            return ((data as Array<{ id: string; provider: string; key_hint: string }> | null) ?? [])
+                .find(key => key.provider === 'mcp-server') ?? null
         },
         enabled: !!workspaceId,
     })
 
-    // Fall back to A2A key if no mcp-server key
-    const { data: a2aKey } = useQuery({
-        queryKey: ['api-keys', workspaceId, 'a2a-fallback'],
-        queryFn: async () => {
-            if (!workspaceId || mcpKeyRecord) return null
-            const { data } = await supabase
-                .from('api_keys')
-                .select('encrypted_key')
-                .eq('workspace_id', workspaceId)
-                .eq('provider', 'a2a')
-                .single()
-            return (data as { encrypted_key: string } | null)?.encrypted_key ?? null
-        },
-        enabled: !!workspaceId && mcpKeyRecord === null,
-    })
-
-    const apiKey = mcpKeyRecord?.encrypted_key ?? a2aKey ?? 'YOUR_MCP_API_KEY'
-    const hasKey = !!(mcpKeyRecord?.encrypted_key ?? a2aKey)
+    const apiKey = newKey ?? 'YOUR_MCP_API_KEY'
+    const hasKey = !!mcpKeyRecord
     const taskRunnerUrl = (import.meta.env.VITE_TASK_RUNNER_URL as string) || ''
     const mcpEndpoint = taskRunnerUrl ? `${taskRunnerUrl}/mcp` : 'https://YOUR_TASK_RUNNER_URL/mcp'
     const hasRealUrl = !!taskRunnerUrl
@@ -439,32 +422,12 @@ function McpServerPublishing() {
         if (!workspaceId) return
         setIsGenerating(true)
         try {
-            // Generate a random 32-byte hex key
-            const rawKey = Array.from(crypto.getRandomValues(new Uint8Array(32)))
-                .map(b => b.toString(16).padStart(2, '0'))
-                .join('')
-            const prefixedKey = `cf_mcp_${rawKey}`
-
-            // Delete existing mcp-server key if any
-            if (mcpKeyRecord?.id) {
-                await supabase
-                    .from('api_keys')
-                    .delete()
-                    .eq('id', mcpKeyRecord.id)
-            }
-
-            // Insert new key
-            const { error } = await supabase
-                .from('api_keys')
-                .insert({
-                    workspace_id: workspaceId,
-                    provider: 'mcp-server',
-                    encrypted_key: prefixedKey,
-                })
-
-            if (error) throw error
-
-            setNewKey(prefixedKey)
+            const response: { data: unknown; error: { message: string } | null } = await supabase.functions.invoke('api-key-manager', {
+                body: { action: 'generate_auth_key', workspace_id: workspaceId, provider: 'mcp-server' },
+            })
+            const { data, error } = response
+            if (error) throw new Error(error.message)
+            setNewKey((data as { raw_key: string }).raw_key)
             void queryClient.invalidateQueries({ queryKey: ['api-keys', workspaceId, 'mcp-server'] })
         } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : String(err)
@@ -476,10 +439,11 @@ function McpServerPublishing() {
 
     async function revokeKey() {
         if (!mcpKeyRecord?.id) return
-        const { error } = await supabase
-            .from('api_keys')
-            .delete()
-            .eq('id', mcpKeyRecord.id)
+        if (!workspaceId) return
+        const response: { data: unknown; error: { message: string } | null } = await supabase.functions.invoke('api-key-manager', {
+            body: { action: 'delete', workspace_id: workspaceId, id: mcpKeyRecord.id },
+        })
+        const { error } = response
         if (error) {
             console.error('Failed to revoke key:', error.message)
             return

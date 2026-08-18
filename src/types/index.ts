@@ -330,7 +330,6 @@ export interface ApiKey {
   id: string
   workspace_id: string
   provider: string
-  encrypted_key: string
   key_hint: string
   is_valid: boolean
   is_active: boolean

@@ -4,6 +4,7 @@
 
 import { supabase } from './supabase';
 import crypto from 'crypto';
+import { safeFetch } from './urlSafety';
 
 function uuidv4(): string { return crypto.randomUUID(); }
 
@@ -47,7 +48,7 @@ export async function discoverA2AAgent(baseUrl: string): Promise<A2AAgentCard> {
 
     // Try the well-known path
     const cardUrl = `${cleanUrl}/.well-known/agent.json`;
-    const response = await fetch(cardUrl, {
+    const response = await safeFetch(cardUrl, {
         headers: { Accept: 'application/json' },
         signal: AbortSignal.timeout(10_000),
     });
@@ -107,6 +108,7 @@ export async function delegateToA2AAgent(
         .from('a2a_remote_agents')
         .select('*')
         .eq('id', remoteAgentId)
+        .eq('workspace_id', workspaceId)
         .single();
 
     if (fetchError || !remoteAgent) {
@@ -158,15 +160,14 @@ export async function delegateToA2AAgent(
     });
 
     // Send the request
-    const response = await fetch(rpcUrl, {
+    const response = await safeFetch(rpcUrl, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             Accept: 'application/json',
         },
         body: JSON.stringify(rpcRequest),
-        signal: AbortSignal.timeout(120_000), // 2 min timeout
-    });
+    }, 120_000);
 
     if (!response.ok) {
         const errorText = await response.text();
