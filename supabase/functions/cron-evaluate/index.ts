@@ -83,11 +83,11 @@ function cronMatchesDate(expression: string, date: Date): boolean {
     const [minute, hour, dayOfMonth, month, dayOfWeek] = parts;
 
     return (
-        matchesCronField(minute, date.getMinutes(), 59) &&
-        matchesCronField(hour, date.getHours(), 23) &&
-        matchesCronField(dayOfMonth, date.getDate(), 31) &&
-        matchesCronField(month, date.getMonth() + 1, 12) &&
-        matchesCronField(dayOfWeek, date.getDay(), 6)
+        matchesCronField(minute, date.getUTCMinutes(), 59) &&
+        matchesCronField(hour, date.getUTCHours(), 23) &&
+        matchesCronField(dayOfMonth, date.getUTCDate(), 31) &&
+        matchesCronField(month, date.getUTCMonth() + 1, 12) &&
+        matchesCronField(dayOfWeek, date.getUTCDay(), 6)
     );
 }
 
@@ -101,11 +101,11 @@ function isTriggerDue(cronExpression: string, lastFiredAt: string | null, create
         if (lastFiredAt) {
             const last = new Date(lastFiredAt);
             if (
-                last.getFullYear() === now.getFullYear() &&
-                last.getMonth() === now.getMonth() &&
-                last.getDate() === now.getDate() &&
-                last.getHours() === now.getHours() &&
-                last.getMinutes() === now.getMinutes()
+                last.getUTCFullYear() === now.getUTCFullYear() &&
+                last.getUTCMonth() === now.getUTCMonth() &&
+                last.getUTCDate() === now.getUTCDate() &&
+                last.getUTCHours() === now.getUTCHours() &&
+                last.getUTCMinutes() === now.getUTCMinutes()
             ) {
                 return false;
             }
@@ -121,8 +121,8 @@ function isTriggerDue(cronExpression: string, lastFiredAt: string | null, create
 
     const lookbackStart = new Date(Math.max(baseline.getTime(), now.getTime() - MAX_CATCHUP_MS));
     const scanTime = new Date(lookbackStart);
-    scanTime.setSeconds(0, 0);
-    scanTime.setMinutes(scanTime.getMinutes() + 1);
+    scanTime.setUTCSeconds(0, 0);
+    scanTime.setUTCMinutes(scanTime.getUTCMinutes() + 1);
 
     while (scanTime < now) {
         if (cronMatchesDate(cronExpression, scanTime)) {
@@ -132,7 +132,7 @@ function isTriggerDue(cronExpression: string, lastFiredAt: string | null, create
             );
             return true;
         }
-        scanTime.setMinutes(scanTime.getMinutes() + 1);
+        scanTime.setUTCMinutes(scanTime.getUTCMinutes() + 1);
     }
 
     return false;
@@ -161,7 +161,7 @@ function renderTemplate(template: string): string {
     const now = new Date();
     return template
         .replace(/\{\{date\}\}/g, now.toISOString().split('T')[0])
-        .replace(/\{\{time\}\}/g, now.toTimeString().split(' ')[0])
+        .replace(/\{\{time\}\}/g, now.toISOString().slice(11, 19))
         .replace(/\{\{datetime\}\}/g, now.toISOString());
 }
 
@@ -333,27 +333,29 @@ Deno.serve(async (req: Request) => {
                     };
 
                     if (firedTasks > 0) {
-                        await fetch(`${taskRunnerUrl}/webhook/task`, {
+                        const response = await fetch(`${taskRunnerUrl}/webhook/task`, {
                             method: 'POST',
                             headers,
                             body: JSON.stringify({ source: 'cron-evaluate', fired: firedTasks }),
                             signal: AbortSignal.timeout(10000),
                         });
+                        if (!response.ok) throw new Error(`Task runner returned HTTP ${response.status}`);
                     }
 
                     if (firedTeamRuns > 0) {
-                        await fetch(`${taskRunnerUrl}/webhook/team-run`, {
+                        const response = await fetch(`${taskRunnerUrl}/webhook/team-run`, {
                             method: 'POST',
                             headers,
                             body: JSON.stringify({ source: 'cron-evaluate', fired: firedTeamRuns }),
                             signal: AbortSignal.timeout(10000),
                         });
+                        if (!response.ok) throw new Error(`Task runner returned HTTP ${response.status}`);
                     }
 
                     console.log(`[CronEvaluate] Pinged task runner to pick up ${firedTasks} task(s) and ${firedTeamRuns} team run(s)`);
-                } catch {
+                } catch (error) {
                     // Non-fatal — work will be picked up on next poll/startup
-                    console.warn('[CronEvaluate] Could not reach task runner — work will be picked up on next poll');
+                    console.warn('[CronEvaluate] Runner wake-up failed; work remains queued:', error instanceof Error ? error.message : 'unknown error');
                 }
             }
         }

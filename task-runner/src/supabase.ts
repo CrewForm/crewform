@@ -14,6 +14,22 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
 }
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    // Bound database requests so a stalled fetch cannot wedge scheduling or
+    // heartbeats indefinitely. Preserve cancellation supplied by the caller.
+    global: {
+        fetch: (input, init) => {
+            const url = input instanceof Request ? input.url : String(input);
+            // Large storage uploads/downloads have different duration needs.
+            if (!new URL(url).pathname.startsWith('/rest/v1/')) return fetch(input, init);
+            const callerSignal = init?.signal ?? (input instanceof Request ? input.signal : undefined);
+            return fetch(input, {
+                ...init,
+                signal: callerSignal
+                    ? AbortSignal.any([callerSignal, AbortSignal.timeout(15_000)])
+                    : AbortSignal.timeout(15_000),
+            });
+        },
+    },
     auth: {
         persistSession: false,
         autoRefreshToken: false,

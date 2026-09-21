@@ -26,9 +26,9 @@ COPY task-runner/src ./src
 # Build TypeScript to dist/
 RUN npx tsc -p tsconfig.json
 
-# Health check — verify the process is running
+# Readiness includes the runner's database registration and recent heartbeat.
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
-    CMD pgrep -f "node" > /dev/null || exit 1
+    CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3001)+'/health',{signal:AbortSignal.timeout(5000)}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 # Set explicit Node.js heap limit.
 # Railway typically provides 512MB–1GB RAM.

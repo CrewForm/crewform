@@ -68,8 +68,8 @@ services:
   # ── Task Runner ─────────────────────────────────────────────────────────
   task-runner:
     build:
-      context: ./task-runner
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: task-runner/Dockerfile
     restart: unless-stopped
     environment:
       VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-http://localhost:8000}
@@ -77,6 +77,7 @@ services:
       API_KEY_ENCRYPTION_KEY: ${API_KEY_ENCRYPTION_KEY:?API_KEY_ENCRYPTION_KEY is required}
       ALLOW_PRIVATE_PROVIDER_URLS: ${ALLOW_PRIVATE_PROVIDER_URLS:-false}
       WEBHOOK_SECRET: ${WEBHOOK_SECRET:?WEBHOOK_SECRET is required}
+      TRIGGER_SCHEDULER_ENABLED: ${TRIGGER_SCHEDULER_ENABLED:-true}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       GOOGLE_GENERATIVE_AI_API_KEY: ${GOOGLE_GENERATIVE_AI_API_KEY:-}
