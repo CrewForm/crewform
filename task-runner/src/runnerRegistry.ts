@@ -3,19 +3,26 @@ import { supabase } from './supabase';
 
 let runnerId: string | null = null;
 let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
+let lastHeartbeatAt = 0;
+let heartbeatInFlight = false;
+let recoveryInFlight = false;
+let leaseLost = false;
+let onLeaseLost: () => void = () => { process.exit(1); };
 
 const HEARTBEAT_INTERVAL_MS = 10_000;
 export const RECOVERY_INTERVAL_MS = 30_000;
 const INSTANCE_NAME = `${os.hostname()}-${process.pid}`;
 
 /** Max concurrent tasks this runner can handle. */
-export const MAX_CONCURRENT = Math.max(1, parseInt(process.env.MAX_CONCURRENT ?? '3', 10));
+const configuredConcurrency = Number(process.env.MAX_CONCURRENT ?? '3');
+export const MAX_CONCURRENT = Number.isInteger(configuredConcurrency) && configuredConcurrency > 0
+    ? configuredConcurrency : 3;
 
 /**
  * Register this task runner instance in the database.
  * Returns the assigned runner UUID.
  */
-export async function registerRunner(): Promise<string> {
+export async function registerRunner(handleLeaseLost?: () => void): Promise<string> {
     const { data, error } = await supabase
         .from('task_runners')
         .insert({
@@ -32,10 +39,15 @@ export async function registerRunner(): Promise<string> {
     }
 
     runnerId = data.id as string;
+    lastHeartbeatAt = Date.now();
+    leaseLost = false;
+    if (handleLeaseLost) onLeaseLost = handleLeaseLost;
 
     // Start heartbeat loop
     heartbeatInterval = setInterval(() => {
-        void sendHeartbeat();
+        void sendHeartbeat().catch((err: unknown) => {
+            console.error(`[Runner ${INSTANCE_NAME}] Heartbeat failed:`, err);
+        });
     }, HEARTBEAT_INTERVAL_MS);
 
     return runnerId;
@@ -44,17 +56,39 @@ export async function registerRunner(): Promise<string> {
 /**
  * Send a heartbeat to update last_heartbeat timestamp.
  */
-async function sendHeartbeat(): Promise<void> {
-    if (!runnerId) return;
+export async function sendHeartbeat(): Promise<void> {
+    if (!runnerId || heartbeatInFlight || leaseLost) return;
+    heartbeatInFlight = true;
+    try {
+        const { data, error } = await supabase
+            .from('task_runners')
+            .update({ last_heartbeat: new Date().toISOString() })
+            .eq('id', runnerId)
+            .eq('status', 'active')
+            .select('id')
+            .maybeSingle();
 
-    const { error } = await supabase
-        .from('task_runners')
-        .update({ last_heartbeat: new Date().toISOString() })
-        .eq('id', runnerId);
-
-    if (error) {
-        console.error(`[Runner ${INSTANCE_NAME}] Heartbeat failed:`, error.message);
+        if (error) {
+            console.error(`[Runner ${INSTANCE_NAME}] Heartbeat failed:`, error.message);
+            return;
+        }
+        if (!data) {
+            // An UPDATE of a deleted row is a successful request with zero rows.
+            // Never revive this lease: recovery may already have reassigned its work.
+            leaseLost = true;
+            console.error(`[Runner ${INSTANCE_NAME}] Runner registration lost; exiting for a clean restart.`);
+            onLeaseLost();
+            return;
+        }
+        lastHeartbeatAt = Date.now();
+    } finally {
+        heartbeatInFlight = false;
     }
+}
+
+/** Readiness, rather than merely whether the Node process is alive. */
+export function isRunnerHealthy(): boolean {
+    return !!runnerId && !leaseLost && Date.now() - lastHeartbeatAt < 60_000;
 }
 
 /**
@@ -77,9 +111,11 @@ export async function decrementLoad(): Promise<void> {
  * Returns the number of recovered tasks/runs.
  */
 export async function runRecoverySweep(): Promise<number> {
+    if (recoveryInFlight) return 0;
+    recoveryInFlight = true;
     try {
         // 1. Mark stale runners as dead
-        const markResult = await supabase.rpc('mark_stale_runners');
+        const markResult = await supabase.rpc('mark_stale_runners', { stale_threshold: '2 minutes' });
         const staleCount = (markResult.data as number | null) ?? 0;
 
         if (markResult.error) {
@@ -89,33 +125,34 @@ export async function runRecoverySweep(): Promise<number> {
 
         if (staleCount > 0) {
             console.warn(`[Runner ${INSTANCE_NAME}] Marked ${staleCount} stale runner(s) as dead.`);
-
-            // 2. Recover orphaned tasks from dead runners
-            const recoverResult = await supabase.rpc('recover_stale_tasks');
-            const recoveredCount = (recoverResult.data as number | null) ?? 0;
-
-            if (recoverResult.error) {
-                console.error(`[Runner ${INSTANCE_NAME}] recover_stale_tasks failed:`, recoverResult.error.message);
-                return 0;
-            }
-
-            if (recoveredCount > 0) {
-                console.warn(`[Runner ${INSTANCE_NAME}] Recovered ${recoveredCount} orphaned task(s)/run(s).`);
-            }
-
-            return recoveredCount;
         }
 
-        return 0;
+        // Always recover: a previous sweep may have marked runners dead and
+        // then failed, or a shutdown may have marked one dead explicitly.
+        const recoverResult = await supabase.rpc('recover_stale_tasks');
+        const recoveredCount = (recoverResult.data as number | null) ?? 0;
+
+        if (recoverResult.error) {
+            console.error(`[Runner ${INSTANCE_NAME}] recover_stale_tasks failed:`, recoverResult.error.message);
+            return 0;
+        }
+
+        if (recoveredCount > 0) {
+            console.warn(`[Runner ${INSTANCE_NAME}] Recovered ${recoveredCount} orphaned task(s)/run(s).`);
+        }
+
+        return recoveredCount;
     } catch (err: unknown) {
         const errMsg = err instanceof Error ? err.message : String(err);
         console.error(`[Runner ${INSTANCE_NAME}] Recovery sweep error: ${errMsg}`);
         return 0;
+    } finally {
+        recoveryInFlight = false;
     }
 }
 
 /**
- * Deregister this runner (delete its row) on graceful shutdown.
+ * Retire this runner without losing ownership of unfinished work.
  */
 export async function deregisterRunner(): Promise<void> {
     if (heartbeatInterval) {
@@ -127,7 +164,7 @@ export async function deregisterRunner(): Promise<void> {
 
     const { error } = await supabase
         .from('task_runners')
-        .delete()
+        .update({ status: 'dead' })
         .eq('id', runnerId);
 
     if (error) {
@@ -137,6 +174,7 @@ export async function deregisterRunner(): Promise<void> {
     }
 
     runnerId = null;
+    lastHeartbeatAt = 0;
 }
 
 /**

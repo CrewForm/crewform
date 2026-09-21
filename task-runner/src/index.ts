@@ -13,7 +13,7 @@ import { handleChatRequest } from './chatServer';
 import { handleKbSearchRequest } from './kbSearchEndpoint';
 import {
     registerRunner, deregisterRunner, getRunnerId, getInstanceName,
-    runRecoverySweep, RECOVERY_INTERVAL_MS, MAX_CONCURRENT, decrementLoad,
+    runRecoverySweep, RECOVERY_INTERVAL_MS, MAX_CONCURRENT, decrementLoad, isRunnerHealthy,
 } from './runnerRegistry';
 import { evaluateTriggers, TRIGGER_EVAL_INTERVAL_MS } from './triggerScheduler';
 import { initTracing, isTracingEnabled, startTrace, startSpan, endSpan, endTrace, flushTraces } from './tracing';
@@ -34,6 +34,11 @@ let pollTimer: ReturnType<typeof setTimeout> | null = null;
 
 /** Active slots — how many tasks/runs are currently being processed. */
 let activeSlots = 0;
+let stopping = false;
+let pollInFlight = false;
+let pollRequested = false;
+let server: http.Server | undefined;
+const maintenanceTimers: ReturnType<typeof setInterval>[] = [];
 
 function log(msg: string) {
     const name = getInstanceName();
@@ -51,6 +56,7 @@ function logError(msg: string, err?: unknown) {
 
 /** Schedule the next poll with the current adaptive interval. */
 function scheduleNextPoll() {
+    if (stopping) return;
     if (pollTimer) clearTimeout(pollTimer);
     pollTimer = setTimeout(() => { void poll(); }, pollIntervalMs);
 }
@@ -70,9 +76,15 @@ function backOffPollInterval() {
  * Decrements the active slot count, updates DB load, and triggers a new poll.
  */
 function onSlotFreed() {
-    activeSlots = Math.max(activeSlots - 1, 0);
-    log(`Slot freed — active: ${activeSlots}/${MAX_CONCURRENT}`);
-    void decrementLoad();
+    void decrementLoad().catch((err: unknown) => {
+        logError('Failed to release runner capacity:', err);
+    }).finally(() => {
+        activeSlots = Math.max(activeSlots - 1, 0);
+        log(`Slot freed — active: ${activeSlots}/${MAX_CONCURRENT}`);
+        // A burst can exceed capacity. Drain queued work as each slot frees up,
+        // rather than waiting up to five minutes for the next fallback poll.
+        if (!stopping) void poll();
+    });
 }
 
 // ─── Team Run Executor Router ────────────────────────────────────────────────
@@ -105,9 +117,11 @@ async function executeTeamRun(run: TeamRun): Promise<void> {
         if (teamMode === 'orchestrator') {
             const allowed = await isFeatureEnabled(run.workspace_id, 'orchestrator_mode');
             if (!allowed) {
-                log(`Orchestrator mode requires an Enterprise license — failing run ${run.id}`);
+                log(`Orchestrator mode requires a Pro plan or above — failing run ${run.id}`);
                 await supabase.from('team_runs').update({
                     status: 'failed',
+                    error_message: 'Orchestrator mode requires a Pro plan or above.',
+                    completed_at: new Date().toISOString(),
                     output: 'Orchestrator mode requires a Pro plan or above. Please upgrade at crewform.tech/pricing.',
                 }).eq('id', run.id);
                 if (traceCtx) endTrace(traceCtx, 'error', 'License check failed: orchestrator mode');
@@ -119,9 +133,11 @@ async function executeTeamRun(run: TeamRun): Promise<void> {
         } else if (teamMode === 'collaboration') {
             const allowed = await isFeatureEnabled(run.workspace_id, 'collaboration_mode');
             if (!allowed) {
-                log(`Collaboration mode requires an Enterprise license — failing run ${run.id}`);
+                log(`Collaboration mode requires a Team plan or above — failing run ${run.id}`);
                 await supabase.from('team_runs').update({
                     status: 'failed',
+                    error_message: 'Collaboration mode requires a Team plan or above.',
+                    completed_at: new Date().toISOString(),
                     output: 'Collaboration mode requires a Team plan or above. Please upgrade at crewform.tech/pricing.',
                 }).eq('id', run.id);
                 if (traceCtx) endTrace(traceCtx, 'error', 'License check failed: collaboration mode');
@@ -155,7 +171,7 @@ async function executeTeamRun(run: TeamRun): Promise<void> {
  * Returns true if work was claimed.
  */
 async function tryClaimTask(): Promise<boolean> {
-    if (activeSlots >= MAX_CONCURRENT) return false;
+    if (stopping || !isRunnerHealthy() || activeSlots >= MAX_CONCURRENT) return false;
 
     const runnerId = getRunnerId();
     const rpcResponse = await supabase.rpc('claim_next_task', {
@@ -190,7 +206,7 @@ async function tryClaimTask(): Promise<boolean> {
  * Returns true if work was claimed.
  */
 async function tryClaimTeamRun(): Promise<boolean> {
-    if (activeSlots >= MAX_CONCURRENT) return false;
+    if (stopping || !isRunnerHealthy() || activeSlots >= MAX_CONCURRENT) return false;
 
     const runnerId = getRunnerId();
     const teamRunResponse = await supabase.rpc('claim_next_team_run', {
@@ -226,121 +242,96 @@ async function tryClaimTeamRun(): Promise<boolean> {
 // ─── Poll Loop (Slow Fallback) ───────────────────────────────────────────────
 
 async function poll() {
-    if (pollTimer) clearTimeout(pollTimer);
-
-    if (activeSlots >= MAX_CONCURRENT) {
-        scheduleNextPoll();
+    if (stopping) return;
+    if (pollInFlight) {
+        pollRequested = true;
         return;
     }
-
+    pollInFlight = true;
+    if (pollTimer) clearTimeout(pollTimer);
     let foundWork = false;
-
     try {
-        if (await tryClaimTask()) foundWork = true;
-        if (await tryClaimTeamRun()) foundWork = true;
+        do {
+            pollRequested = false;
+            while (!stopping && isRunnerHealthy() && activeSlots < MAX_CONCURRENT) {
+                const claimedTask = await tryClaimTask();
+                const claimedRun = await tryClaimTeamRun();
+                if (!claimedTask && !claimedRun) break;
+                foundWork = true;
+            }
+        } while (pollRequested && !stopping && activeSlots < MAX_CONCURRENT);
     } catch (err: unknown) {
-        const errMsg = err instanceof Error ? err.message : String(err);
-        logError(`Unexpected error in polling loop: ${errMsg}`);
+        logError('Unexpected error in polling loop:', err);
+    } finally {
+        pollInFlight = false;
+        if (foundWork) resetPollInterval();
+        else backOffPollInterval();
+        scheduleNextPoll();
     }
-
-    if (foundWork) {
-        resetPollInterval();
-    } else {
-        backOffPollInterval();
-    }
-
-    scheduleNextPoll();
 }
 
 // ─── Webhook Server ──────────────────────────────────────────────────────────
 
 function createWebhookServer(): http.Server {
-    const server = http.createServer((req, res) => {
-        // A2A protocol endpoints (Agent Card + JSON-RPC)
-        void handleA2ARequest(req, res).then((a2aHandled) => {
-            if (a2aHandled) return;
-
-            // AG-UI protocol endpoints (SSE streaming)
-            void handleAgUiRequest(req, res).then((agUiHandled) => {
-                if (agUiHandled) return;
-
-                // MCP Server endpoint (expose agents as MCP tools)
-                void handleMcpServerRequest(req, res).then((mcpHandled) => {
-                    if (mcpHandled) return;
-
-                // Chat Widget endpoints
-                void handleChatRequest(req, res).then((chatHandled) => {
-                    if (chatHandled) return;
-
-                // KB Search endpoint
-                void handleKbSearchRequest(req, res).then((kbHandled) => {
-                    if (kbHandled) return;
-
-                // Health check
-                if (req.method === 'GET' && req.url === '/health') {
-                    res.writeHead(200, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({
-                        status: 'ok',
-                        activeSlots,
-                        maxConcurrent: MAX_CONCURRENT,
-                        runnerId: getRunnerId(),
-                    }));
-                    return;
-                }
-
-                // Webhook endpoints
-                if (req.method === 'POST' && (req.url === '/webhook/task' || req.url === '/webhook/team-run')) {
-                    // Validate webhook secret
-                    if (!WEBHOOK_SECRET || req.headers['x-webhook-secret'] !== WEBHOOK_SECRET) {
-                        log('Webhook rejected — invalid secret');
-                        res.writeHead(401, { 'Content-Type': 'application/json' });
-                        res.end(JSON.stringify({ error: 'Unauthorized' }));
-                        return;
-                    }
-
-                    // Read body (we don't actually need the payload — we use claim_next RPC)
-                    let body = '';
-                    req.on('data', (chunk: Buffer) => { body += chunk.toString(); });
-                    req.on('end', () => {
-                        const endpoint = req.url;
-                        log(`Webhook received: ${endpoint} (${body.length} bytes)`);
-
-                        // Respond immediately — processing is async
-                        res.writeHead(200, { 'Content-Type': 'application/json' });
-                        res.end(JSON.stringify({ accepted: true }));
-
-                        // Attempt to claim and process
-                        if (endpoint === '/webhook/task') {
-                            void tryClaimTask().catch((err: unknown) => {
-                                logError('Webhook task claim failed:', err);
-                            });
-                        } else {
-                            void tryClaimTeamRun().catch((err: unknown) => {
-                                logError('Webhook team-run claim failed:', err);
-                            });
-                        }
-                    });
-                    return;
-                }
-
-                // 404 for everything else
-                res.writeHead(404, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Not found' }));
-                }); // end handleKbSearchRequest.then
-                }); // end handleChatRequest.then
-                }); // end handleMcpServerRequest.then
-            }); // end handleAgUiRequest.then
-        }); // end handleA2ARequest.then
+    return http.createServer((req, res) => {
+        void routeRequest(req, res).catch((err: unknown) => {
+            logError('HTTP request failed:', err);
+            if (res.headersSent) res.destroy();
+            else {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Internal server error' }));
+            }
+        });
     });
+}
 
-    return server;
+async function routeRequest(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+    if (req.method === 'GET' && req.url === '/health') {
+        const ready = !stopping && isRunnerHealthy();
+        res.writeHead(ready ? 200 : 503, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+            status: ready ? 'ok' : 'unavailable',
+            activeSlots,
+            maxConcurrent: MAX_CONCURRENT,
+            runnerId: getRunnerId(),
+        }));
+        return;
+    }
+    if (stopping) {
+        res.writeHead(503, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Runner is shutting down' }));
+        return;
+    }
+    for (const handler of [handleA2ARequest, handleAgUiRequest, handleMcpServerRequest, handleChatRequest, handleKbSearchRequest]) {
+        if (await handler(req, res)) return;
+    }
+    if (req.method === 'POST' && (req.url === '/webhook/task' || req.url === '/webhook/team-run')) {
+        if (!WEBHOOK_SECRET || req.headers['x-webhook-secret'] !== WEBHOOK_SECRET) {
+            res.writeHead(401, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Unauthorized' }));
+            return;
+        }
+        // Payload contents are unnecessary: the database claim is authoritative.
+        req.resume();
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ accepted: true }));
+        void poll();
+        return;
+    }
+    res.writeHead(404, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Not found' }));
 }
 
 // ─── Startup ─────────────────────────────────────────────────────────────────
 
 async function start() {
     try {
-        const id = await registerRunner();
+        const id = await registerRunner(() => {
+            // Recovery may have reassigned in-flight work. Stop this process;
+            // the host restart policy will acquire a new registration.
+            stopping = true;
+            process.exit(1);
+        });
         log(`Registered with ID ${id}`);
 
         // Initialize OpenTelemetry tracing (no-op if no env vars set)
@@ -357,7 +348,7 @@ async function start() {
         if (!WEBHOOK_SECRET) log('⚠️  WEBHOOK_SECRET is not set — webhook endpoints are disabled');
 
         // Start HTTP webhook server
-        const server = createWebhookServer();
+        server = createWebhookServer();
         server.listen(PORT, '0.0.0.0', () => {
             log(`Webhook server listening on 0.0.0.0:${PORT}`);
         });
@@ -389,7 +380,7 @@ async function start() {
                     },
                     (payload) => {
                         log(`Realtime: task ${(payload.new as { id: string }).id} dispatched — claiming`);
-                        void tryClaimTask().catch((err: unknown) => {
+                        void poll().catch((err: unknown) => {
                             logError('Realtime task claim failed:', err);
                         });
                     },
@@ -404,7 +395,7 @@ async function start() {
                     },
                     (payload) => {
                         log(`Realtime: new task ${(payload.new as { id: string }).id} — claiming`);
-                        void tryClaimTask().catch((err: unknown) => {
+                        void poll().catch((err: unknown) => {
                             logError('Realtime task claim failed:', err);
                         });
                     },
@@ -419,7 +410,7 @@ async function start() {
                     },
                     (payload) => {
                         log(`Realtime: new team run ${(payload.new as { id: string }).id} — claiming`);
-                        void tryClaimTeamRun().catch((err: unknown) => {
+                        void poll().catch((err: unknown) => {
                             logError('Realtime team-run claim failed:', err);
                         });
                     },
@@ -444,7 +435,7 @@ async function start() {
         }
 
         async function reconnectRealtime() {
-            if (isReconnecting || realtimeDisabled) return;
+            if (stopping || isReconnecting || realtimeDisabled) return;
             isReconnecting = true;
 
             realtimeReconnectAttempt++;
@@ -469,6 +460,8 @@ async function start() {
             log(`Realtime reconnect attempt ${realtimeReconnectAttempt}/${REALTIME_GIVE_UP_AFTER} in ${delay}ms`);
             await new Promise(resolve => setTimeout(resolve, delay));
 
+            if (stopping) return;
+
             // Remove ALL channels — ensures no leaked subscriptions
             try {
                 await supabase.removeAllChannels();
@@ -489,8 +482,8 @@ async function start() {
         }
 
         // Health check: detect silent disconnects
-        setInterval(() => {
-            if (isReconnecting || realtimeDisabled) return;
+        maintenanceTimers.push(setInterval(() => {
+            if (stopping || isReconnecting || realtimeDisabled) return;
 
             const ch = (globalThis as Record<string, unknown>).__realtimeChannel as
                 ReturnType<typeof supabase.channel> | undefined;
@@ -501,18 +494,25 @@ async function start() {
                 log(`Realtime health check: channel state "${state}" — triggering reconnect`);
                 void reconnectRealtime();
             }
-        }, REALTIME_HEALTH_CHECK_MS);
+        }, REALTIME_HEALTH_CHECK_MS));
 
         const channel = createRealtimeChannel();
         (globalThis as Record<string, unknown>).__realtimeChannel = channel;
 
         // Start recovery sweep and trigger evaluation on fixed intervals
-        setInterval(() => { void runRecoverySweep(); }, RECOVERY_INTERVAL_MS);
-        setInterval(() => { void evaluateTriggers(); }, TRIGGER_EVAL_INTERVAL_MS);
-
-        // Immediate trigger catch-up: fire any crons missed while runner was offline
-        log('Running startup trigger catch-up sweep...');
-        void evaluateTriggers();
+        maintenanceTimers.push(setInterval(() => {
+            void runRecoverySweep().then((recovered) => {
+                if (recovered > 0) void poll();
+            });
+        }, RECOVERY_INTERVAL_MS));
+        if (process.env.TRIGGER_SCHEDULER_ENABLED !== 'false') {
+            maintenanceTimers.push(setInterval(() => { void evaluateTriggers().then(() => poll()); }, TRIGGER_EVAL_INTERVAL_MS));
+            // Use one scheduler: disable this when pg_cron owns scheduling.
+            log('Running startup trigger catch-up sweep...');
+            void evaluateTriggers().then(() => poll());
+        } else {
+            log('Local trigger scheduler disabled; an external scheduler must enqueue scheduled work.');
+        }
 
         // Initial poll (slow fallback chain starts here)
         void poll();
@@ -526,6 +526,10 @@ async function start() {
 // ─── Graceful Shutdown ───────────────────────────────────────────────────────
 
 async function shutdown(signal: string) {
+    if (stopping) return;
+    stopping = true;
+    for (const timer of maintenanceTimers) clearInterval(timer);
+    server?.close();
     log(`Received ${signal}, shutting down gracefully...`);
     if (pollTimer) clearTimeout(pollTimer);
     // Unsubscribe from Realtime
@@ -537,7 +541,10 @@ async function shutdown(signal: string) {
     // Wait briefly for in-flight tasks to complete (best effort)
     if (activeSlots > 0) {
         log(`Waiting for ${activeSlots} active task(s) to finish...`);
-        await new Promise(resolve => setTimeout(resolve, 5000));
+        const deadline = Date.now() + 30_000;
+        while (activeSlots > 0 && Date.now() < deadline) {
+            await new Promise(resolve => setTimeout(resolve, 250));
+        }
     }
     await deregisterRunner();
     process.exit(0);

@@ -77,18 +77,18 @@ function matchesCronField(field: string, value: number, max: number): boolean {
 /**
  * Check if a CRON expression matches a given date.
  */
-function cronMatchesDate(expression: string, date: Date): boolean {
+export function cronMatchesDate(expression: string, date: Date): boolean {
     const parts = expression.trim().split(/\s+/);
     if (parts.length !== 5) return false;
 
     const [minute, hour, dayOfMonth, month, dayOfWeek] = parts;
 
     return (
-        matchesCronField(minute, date.getMinutes(), 59) &&
-        matchesCronField(hour, date.getHours(), 23) &&
-        matchesCronField(dayOfMonth, date.getDate(), 31) &&
-        matchesCronField(month, date.getMonth() + 1, 12) &&
-        matchesCronField(dayOfWeek, date.getDay(), 6)
+        matchesCronField(minute, date.getUTCMinutes(), 59) &&
+        matchesCronField(hour, date.getUTCHours(), 23) &&
+        matchesCronField(dayOfMonth, date.getUTCDate(), 31) &&
+        matchesCronField(month, date.getUTCMonth() + 1, 12) &&
+        matchesCronField(dayOfWeek, date.getUTCDay(), 6)
     );
 }
 
@@ -109,8 +109,7 @@ const MAX_CATCHUP_MS = 48 * 60 * 60 * 1000;
  * If any minute matched the cron expression and the trigger didn't fire, it fires now.
  * This ensures daily/weekly triggers work even when the runner isn't always-on.
  */
-function isTriggerDue(cronExpression: string, lastFiredAt: string | null, createdAt: string): boolean {
-    const now = new Date();
+export function isTriggerDue(cronExpression: string, lastFiredAt: string | null, createdAt: string, now = new Date()): boolean {
 
     // ── 1. Current-minute match (existing real-time check) ──
     if (cronMatchesDate(cronExpression, now)) {
@@ -118,11 +117,11 @@ function isTriggerDue(cronExpression: string, lastFiredAt: string | null, create
             const last = new Date(lastFiredAt);
             // Already fired this minute — skip
             if (
-                last.getFullYear() === now.getFullYear() &&
-                last.getMonth() === now.getMonth() &&
-                last.getDate() === now.getDate() &&
-                last.getHours() === now.getHours() &&
-                last.getMinutes() === now.getMinutes()
+                last.getUTCFullYear() === now.getUTCFullYear() &&
+                last.getUTCMonth() === now.getUTCMonth() &&
+                last.getUTCDate() === now.getUTCDate() &&
+                last.getUTCHours() === now.getUTCHours() &&
+                last.getUTCMinutes() === now.getUTCMinutes()
             ) {
                 return false;
             }
@@ -143,9 +142,9 @@ function isTriggerDue(cronExpression: string, lastFiredAt: string | null, create
     // Scan each minute from lookback start to now, looking for a missed cron match
     // For daily triggers with a 48h lookback, this is at most 2,880 iterations — trivial.
     const scanTime = new Date(lookbackStart);
-    scanTime.setSeconds(0, 0);
+    scanTime.setUTCSeconds(0, 0);
     // Start from the minute after last fired
-    scanTime.setMinutes(scanTime.getMinutes() + 1);
+    scanTime.setUTCMinutes(scanTime.getUTCMinutes() + 1);
 
     while (scanTime < now) {
         if (cronMatchesDate(cronExpression, scanTime)) {
@@ -155,7 +154,7 @@ function isTriggerDue(cronExpression: string, lastFiredAt: string | null, create
             );
             return true; // Missed this one — fire now
         }
-        scanTime.setMinutes(scanTime.getMinutes() + 1);
+        scanTime.setUTCMinutes(scanTime.getUTCMinutes() + 1);
     }
 
     return false;
@@ -181,7 +180,7 @@ function renderTemplate(template: string): string {
     const now = new Date();
     return template
         .replace(/\{\{date\}\}/g, now.toISOString().split('T')[0])
-        .replace(/\{\{time\}\}/g, now.toTimeString().split(' ')[0])
+        .replace(/\{\{time\}\}/g, now.toISOString().slice(11, 19))
         .replace(/\{\{datetime\}\}/g, now.toISOString());
 }
 
@@ -201,11 +200,11 @@ async function buildContextBlock(
     if (options.length === 0) return '';
 
     const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
+    yesterday.setUTCDate(yesterday.getUTCDate() - 1);
     const startOfYesterday = new Date(yesterday);
-    startOfYesterday.setHours(0, 0, 0, 0);
+    startOfYesterday.setUTCHours(0, 0, 0, 0);
     const endOfYesterday = new Date(yesterday);
-    endOfYesterday.setHours(23, 59, 59, 999);
+    endOfYesterday.setUTCHours(23, 59, 59, 999);
 
     const sections: string[] = [];
 
