@@ -1,5 +1,7 @@
 <div align="center">
 
+[![Deploy to Railyard](https://app.railyard.run/deploy/badge)](https://app.railyard.run/deploy?repo=https://github.com/CrewForm/crewform)
+
 <img src=".github/assets/crewform-banner.png" alt="CrewForm" width="400" />
 
 ### The open control plane for interoperable AI agents
