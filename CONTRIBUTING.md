@@ -45,8 +45,9 @@ To set up the project locally for development:
 
 2.  **Install dependencies** (for both frontend and the task runner):
     ```bash
-    npm install
-    cd task-runner && npm install && cd ..
+    npm ci
+    npm --prefix task-runner ci
+    npm --prefix cli ci
     ```
 
 3.  **Environment Variables**:
@@ -58,7 +59,7 @@ To set up the project locally for development:
     npm run dev
     
     # In a separate terminal, start the task runner:
-    npm run task-runner:dev # or the relevant start command
+    npm --prefix task-runner run dev
     ```
 
 ## Project Structure
@@ -67,7 +68,7 @@ To set up the project locally for development:
 *   `ee/`: Enterprise Edition proprietary code (license validation, feature flags). **Requires CLA.**
 *   `task-runner/`: Node.js backend execution engine.
 *   `supabase/`: Database schema, migrations, and edge functions.
-*   `crewform-docs/`: Project documentation and ROADMAP.
+*   `crewform-docs/`: Private project documentation (not required to contribute).
 *   `docs/`: Mintlify-powered documentation site.
 *   `docker/`: Docker compose and nginx configs for self-hosting.
 *   `zapier-app/`: Zapier integration app.
@@ -177,3 +178,11 @@ If you're unsure whether your change touches EE code, just open an issue or PR a
 By contributing to Community Edition code (outside `ee/`), you agree that your contributions will be licensed under the project's [GNU Affero General Public License v3.0 (AGPL v3)](LICENSE).
 
 Contributions to Enterprise Edition code (inside `ee/`) require a signed Contributor License Agreement. Contact team@crewform.tech for details.
+
+## Small first contributions
+
+- Add a source-grounded workflow example under `examples/` with fixture input and a documented expected output shape.
+- Extend the fake ACP peer tests for fragmented events, unknown client requests or failed turns.
+- Improve native installation diagnostics without inspecting credentials or making paid model requests.
+
+Runtime tests: `npm --prefix agent-runtime test`. CLI checks: `npm --prefix cli run build` and `npm --prefix cli test`. Keep external-agent adapters allowlisted and avoid automatic subscription-to-API fallback.

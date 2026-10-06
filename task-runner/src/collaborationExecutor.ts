@@ -113,6 +113,8 @@ export async function processCollaborationRun(run: TeamRun): Promise<void> {
 
             // Execute LLM call
             const result = await executeLLMCall({
+                teamRunId: run.id,
+                recordNativeUsage: false,
                 workspaceId: run.workspace_id,
                 agentId: speakerId,
                 systemPrompt,
@@ -183,7 +185,8 @@ export async function processCollaborationRun(run: TeamRun): Promise<void> {
                 cost_estimate_usd: totalCost,
                 completed_at: new Date().toISOString(),
             })
-            .eq('id', run.id);
+            .eq('id', run.id)
+            .eq('status', 'running');
 
         await recordMessage(run.id, null, 'system', `Collaboration completed after ${conversation.length} turns.`);
 
@@ -262,6 +265,7 @@ Which agent should speak next? Respond with ONLY the agent ID, nothing else.`;
 
             try {
                 const result = await executeLLMCall({
+                teamRunId: run.id,
                     workspaceId: run.workspace_id,
                     agentId: selectorId,
                     systemPrompt: 'You are a discussion moderator. Select the most appropriate next speaker. Respond with ONLY the agent ID.',
@@ -311,6 +315,7 @@ Which agent should speak next? Respond with ONLY the agent ID, nothing else.`;
 
                 try {
                     const result = await executeLLMCall({
+                teamRunId: run.id,
                         workspaceId: run.workspace_id,
                         agentId: config.facilitator_agent_id,
                         systemPrompt: 'You are the discussion facilitator. Choose who should speak next. Respond with ONLY the agent ID.',

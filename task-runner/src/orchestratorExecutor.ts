@@ -208,6 +208,7 @@ export async function processOrchestratorRun(run: TeamRun): Promise<void> {
 
             // Call brain agent
             const brainResult = await executeLLMCall({
+                    teamRunId: run.id,
                 workspaceId: run.workspace_id,
                 agentId: config.brain_agent_id,
                 systemPrompt: brainSystemPrompt,
@@ -347,7 +348,8 @@ export async function processOrchestratorRun(run: TeamRun): Promise<void> {
                 tokens_total: totalTokens,
                 cost_estimate_usd: totalCost,
             })
-            .eq('id', run.id);
+            .eq('id', run.id)
+            .neq('status', 'cancelled');
 
         // Fire team_run.failed webhook (fire-and-forget)
         void dispatchTeamRunWebhooks(
@@ -410,6 +412,7 @@ async function executeToolCall(
             // Execute worker
             try {
                 const workerResult = await executeLLMCall({
+                    teamRunId: run.id,
                     workspaceId: run.workspace_id,
                     agentId,
                     systemPrompt: buildSystemPromptWithVoice(worker.system_prompt || 'You are a helpful AI assistant.', worker.voice_profile),
@@ -484,6 +487,7 @@ async function executeToolCall(
 
             try {
                 const workerResult = await executeLLMCall({
+                    teamRunId: run.id,
                     workspaceId: run.workspace_id,
                     agentId: delegation.worker_agent_id,
                     systemPrompt: buildSystemPromptWithVoice(worker?.system_prompt || 'You are a helpful AI assistant.', worker?.voice_profile ?? null),
@@ -735,7 +739,8 @@ async function finalizeRun(
             cost_estimate_usd: (current?.cost_estimate_usd ?? 0) + extraCost,
             completed_at: new Date().toISOString(),
         })
-        .eq('id', runId);
+        .eq('id', runId)
+        .eq('status', 'running');
 
     if (error) {
         console.error(`[Orchestrator] finalizeRun failed for ${runId}:`, error.message);

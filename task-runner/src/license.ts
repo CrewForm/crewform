@@ -191,7 +191,8 @@ export async function validateLicensesOnStartup(): Promise<void> {
  * Results are cached for 5 minutes to reduce DB queries.
  */
 export async function isFeatureEnabled(workspaceId: string, feature: string): Promise<boolean> {
-    // CE build — always disabled
+    if (['orchestrator_mode', 'marketplace_publish', 'a2a_publish', 'chat_widget'].includes(feature)) return true
+    // CE build — paid features disabled
     if (process.env.CREWFORM_EDITION === 'ce') {
         return false
     }

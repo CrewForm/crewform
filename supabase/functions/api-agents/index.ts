@@ -8,6 +8,7 @@ import { validateBody, z } from '../_shared/validate.ts';
 import { checkRateLimit, tooManyRequests } from '../_shared/rateLimit.ts';
 
 const CreateAgentSchema = z.object({
+    config: z.record(z.unknown()).optional(),
     name: z.string().min(1).max(100),
     description: z.string().default(''),
     model: z.string().min(1),
@@ -18,6 +19,7 @@ const CreateAgentSchema = z.object({
 });
 
 const UpdateAgentSchema = z.object({
+    config: z.record(z.unknown()).optional(),
     name: z.string().min(1).max(100).optional(),
     description: z.string().optional(),
     model: z.string().min(1).optional(),

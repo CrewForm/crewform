@@ -4,6 +4,7 @@
 // executor.ts — Local agent execution engine.
 // Simplified version of task-runner/src/executor.ts — no Supabase dependency.
 
+import { parseExecution, executeExternal } from '@crewformhq/agent-runtime';
 import OpenAI from 'openai';
 import chalk from 'chalk';
 import { executeAnthropic } from './providers/anthropic.js';
@@ -25,6 +26,7 @@ export type OnStreamChunk = (delta: string, fullText: string) => void;
 export interface ExecuteOptions {
     /** Override the prompt (used by chat mode to pass full conversation) */
     prompt: string;
+    signal?: AbortSignal;
     /** Stream each text chunk to a callback */
     onStream?: OnStreamChunk;
     /** Callback when a tool is called */
@@ -45,6 +47,19 @@ export async function executeAgent(
     agent: AgentConfig,
     options: ExecuteOptions,
 ): Promise<ExecutionResult> {
+    const external = parseExecution(agent.config);
+    if (external) {
+        if (agent.tools.length || options.mcpServers?.length) throw new Error('External agents own their tool loop. Remove CrewForm tools and MCP settings.');
+        let fullText = '';
+        const controller = new AbortController();
+        const cancel = () => controller.abort();
+        if (!options.signal) process.once('SIGINT', cancel);
+        try { return await executeExternal(external, {
+            prompt: options.prompt, systemPrompt: agent.system_prompt, model: agent.model,
+            cwd: process.cwd(), signal: options.signal ?? controller.signal,
+            onChunk: (delta) => { fullText += delta; options.onStream?.(delta, fullText); },
+        }); } finally { process.removeListener('SIGINT', cancel); }
+    }
     // 1. Resolve provider
     const provider = (agent.provider ?? inferProvider(agent.model) ?? 'ollama').toLowerCase();
 

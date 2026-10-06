@@ -1,0 +1,12 @@
+{
+  "name": "@crewformhq/agent-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local CLI and ACP execution for CrewForm",
+  "license": "AGPL-3.0-or-later",
+  "main": "index.cjs",
+  "types": "index.d.ts",
+  "files": ["index.cjs", "index.d.ts"],
+  "scripts": {"test": "node --test test/*.test.cjs"},
+  "engines": {"node": ">=20"}
+}

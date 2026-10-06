@@ -1,0 +1,13 @@
+{
+  "name": "Release note writer",
+  "model": "default",
+  "system_prompt": "Draft release notes using only supplied source IDs. Separate completed, planned and limitations. Never invent a shipped feature or delivery date.",
+  "tools": [],
+  "config": {
+    "execution": {
+      "kind": "external",
+      "agent": "claude",
+      "transport": "cli"
+    }
+  }
+}

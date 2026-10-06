@@ -10,21 +10,20 @@ import { useWorkspace } from '@/hooks/useWorkspace'
 import { useCreateTeamRun } from '@/hooks/useCreateTeamRun'
 import { useNavigate } from 'react-router-dom'
 
-const GOLDEN_PATH_PROMPT = `Research the market for AI customer support tools and produce a short executive brief.
+const GOLDEN_PATH_PROMPT = `Produce an executive brief using only the following fictional customer interview notes. Cite note IDs for every finding. Treat missing information as unknown.
 
-Focus on:
-- buyer pains and adoption drivers
-- major solution categories
-- opportunities for a self-hostable, interoperable agent platform
-- risks and assumptions we should validate next
+[S1] Developer at a five-person consultancy: We pay for Codex and Claude Code already. We want to chain review and documentation tasks without moving our source code to another hosted tool.
+[S2] Platform engineer at a small SaaS company: We need to see which agent ran each step, cancel a failed run, and export the workflow to Git.
+[S3] Solo developer: Setup is the biggest obstacle. A working example and a local model option matter more than a long feature list.
+[S4] Team lead: We can test a self-hosted tool if credentials stay on our machines. We have not decided whether to buy a hosted plan.
 
-Write the final brief for a product and go-to-market team.`
+Include an evidence table, three prioritized opportunities, risks, and next validation questions. These notes do not establish market size, prices or general customer demand.`
 
 /**
  * Dashboard banner for activating or removing the demo workspace.
  *
  * Two states:
- * - Not seeded: CTA card to activate demo (5 agents + 1 pipeline team)
+ * - Not seeded: CTA card to activate demo (3 agents + 1 pipeline team)
  * - Seeded: Subtle banner showing demo is active + remove button
  */
 export function DemoBanner() {

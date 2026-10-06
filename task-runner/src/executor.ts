@@ -1,3 +1,5 @@
+import { parseExecution } from '@crewformhq/agent-runtime';
+import { executeLocalAgent } from './externalAgent';
 import { supabase } from './supabase';
 import { executeAnthropic } from './providers/anthropic';
 import { executeOpenAI } from './providers/openai';
@@ -93,6 +95,7 @@ export async function processTask(task: Task) {
             .from('agents')
             .select('*')
             .eq('id', task.assigned_agent_id)
+            .eq('workspace_id', task.workspace_id)
             .single();
 
         agent = agentResponse.data as Agent | null;
@@ -116,14 +119,15 @@ export async function processTask(task: Task) {
             console.log(`[TaskRunner] Model override active: using "${effectiveModel}" instead of agent default "${agent.model}"`);
         }
 
+        const external = parseExecution(agent.config);
         // Derive provider from model name first (authoritative), fall back to stored value
-        const provider = inferProvider(effectiveModel) ?? agent.provider;
+        const provider = external ? `native-${external.agent}` : (inferProvider(effectiveModel) ?? agent.provider);
         if (!provider) {
             throw new Error(`Cannot determine provider for agent "${agent.name}" with model "${effectiveModel}". Please update the agent's provider in Settings.`);
         }
 
         // 2. Fetch API Key for Agent's provider
-        const apiKeyResponse = await supabase
+        const apiKeyResponse = external ? {data: null, error: null} : await supabase
             .from('api_keys')
             .select('*')
             .eq('workspace_id', task.workspace_id)
@@ -133,11 +137,11 @@ export async function processTask(task: Task) {
         const apiKeyData = apiKeyResponse.data as ApiKey | null;
         const keyError = apiKeyResponse.error;
 
-        if (keyError || !apiKeyData) {
+        if (!external && (keyError || !apiKeyData)) {
             throw new Error(`Failed to load API key for provider "${provider}". Please configure it in Settings.`);
         }
 
-        const rawKey = decryptApiKey(apiKeyData.encrypted_key);
+        const rawKey = apiKeyData ? decryptApiKey(apiKeyData.encrypted_key) : '';
 
         // 3. Prepare Prompt (with attached files)
         let systemPrompt = agent.system_prompt || 'You are a helpful AI assistant.';
@@ -195,6 +199,7 @@ export async function processTask(task: Task) {
         // 4. Execute LLM
         let executionResult;
         const providerLower = provider.toLowerCase();
+        if (external && agent.tools?.length) throw new Error('External agents own their tools. Remove CrewForm tools.');
         const agentTools: string[] = Array.isArray(agent.tools) ? agent.tools : [];
         const hasTools = agentTools.length > 0;
 
@@ -277,7 +282,12 @@ export async function processTask(task: Task) {
         }) : undefined;
 
         try {
-            if (hasTools) {
+            if (external) {
+                executionResult = await executeLocalAgent(external, {
+                    workspaceId: task.workspace_id, taskId: task.id, systemPrompt, userPrompt,
+                    model: effectiveModel, onStream: updateResultStream,
+                });
+            } else if (hasTools) {
                 // ── Tool-Use Mode: non-streaming with tool loop ──
                 console.log(`[TaskRunner] Agent has ${agentTools.length.toString()} tools enabled: ${agentTools.join(', ')}`);
 
@@ -298,7 +308,7 @@ export async function processTask(task: Task) {
                         ? { workspaceId: task.workspace_id, documentIds: (agent.config?.knowledge_base_ids as string[] | undefined) ?? undefined }
                         : undefined,
                     task.id,
-                    apiKeyData.base_url,
+                    apiKeyData?.base_url,
                 );
             } else if (providerLower === 'anthropic') {
                 executionResult = await executeAnthropic(rawKey, effectiveModel, systemPrompt, userPrompt, updateResultStream, agent.max_tokens);
@@ -331,8 +341,8 @@ export async function processTask(task: Task) {
             } else if (providerLower === 'perplexity') {
                 executionResult = await executeOpenAI(rawKey, effectiveModel, systemPrompt, userPrompt, updateResultStream, 'https://api.perplexity.ai', agent.max_tokens);
             } else if (providerLower === 'ollama') {
-                const ollamaUrl = apiKeyData.base_url
-                    ? `${apiKeyData.base_url.replace(/\/+$/, '')}/v1`
+                const ollamaUrl = apiKeyData?.base_url
+                    ? `${apiKeyData?.base_url.replace(/\/+$/, '')}/v1`
                     : 'http://localhost:11434/v1';
                 executionResult = await executeOpenAI(rawKey, effectiveModel, systemPrompt, userPrompt, updateResultStream, ollamaUrl, agent.max_tokens);
             } else {
@@ -343,7 +353,7 @@ export async function processTask(task: Task) {
             const msg = llmError instanceof Error ? llmError.message : String(llmError);
             const isModelError = msg.includes('400') || msg.includes('404') || msg.includes('not a valid model') || msg.includes('model_not_found');
 
-            if (isModelError && agent.fallback_model) {
+            if (!external && isModelError && agent.fallback_model) {
                 // ── Fallback Model Retry ──
                 console.warn(`[TaskRunner] Primary model "${effectiveModel}" failed, retrying with fallback "${agent.fallback_model}"...`);
 
@@ -435,18 +445,24 @@ export async function processTask(task: Task) {
             }
         }
 
-        // 5. Finalize Task success
-        await supabase
+        // 5. Finalize Task success without replacing concurrent cancellation.
+        const completedTask = await supabase
             .from('tasks')
             .update({
                 status: 'completed',
                 result: executionResult.result,
                 metadata: {
+                    ...task.metadata,
+                    ...(external ? { execution: {agent: external.agent, transport: external.transport, billingModel: 'unknown', usageKnown: false} } : {}),
                     usage: executionResult.usage,
                     tool_calls: (executionResult as { toolCallLogs?: ToolCallLog[] }).toolCallLogs ?? [],
                 },
             })
-            .eq('id', task.id);
+            .eq('id', task.id)
+            .eq('status', 'running')
+            .select('id').maybeSingle();
+        if (completedTask.error) throw completedTask.error;
+        if (!completedTask.data) throw new Error('Task execution cancelled before completion.');
 
         // 6. Finalize agent_task success
         if (agentTaskId) {
@@ -457,7 +473,7 @@ export async function processTask(task: Task) {
                     result: { output: executionResult.result },
                     model_used: effectiveModel,
                     tokens_used: executionResult.usage.totalTokens,
-                    cost_estimate_usd: executionResult.usage.costEstimateUSD,
+                    cost_estimate_usd: external ? null : executionResult.usage.costEstimateUSD,
                     completed_at: new Date().toISOString(),
                 })
                 .eq('id', agentTaskId);
@@ -531,7 +547,8 @@ export async function processTask(task: Task) {
                 status: 'failed',
                 error: errMsg,
             })
-            .eq('id', task.id);
+            .eq('id', task.id)
+            .neq('status', 'cancelled');
 
         // Finalize agent_task failure
         if (agentTaskId) {

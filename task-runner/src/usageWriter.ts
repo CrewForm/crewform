@@ -53,20 +53,22 @@ export async function writeTaskUsageRecord(input: TaskUsageInput): Promise<void>
         tokens_used: input.tokensUsed,
         prompt_tokens: input.promptTokens ?? 0,
         completion_tokens: input.completionTokens ?? 0,
-        cost_usd: billingModel === 'per-token' ? input.costEstimateUsd : 0,
+        cost_usd: input.provider.startsWith('native-') ? null : (billingModel === 'per-token' ? input.costEstimateUsd : 0),
         agent_id: input.agentId,
         task_id: input.taskId,
         metadata: {
             provider: input.provider,
             model: input.model,
             billing_model: billingModel,
+            usage_known: !input.provider.startsWith('native-'),
+            cost_known: billingModel === 'per-token',
         },
     });
 
     if (error) {
         console.error(`[UsageWriter] Failed to write task usage record for task ${input.taskId}:`, error.message);
     } else {
-        console.log(`[UsageWriter] Recorded task usage: ${input.tokensUsed} tokens, $${input.costEstimateUsd.toFixed(4)} (${billingModel})`);
+        console.log(`[UsageWriter] Recorded task usage: ${input.provider.startsWith('native-') ? 'native usage and cost unknown' : `${input.tokensUsed} tokens, $${input.costEstimateUsd.toFixed(4)}`} (${billingModel})`);
     }
 }
 
@@ -96,13 +98,15 @@ export async function writeTeamRunUsageRecord(input: TeamRunUsageInput): Promise
         tokens_used: input.tokensUsed,
         prompt_tokens: input.promptTokens ?? 0,
         completion_tokens: input.completionTokens ?? 0,
-        cost_usd: billingModel === 'per-token' ? input.costEstimateUsd : 0,
+        cost_usd: input.provider.startsWith('native-') ? null : (billingModel === 'per-token' ? input.costEstimateUsd : 0),
         agent_id: input.agentId,
         team_run_id: input.teamRunId,
         metadata: {
             provider: input.provider,
             model: input.model,
             billing_model: billingModel,
+            usage_known: !input.provider.startsWith('native-'),
+            cost_known: billingModel === 'per-token',
             step_index: input.stepIndex,
             step_name: input.stepName,
         },
@@ -111,6 +115,6 @@ export async function writeTeamRunUsageRecord(input: TeamRunUsageInput): Promise
     if (error) {
         console.error(`[UsageWriter] Failed to write team run usage record for run ${input.teamRunId} step ${input.stepIndex}:`, error.message);
     } else {
-        console.log(`[UsageWriter] Recorded team run step ${input.stepIndex} usage: ${input.tokensUsed} tokens, $${input.costEstimateUsd.toFixed(4)} (${billingModel})`);
+        console.log(`[UsageWriter] Recorded team run step ${input.stepIndex} usage: ${input.provider.startsWith('native-') ? 'native usage and cost unknown' : `${input.tokensUsed} tokens, $${input.costEstimateUsd.toFixed(4)}`} (${billingModel})`);
     }
 }

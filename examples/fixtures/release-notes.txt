@@ -1,0 +1,5 @@
+Fictional release input. Preserve IDs and do not invent delivery status.
+[R1] Completed: added cancellation to queued imports. Regression test verifies pending work stops before mutation.
+[R2] Completed: export now includes agent execution configuration. Test checks export/import round-trip.
+[R3] Planned: hosted pairing with a personal local worker. No implementation or delivery date exists.
+[R4] Known limitation: subscription costs are not available through the native agent result; accounting marks them unknown.

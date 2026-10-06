@@ -6,11 +6,18 @@
 import type { ReactNode } from 'react'
 import { useEELicense } from '@/hooks/useEELicense'
 
+export const COMMUNITY_FEATURES = new Set(['orchestrator_mode', 'marketplace_publish', 'a2a_publish', 'chat_widget'])
+
 /**
  * Minimum plan required for each EE feature.
  * Used to show the correct badge label (Pro / Team / Enterprise).
  */
 export const FEATURE_MIN_PLAN: Record<string, string> = {
+    // Community capabilities
+    orchestrator_mode: 'Free',
+    marketplace_publish: 'Free',
+    a2a_publish: 'Free',
+    chat_widget: 'Free',
     // Pro tier
     prompt_history: 'Pro',
     advanced_analytics: 'Pro',
@@ -18,10 +25,8 @@ export const FEATURE_MIN_PLAN: Record<string, string> = {
     advanced_webhooks: 'Pro',
     team_triggers: 'Pro',
     billing: 'Pro',
-    orchestrator_mode: 'Pro',
     messaging_channels: 'Pro',
     custom_tools: 'Pro',
-    chat_widget: 'Pro',
     // Team tier
     collaboration_mode: 'Team',
     team_memory: 'Team',
@@ -29,7 +34,6 @@ export const FEATURE_MIN_PLAN: Record<string, string> = {
     // Enterprise tier
     audit_logs: 'Enterprise',
     swarm: 'Enterprise',
-    marketplace_publish: 'Enterprise',
     admin_panel: 'Enterprise',
 }
 
@@ -44,7 +48,7 @@ export function getMinPlanLabel(feature: string): string {
 /**
  * Check if the current environment is running the Community Edition.
  * Uses the VITE_CREWFORM_EDITION env variable set at build time.
- * When 'ce', all EE features are disabled regardless of license.
+ * When 'ce', paid features are disabled regardless of license.
  */
 export function isCommunityEdition(): boolean {
     return import.meta.env.VITE_CREWFORM_EDITION === 'ce'
@@ -57,7 +61,9 @@ export function isCommunityEdition(): boolean {
 export function useEEFeature(workspaceId: string | undefined, feature: string) {
     const { hasFeature, isLoading, isEnterprise } = useEELicense(workspaceId)
 
-    // CE build — features always disabled
+    if (COMMUNITY_FEATURES.has(feature)) return { enabled: true, isLoading: false, isEnterprise: false }
+
+    // CE build — paid features disabled
     if (isCommunityEdition()) {
         return { enabled: false, isLoading: false, isEnterprise: false }
     }

@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { ExecutionSettings } from './ExecutionSettings'
 // Copyright (C) 2026 CrewForm
 
 import { useState, useMemo } from 'react'
@@ -81,6 +82,7 @@ export function AgentForm({ initialData, onSubmit, onBack, activeProviders, work
         [formData.model, allDynamicModelValues],
     )
 
+    const external = (formData.config?.execution as {kind?: string} | undefined)?.kind === 'external'
     const [tagInput, setTagInput] = useState('')
 
     function updateField<K extends keyof AgentFormData>(key: K, value: AgentFormData[K]) {
@@ -159,8 +161,9 @@ export function AgentForm({ initialData, onSubmit, onBack, activeProviders, work
                 {errors.description && <p className="mt-1 text-xs text-status-error-text">{errors.description}</p>}
             </div>
 
+            <ExecutionSettings data={formData} onChange={patch => { setFormData(prev => ({ ...prev, ...patch })); setErrors({}) }} />
             {/* Model selector */}
-            <div>
+            <div hidden={(formData.config?.execution as {kind?: string} | undefined)?.kind === 'external'}>
                 <label htmlFor="agent-model" className="mb-1.5 block text-sm font-medium text-gray-300">
                     Model <span className="text-red-400">*</span>
                 </label>
@@ -221,7 +224,7 @@ export function AgentForm({ initialData, onSubmit, onBack, activeProviders, work
             </div>
 
             {/* Fallback Model selector */}
-            <div>
+            <div hidden={(formData.config?.execution as {kind?: string} | undefined)?.kind === 'external'}>
                 <label htmlFor="agent-fallback-model" className="mb-1.5 block text-sm font-medium text-gray-300">
                     Fallback Model <span className="text-xs text-gray-500">(optional)</span>
                 </label>
@@ -278,7 +281,7 @@ export function AgentForm({ initialData, onSubmit, onBack, activeProviders, work
             </div>
 
             {/* Temperature */}
-            <div>
+            <div hidden={(formData.config?.execution as {kind?: string} | undefined)?.kind === 'external'}>
                 <div className="mb-1.5 flex items-center justify-between">
                     <label htmlFor="agent-temp" className="text-sm font-medium text-gray-300">
                         Temperature
@@ -302,7 +305,7 @@ export function AgentForm({ initialData, onSubmit, onBack, activeProviders, work
             </div>
 
             {/* Max Tokens */}
-            <div>
+            <div hidden={(formData.config?.execution as {kind?: string} | undefined)?.kind === 'external'}>
                 <label htmlFor="agent-max-tokens" className="mb-1.5 block text-sm font-medium text-gray-300">
                     Max Tokens
                 </label>
@@ -376,7 +379,7 @@ export function AgentForm({ initialData, onSubmit, onBack, activeProviders, work
             </div>
 
             {/* Built-in Tools */}
-            <div>
+            <div hidden={(formData.config?.execution as {kind?: string} | undefined)?.kind === 'external'}>
                 <div className="mb-1.5 flex items-center justify-between">
                     <label className="text-sm font-medium text-gray-300">
                         Built-in Tools
@@ -450,7 +453,7 @@ export function AgentForm({ initialData, onSubmit, onBack, activeProviders, work
             </div>
 
             {/* Custom Tools */}
-            {workspaceId && (
+            {workspaceId && !external && (
                 <div>
                     <div className="mb-1.5 flex items-center justify-between">
                         <label className="text-sm font-medium text-gray-300">
@@ -573,7 +576,7 @@ export function AgentForm({ initialData, onSubmit, onBack, activeProviders, work
             )}
 
             {/* MCP Server Tools */}
-            {workspaceId && enabledMcpServers.length > 0 && (
+            {workspaceId && !external && enabledMcpServers.length > 0 && (
                 <div>
                     <div className="mb-1.5 flex items-center justify-between">
                         <label className="text-sm font-medium text-gray-300">

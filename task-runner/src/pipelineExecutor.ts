@@ -1,3 +1,5 @@
+import { parseExecution } from '@crewformhq/agent-runtime';
+import { executeLocalAgent } from './externalAgent';
 import { supabase } from './supabase';
 import { executeAnthropic } from './providers/anthropic';
 import { executeOpenAI } from './providers/openai';
@@ -173,7 +175,7 @@ export async function processPipelineRun(run: TeamRun): Promise<void> {
         // 3. Finalize run as completed
         const finalOutput = previousOutput ?? '';
 
-        await supabase
+        const completedRun = await supabase
             .from('team_runs')
             .update({
                 status: 'completed',
@@ -183,7 +185,11 @@ export async function processPipelineRun(run: TeamRun): Promise<void> {
                 cost_estimate_usd: totalCost,
                 completed_at: new Date().toISOString(),
             })
-            .eq('id', run.id);
+            .eq('id', run.id)
+            .eq('status', 'running')
+            .select('id').maybeSingle();
+        if (completedRun.error) throw completedRun.error;
+        if (!completedRun.data) return;
 
         console.log(`[PipelineExecutor] Run ${run.id} completed (${steps.length} steps, ${totalTokens} tokens, $${totalCost.toFixed(4)})`);
 
@@ -214,7 +220,8 @@ export async function processPipelineRun(run: TeamRun): Promise<void> {
                 cost_estimate_usd: totalCost,
                 completed_at: new Date().toISOString(),
             })
-            .eq('id', run.id);
+            .eq('id', run.id)
+            .neq('status', 'cancelled');
 
         // Fire team_run.failed webhook (fire-and-forget)
         void dispatchTeamRunWebhooks(
@@ -250,6 +257,7 @@ interface StepResult {
 async function executeStep(input: StepInput): Promise<StepResult | null> {
     const { run, step, stepIndex, inputTask, previousOutput, accumulatedOutputs, fileContextBlock, teamMemories, fanOutResults } = input;
     let attempts = 0;
+    let nativeStep = false;
     const maxAttempts = step.on_failure === 'retry' ? step.max_retries + 1 : 1;
 
     // Update current step on the run (real-time progress)
@@ -302,6 +310,7 @@ async function executeStep(input: StepInput): Promise<StepResult | null> {
                 .from('agents')
                 .select('*')
                 .eq('id', step.agent_id)
+                .eq('workspace_id', run.workspace_id)
                 .single();
 
             const agent = agentResponse.data as Agent | null;
@@ -309,8 +318,10 @@ async function executeStep(input: StepInput): Promise<StepResult | null> {
                 throw new Error(`Agent not found for step "${step.step_name}"`);
             }
 
+            const external = parseExecution(agent.config);
+            nativeStep = external !== null;
             // Fetch API key
-            const keyResponse = await supabase
+            const keyResponse = external ? {data: null, error: null} : await supabase
                 .from('api_keys')
                 .select('*')
                 .eq('workspace_id', run.workspace_id)
@@ -318,11 +329,11 @@ async function executeStep(input: StepInput): Promise<StepResult | null> {
                 .single();
 
             const apiKeyData = keyResponse.data as ApiKey | null;
-            if (!apiKeyData) {
+            if (!external && !apiKeyData) {
                 throw new Error(`No API key configured for provider ${agent.provider}`);
             }
 
-            const rawKey = decryptApiKey(apiKeyData.encrypted_key);
+            const rawKey = apiKeyData ? decryptApiKey(apiKeyData.encrypted_key) : '';
 
             // Build prompt with handoff context
             let systemPrompt = agent.system_prompt || 'You are a helpful AI assistant.';
@@ -370,8 +381,8 @@ async function executeStep(input: StepInput): Promise<StepResult | null> {
             };
 
             // Use custom base_url from the API key record if available (e.g. non-localhost Ollama)
-            if (apiKeyData.base_url) {
-                const customUrl = apiKeyData.base_url.replace(/\/+$/, '');
+            if (apiKeyData?.base_url) {
+                const customUrl = apiKeyData?.base_url.replace(/\/+$/, '');
                 baseURLMap[provider] = customUrl.endsWith('/v1') ? customUrl : `${customUrl}/v1`;
             }
 
@@ -383,7 +394,10 @@ async function executeStep(input: StepInput): Promise<StepResult | null> {
                 effectiveModel = agent.model.replace(/^groq\//, '');
             }
 
-            if (hasTools) {
+            if (external) {
+                if (hasTools) throw new Error('External agents own their tools. Remove CrewForm tools.');
+                executionResult = await executeLocalAgent(external, {workspaceId: run.workspace_id, teamRunId: run.id, systemPrompt, userPrompt, model: agent.model});
+            } else if (hasTools) {
                 // ── Tool-Use Mode ──
                 console.log(`[PipelineExecutor] Step ${stepIndex + 1} agent has ${agentTools.length} tools: ${agentTools.join(', ')}`);
 
@@ -500,7 +514,9 @@ async function executeStep(input: StepInput): Promise<StepResult | null> {
                     step_index: stepIndex,
                     model: agent.model,
                     tokens: executionResult.usage.totalTokens,
-                    cost: executionResult.usage.costEstimateUSD,
+                    cost: external ? null : executionResult.usage.costEstimateUSD,
+                    usage_known: !external,
+                    billing_model: external ? 'unknown' : 'per-token',
                     tool_calls: toolCallLogs.length > 0 ? toolCallLogs : undefined,
                 },
                 step_idx: stepIndex,
@@ -510,7 +526,7 @@ async function executeStep(input: StepInput): Promise<StepResult | null> {
             return {
                 output: executionResult.result,
                 usage: executionResult.usage,
-                agentProvider: agent.provider,
+                agentProvider: external ? `native-${external.agent}` : agent.provider,
                 agentModel: agent.model,
             };
 
@@ -530,7 +546,7 @@ async function executeStep(input: StepInput): Promise<StepResult | null> {
                 tokens_used: 0,
             });
 
-            if (attempts >= maxAttempts) {
+            if (nativeStep || attempts >= maxAttempts) {
                 // All retries exhausted
                 if (step.on_failure === 'skip') {
                     console.log(`[PipelineExecutor] Skipping step ${stepIndex + 1} after failure.`);

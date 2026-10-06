@@ -1,32 +1,32 @@
 # CrewForm CLI
 
-Run CrewForm AI agents from the command line — scriptable, CI/CD-friendly, Ollama-first.
+Run and export developer workflows across model APIs, Ollama and local agents. Package: `@crewformhq/cli`; command: `crewform`.
 
 ```
-npx crewform run agent.json "Summarise the latest AI news"
+npx @crewformhq/cli run agent.json "Summarise the latest AI news"
 ```
 
 ## Quick Start
 
 ```bash
 # 1. Create an agent config
-npx crewform init
+npx @crewformhq/cli init
 
 # 2. Run it (Ollama, or set OPENAI_API_KEY / ANTHROPIC_API_KEY)
-npx crewform run agent.json "Hello, world!"
+npx @crewformhq/cli run agent.json "Hello, world!"
 
 # 3. Interactive chat
-npx crewform chat agent.json
+npx @crewformhq/cli chat agent.json
 ```
 
 ## Installation
 
 ```bash
 # Use directly (no install needed)
-npx crewform
+npx @crewformhq/cli
 
 # Or install globally
-npm install -g crewform
+npm install -g @crewformhq/cli
 ```
 
 ## Commands
@@ -207,3 +207,23 @@ Credentials are saved to `~/.crewform/config.json`. Self-hosted users can set `-
 ## License
 
 AGPL-3.0-or-later · [CrewForm](https://crewform.tech)
+
+## Local agent logins
+
+```bash
+crewform doctor
+crewform init --runtime codex --output codex.json
+crewform run codex.json "Review the supplied code for bugs" --input changes.txt --json
+crewform init --runtime claude --output claude.json
+crewform init --runtime gemini --transport acp --output gemini.json
+```
+
+Install and sign in to the native tool on this machine first. Codex/Claude CLI and Gemini/Copilot ACP are supported; Codex/Claude ACP require separately installed adapters. Existing subscription eligibility and limits depend on the native login. See [configuration, permissions and billing](../docs/local-agents.md). API keys are excluded from native child processes and execution errors never automatically switch to APIs.
+
+Local teams support pipeline mode. Each invocation starts a fresh native session; `chat` supplies conversation text rather than resuming native sessions.
+
+## Maintainer release
+
+Run `npm ci`, `npm run build`, `npm test`, and `npm pack`. The runtime is bundled in the CLI tarball; it does not require a second npm package release. Verify the tarball in a clean directory before publishing.
+
+The npm organization is `crewformhq`. Sign in with an account that has publish access to that organization, then use `npm publish --access public` with your account's required 2FA or trusted publishing setup. Organization creation alone does not grant the currently signed-in CLI account access. Never commit npm tokens.

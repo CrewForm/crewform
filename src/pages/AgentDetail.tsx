@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { ExecutionSettings } from '@/components/agents/ExecutionSettings'
 // Copyright (C) 2026 CrewForm
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
@@ -105,6 +106,7 @@ export function AgentDetail() {
     useEffect(() => {
         if (agent && !formData) {
             setFormData({
+                config: agent.config,
                 name: agent.name,
                 description: agent.description,
                 model: agent.model,
@@ -542,7 +544,13 @@ function ConfigurationTab({ formData, fieldErrors, onUpdateField, modelOptions, 
             </div>
 
             {/* Model */}
-            <div>
+            <ExecutionSettings data={formData} onChange={patch => {
+                onUpdateField('config', patch.config)
+                onUpdateField('model', patch.model)
+                onUpdateField('tools', patch.tools)
+                onUpdateField('fallback_model', patch.fallback_model)
+            }} />
+            <div hidden={(formData.config?.execution as {kind?: string} | undefined)?.kind === 'external'}>
                 <label htmlFor="edit-model" className="mb-1.5 block text-sm font-medium text-gray-300">
                     Model <span className="text-red-400">*</span>
                 </label>
@@ -567,7 +575,7 @@ function ConfigurationTab({ formData, fieldErrors, onUpdateField, modelOptions, 
             </div>
 
             {/* Fallback Model */}
-            <div>
+            <div hidden={(formData.config?.execution as {kind?: string} | undefined)?.kind === 'external'}>
                 <label htmlFor="edit-fallback-model" className="mb-1.5 block text-sm font-medium text-gray-300">
                     Fallback Model <span className="text-xs text-gray-500">(optional)</span>
                 </label>
@@ -619,7 +627,7 @@ function ConfigurationTab({ formData, fieldErrors, onUpdateField, modelOptions, 
             </div>
 
             {/* Temperature */}
-            <div>
+            <div hidden={(formData.config?.execution as {kind?: string} | undefined)?.kind === 'external'}>
                 <div className="mb-1.5 flex items-center justify-between">
                     <label htmlFor="edit-temp" className="text-sm font-medium text-gray-300">
                         Temperature
@@ -643,7 +651,7 @@ function ConfigurationTab({ formData, fieldErrors, onUpdateField, modelOptions, 
             </div>
 
             {/* Max Tokens */}
-            <div>
+            <div hidden={(formData.config?.execution as {kind?: string} | undefined)?.kind === 'external'}>
                 <label htmlFor="edit-max-tokens" className="mb-1.5 block text-sm font-medium text-gray-300">
                     Max Tokens
                 </label>
@@ -717,7 +725,7 @@ function ConfigurationTab({ formData, fieldErrors, onUpdateField, modelOptions, 
             </div>
 
             {/* Built-in Tools */}
-            <div>
+            <div hidden={(formData.config?.execution as {kind?: string} | undefined)?.kind === 'external'}>
                 <div className="mb-1.5 flex items-center justify-between">
                     <label className="text-sm font-medium text-gray-300">
                         Built-in Tools
@@ -791,7 +799,7 @@ function ConfigurationTab({ formData, fieldErrors, onUpdateField, modelOptions, 
             </div>
 
             {/* Custom Tools */}
-            <div>
+            <div hidden={(formData.config?.execution as {kind?: string} | undefined)?.kind === 'external'}>
                 <div className="mb-1.5 flex items-center justify-between">
                     <label className="text-sm font-medium text-gray-300">
                         Custom Tools

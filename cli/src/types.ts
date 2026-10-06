@@ -4,6 +4,8 @@
 // types.ts — Shared types for the CLI tool.
 
 export interface TokenUsage {
+    usageKnown?: boolean;
+    billingModel?: string;
     promptTokens: number;
     completionTokens: number;
     totalTokens: number;
@@ -22,4 +24,5 @@ export interface ExecutionResult {
     result: string;
     usage: TokenUsage;
     toolCallLogs: ToolCallLog[];
+    execution?: { agent: string; transport: string; authentication: string; billingModel: string; usageKnown: boolean; sessionId?: string };
 }

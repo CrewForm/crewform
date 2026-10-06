@@ -2,6 +2,9 @@
 // Copyright (C) 2026 CrewForm
 //
 // Shared LLM execution helper — used by both pipeline and orchestrator executors.
+import { parseExecution } from '@crewformhq/agent-runtime';
+import { writeTeamRunUsageRecord } from './usageWriter';
+import { executeLocalAgent } from './externalAgent';
 
 import { supabase } from './supabase';
 import { executeAnthropic } from './providers/anthropic';
@@ -14,6 +17,9 @@ import type { Agent, ApiKey, TokenUsage } from './types';
 import { validateProviderBaseUrl } from './urlSafety';
 
 export interface LLMCallInput {
+    recordNativeUsage?: boolean;
+    taskId?: string;
+    teamRunId?: string;
     workspaceId: string;
     agentId: string;
     systemPrompt: string;
@@ -77,6 +83,7 @@ export async function executeLLMCall(input: LLMCallInput): Promise<LLMCallResult
         .from('agents')
         .select('*')
         .eq('id', input.agentId)
+        .eq('workspace_id', input.workspaceId)
         .single();
 
     const agent = agentResponse.data as Agent | null;
@@ -84,6 +91,19 @@ export async function executeLLMCall(input: LLMCallInput): Promise<LLMCallResult
         throw new Error(`Failed to load agent ${input.agentId}: ${agentResponse.error?.message ?? 'not found'}`);
     }
 
+    const external = parseExecution(agent.config);
+    if (external) {
+        if (agent.tools?.length) throw new Error('External agents own their tools. Remove CrewForm tools from this agent.');
+        const result = await executeLocalAgent(external, {...input, model: agent.model});
+        // Track native calls separately so aggregate API estimates cannot imply
+        // that subscription work had a measured zero-dollar cost.
+        if (input.teamRunId && input.recordNativeUsage !== false) await writeTeamRunUsageRecord({
+            workspaceId: input.workspaceId, teamRunId: input.teamRunId, agentId: agent.id,
+            provider: `native-${external.agent}`, model: agent.model, stepIndex: -1,
+            stepName: 'native-agent', tokensUsed: 0, costEstimateUsd: 0,
+        });
+        return {...result, provider: `native-${external.agent}`, model: agent.model};
+    }
     // 2. Fetch API key
     const keyResponse = await supabase
         .from('api_keys')

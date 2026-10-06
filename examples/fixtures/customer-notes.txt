@@ -1,0 +1,6 @@
+Fictional interviews for a reproducible evidence brief, not market research.
+[S1] A consultant already pays for Codex and Claude Code and wants to run review/documentation workflows locally.
+[S2] A platform engineer needs cancellation, execution history and workflow export to Git.
+[S3] A solo developer abandoned the installation after receiving a missing Supabase Auth endpoint error.
+[S4] A team lead will evaluate self-hosting if native credentials remain on the team's own machines.
+No note establishes market size, willingness to pay or a competitor's capabilities.

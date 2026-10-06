@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "format": "prettier --write \"src/**/*.{ts,tsx}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx}\""
+    "format:check": "prettier --check \"src/**/*.{ts,tsx}\"",
+    "local:prepare": "node scripts/prepare-local-backend.mjs"
   },
   "dependencies": {
     "@dagrejs/dagre": "^3.0.0",

@@ -231,7 +231,7 @@ export function TaskDetailPanel({ taskId, agents, onClose }: TaskDetailPanelProp
                         {(() => {
                             const meta = task.metadata as Record<string, unknown> | null
                             const toolCalls = Array.isArray(meta?.tool_calls) ? meta.tool_calls as { tool: string; arguments: Record<string, unknown>; result: string; success: boolean; duration_ms: number }[] : []
-                            const usage = meta?.usage as { totalTokens?: number; costEstimateUSD?: number } | undefined
+                            const usage = meta?.usage as { totalTokens?: number; costEstimateUSD?: number; usageKnown?: boolean } | undefined
 
                             return (
                                 <>
@@ -256,8 +256,8 @@ export function TaskDetailPanel({ taskId, agents, onClose }: TaskDetailPanelProp
                                     <div>
                                         <h3 className="mb-2 text-sm font-medium text-gray-400">Usage</h3>
                                         <div className="grid grid-cols-3 gap-3">
-                                            <UsageStat label="Tokens" value={usage?.totalTokens != null ? usage.totalTokens.toLocaleString() : '—'} />
-                                            <UsageStat label="Cost" value={usage?.costEstimateUSD != null ? `$${usage.costEstimateUSD.toFixed(4)}` : '—'} />
+                                            <UsageStat label="Tokens" value={usage?.usageKnown === false ? 'Unknown' : usage?.totalTokens != null ? usage.totalTokens.toLocaleString() : '—'} />
+                                            <UsageStat label="Cost" value={usage?.usageKnown === false ? 'Unknown' : usage?.costEstimateUSD != null ? `$${usage.costEstimateUSD.toFixed(4)}` : '—'} />
                                             <UsageStat label="Model" value={agent?.model ?? '—'} />
                                         </div>
                                     </div>
