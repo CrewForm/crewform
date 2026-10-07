@@ -6,7 +6,13 @@ BEGIN
  IF (v_row.task_id IS NULL)=(v_row.team_run_id IS NULL) THEN RAISE EXCEPTION 'Attachment requires exactly one parent'; END IF;
  IF v_row.task_id IS NOT NULL THEN SELECT to_jsonb(t) INTO v_parent FROM public.tasks t WHERE t.id=v_row.task_id AND t.workspace_id=v_row.workspace_id FOR UPDATE;
  ELSE SELECT to_jsonb(t) INTO v_parent FROM public.team_runs t WHERE t.id=v_row.team_run_id AND t.workspace_id=v_row.workspace_id FOR UPDATE; END IF;
- IF v_parent IS NULL THEN RAISE EXCEPTION 'Attachment parent belongs to another workspace'; END IF;
+ IF v_parent IS NULL THEN
+  -- Foreign-key cascades can delete the parent before this child trigger runs.
+  -- Only nested deletion / FK creator nulling may complete; no new row is admitted.
+  IF pg_trigger_depth()>1 AND TG_OP='DELETE' THEN RETURN OLD; END IF;
+  IF pg_trigger_depth()>1 AND TG_OP='UPDATE' AND NEW.created_by IS NULL AND OLD.created_by IS NOT NULL AND (to_jsonb(NEW)-'created_by')=(to_jsonb(OLD)-'created_by') THEN RETURN NEW; END IF;
+  RAISE EXCEPTION 'Attachment parent belongs to another workspace';
+ END IF;
  IF v_row.storage_path NOT LIKE v_row.workspace_id::text||'/'||coalesce(v_row.task_id,v_row.team_run_id)::text||'/'||v_row.direction||'/%'
  OR v_row.storage_path ~ '(^|/)\.{1,2}(/|$)' OR v_row.file_size<0 OR v_row.file_size>10485760 THEN RAISE EXCEPTION 'Invalid attachment path or size'; END IF;
  IF auth.role()='authenticated' THEN

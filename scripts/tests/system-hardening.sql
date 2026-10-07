@@ -166,5 +166,8 @@ SET LOCAL ROLE anon;
 SELECT pg_temp.expect_error('SELECT * FROM public.execution_usage','permission denied');
 SELECT pg_temp.expect_error('SELECT * FROM public.stripe_event_receipts','permission denied');
 RESET ROLE;
+-- Account/workspace deletion must complete its attachment foreign-key cascades.
+SELECT set_config('request.jwt.claims','{"role":"service_role"}',true);
+DELETE FROM auth.users WHERE id='10000000-0000-0000-0000-000000000001';
 ROLLBACK;
 \echo 'System hardening SQL regression checks passed'
