@@ -167,7 +167,18 @@ SELECT pg_temp.expect_error('SELECT * FROM public.execution_usage','permission d
 SELECT pg_temp.expect_error('SELECT * FROM public.stripe_event_receipts','permission denied');
 RESET ROLE;
 -- Account/workspace deletion must complete its attachment foreign-key cascades.
+-- Production's dump creates creator SET NULL before the parent CASCADE FKs.
+-- Exercise that order too: the missing-parent update must be skipped entirely.
+ALTER TABLE public.file_attachments DROP CONSTRAINT file_attachments_created_by_fkey,
+ DROP CONSTRAINT file_attachments_task_id_fkey, DROP CONSTRAINT file_attachments_team_run_id_fkey;
+ALTER TABLE public.file_attachments ADD CONSTRAINT file_attachments_created_by_fkey
+ FOREIGN KEY(created_by) REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE public.file_attachments ADD CONSTRAINT file_attachments_task_id_fkey
+ FOREIGN KEY(task_id) REFERENCES public.tasks(id) ON DELETE CASCADE;
+ALTER TABLE public.file_attachments ADD CONSTRAINT file_attachments_team_run_id_fkey
+ FOREIGN KEY(team_run_id) REFERENCES public.team_runs(id) ON DELETE CASCADE;
 SELECT set_config('request.jwt.claims','{"role":"service_role"}',true);
 DELETE FROM auth.users WHERE id='10000000-0000-0000-0000-000000000001';
+DO $$ BEGIN IF EXISTS(SELECT 1 FROM public.file_attachments WHERE task_id='50000000-0000-0000-0000-000000000001') THEN RAISE EXCEPTION 'Account deletion retained orphaned attachment'; END IF; END $$;
 ROLLBACK;
 \echo 'System hardening SQL regression checks passed'

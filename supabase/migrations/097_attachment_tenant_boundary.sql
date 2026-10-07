@@ -10,7 +10,10 @@ BEGIN
   -- Foreign-key cascades can delete the parent before this child trigger runs.
   -- Only nested deletion / FK creator nulling may complete; no new row is admitted.
   IF pg_trigger_depth()>1 AND TG_OP='DELETE' THEN RETURN OLD; END IF;
-  IF pg_trigger_depth()>1 AND TG_OP='UPDATE' AND NEW.created_by IS NULL AND OLD.created_by IS NOT NULL AND (to_jsonb(NEW)-'created_by')=(to_jsonb(OLD)-'created_by') THEN RETURN NEW; END IF;
+  -- A creator SET NULL can run before the parent's queued CASCADE. Skip this
+  -- update: rechecking its now-missing parent FK would block account deletion.
+  -- The parent CASCADE removes the child; no missing-parent row is admitted.
+  IF pg_trigger_depth()>1 AND TG_OP='UPDATE' AND NEW.created_by IS NULL AND OLD.created_by IS NOT NULL AND (to_jsonb(NEW)-'created_by')=(to_jsonb(OLD)-'created_by') THEN RETURN NULL; END IF;
   RAISE EXCEPTION 'Attachment parent belongs to another workspace';
  END IF;
  IF v_row.storage_path NOT LIKE v_row.workspace_id::text||'/'||coalesce(v_row.task_id,v_row.team_run_id)::text||'/'||v_row.direction||'/%'
