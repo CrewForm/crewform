@@ -139,8 +139,8 @@ Deno.serve(async (req: Request) => {
             customer: customerId,
             mode: 'subscription',
             line_items: [{ price: priceId, quantity: 1 }],
-            success_url: `${origin}/settings?tab=billing&session_id={CHECKOUT_SESSION_ID}`,
-            cancel_url: `${origin}/settings?tab=billing`,
+            success_url: `${origin}/settings/billing?session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${origin}/settings/billing`,
             subscription_data: {
                 metadata: {
                     workspace_id: workspaceId,

@@ -80,7 +80,7 @@ Deno.serve(async (req: Request) => {
 
         const session = await stripe.billingPortal.sessions.create({
             customer: customerId,
-            return_url: `${origin}/settings?tab=billing`,
+            return_url: `${origin}/settings/billing`,
         });
 
         return new Response(
