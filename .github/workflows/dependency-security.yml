@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: Dependency security
+on:
+  schedule:
+    - cron: '20 6 * * 1'
+  workflow_dispatch:
+  pull_request:
+    paths: ['**/package.json', '**/package-lock.json', '.github/workflows/dependency-security.yml', 'task-runner/Dockerfile', 'deno.lock', 'supabase/functions/**']
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        directory: ['.', 'cli', 'task-runner', 'chat-widget']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts
+        working-directory: ${{ matrix.directory }}
+      - run: npm audit --audit-level=moderate
+        working-directory: ${{ matrix.directory }}
+  edge-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Check Edge Function dependencies and types
+        run: deno check supabase/functions/*/index.ts
+  container-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build --pull -f task-runner/Dockerfile -t crewform-security-check .
+      - name: Scan runtime image
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          image-ref: crewform-security-check
+          severity: CRITICAL,HIGH
+          exit-code: '1'
+          ignore-unfixed: false

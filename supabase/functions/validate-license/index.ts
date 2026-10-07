@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { readJson } from '../_shared/body.ts';
 // Copyright (C) 2026 CrewForm
 //
 // validate-license — Verify an EE license key signature.
@@ -47,7 +48,7 @@ serve(async (req: Request) => {
     if (req.method !== 'POST') return methodNotAllowed();
 
     try {
-        const body = await req.json() as { licenseKey?: string; workspaceId?: string };
+        const body = await readJson(req) as { licenseKey?: string; workspaceId?: string };
 
         if (!body.licenseKey) {
             return badRequest('licenseKey is required');

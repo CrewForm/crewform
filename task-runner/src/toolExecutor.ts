@@ -523,6 +523,7 @@ export async function executeWithToolLoop(
     mcpServers?: McpServerConfig[],
     knowledgeContext?: { workspaceId: string; documentIds?: string[] },
     taskId?: string,
+    maxRounds = 10,
 ): Promise<ToolUseResult> {
     const tools = getToolDefinitions(toolNames, customTools, mcpToolDefs);
     const messages: ToolUseMessage[] = [
@@ -530,7 +531,7 @@ export async function executeWithToolLoop(
         { role: 'user', content: userPrompt },
     ];
 
-    const MAX_ROUNDS = 10;
+    const MAX_ROUNDS = Math.min(10, Math.max(1, maxRounds));
     let totalPromptTokens = 0;
     let totalCompletionTokens = 0;
     let toolCallsMade = 0;

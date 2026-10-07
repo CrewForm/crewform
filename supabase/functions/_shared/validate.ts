@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { readJson } from './body.ts';
 // Copyright (C) 2026 CrewForm
 
 import { z } from 'https://esm.sh/zod@3.23.8';
@@ -14,7 +15,7 @@ export async function validateBody<T extends z.ZodTypeAny>(
 ): Promise<{ data: z.infer<T> } | { error: Response }> {
     let body: unknown;
     try {
-        body = await req.json();
+        body = await readJson(req);
     } catch {
         return { error: badRequest('Invalid JSON body') };
     }

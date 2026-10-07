@@ -30,7 +30,7 @@ import { ApiClient, saveConfig, deleteConfig, getConfigPath, loadConfig } from '
 // Load .env from current directory
 dotenv.config({quiet: true});
 
-const VERSION = '0.1.0';
+const VERSION = (JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as {version: string}).version;
 
 const program = new Command();
 
@@ -275,7 +275,7 @@ program
             console.log(chalk.cyan(`  • ${tool}`));
         }
         console.log('');
-        console.log(chalk.dim('Add tools to your agent config: "tools": ["web_search", "code_interpreter"]'));
+        console.log(chalk.dim('Add tools to your agent config: "tools": ["web_search", "grammar_check"]'));
         console.log(chalk.dim('Note: web_search requires SERPER_API_KEY environment variable (serper.dev)'));
         console.log('');
     });

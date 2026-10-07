@@ -1,3 +1,4 @@
+import { executionFetch } from '../executionScope';
 import OpenAI from 'openai';
 import type { TokenUsage } from '../types';
 import { validateProviderBaseUrl } from '../urlSafety';
@@ -12,7 +13,7 @@ export async function executeOpenAI(
     maxTokens?: number | null
 ): Promise<{ result: string; usage: TokenUsage }> {
     const validatedBaseUrl = baseURL ? (await validateProviderBaseUrl(baseURL)).toString() : undefined;
-    const openai = new OpenAI({ apiKey, ...(validatedBaseUrl ? { baseURL: validatedBaseUrl } : {}) });
+    const openai = new OpenAI({ apiKey, fetch: executionFetch, timeout: 120_000, maxRetries: 0, ...(validatedBaseUrl ? { baseURL: validatedBaseUrl } : {}) });
     let fullText = '';
 
     const stream = await openai.chat.completions.create({

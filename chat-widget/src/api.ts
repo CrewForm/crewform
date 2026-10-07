@@ -46,11 +46,17 @@ export class ChatApi {
     return res.json() as Promise<WidgetConfig>;
   }
 
+  async getSession(visitorId: string): Promise<string> {
+    const res = await fetch(`${this.baseUrl}/chat/session`, {method:'POST',headers:this.headers(),body:JSON.stringify({visitorId})});
+    if(!res.ok) throw new Error(`Widget session failed: ${res.status}`);
+    const data=await res.json() as {visitorId:string};return data.visitorId;
+  }
+
   /** Fetch message history for a visitor */
   async getHistory(visitorId: string): Promise<ChatMessageData[]> {
     const res = await fetch(
-      `${this.baseUrl}/chat/history?visitorId=${encodeURIComponent(visitorId)}`,
-      { headers: this.headers() },
+      `${this.baseUrl}/chat/history`,
+      { headers: {...this.headers(),'X-CrewForm-Visitor-Token':visitorId} },
     );
 
     if (!res.ok) return [];

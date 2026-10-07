@@ -2,7 +2,7 @@
 # CrewForm Task Runner — Dockerfile
 # ─────────────────────────────────────────────────────────────────────────────
 
-FROM node:20-alpine
+FROM node:22-alpine AS build
 
 WORKDIR /usr/src/app
 
@@ -26,6 +26,21 @@ COPY task-runner/src ./src
 
 # Build TypeScript to dist/
 RUN npx tsc -p tsconfig.json
+
+# Remove build/test tooling from the deployed image, then run without root.
+RUN npm prune --omit=dev
+
+FROM node:22-alpine
+RUN apk upgrade --no-cache zlib
+WORKDIR /usr/src/app
+# The runtime needs Node, not package installation tooling or its dependencies.
+RUN node -e "const fs=require('node:fs');fs.rmSync('/usr/local/lib/node_modules',{recursive:true,force:true});for(const file of ['npm','npx','corepack','yarn','yarnpkg','pnpm','pnpx']) fs.rmSync('/usr/local/bin/'+file,{force:true});for(const dir of fs.readdirSync('/opt').filter(name=>name.startsWith('yarn-'))) fs.rmSync('/opt/'+dir,{recursive:true,force:true});"
+COPY --from=build --chown=node:node /usr/src/app/dist ./dist
+COPY --from=build --chown=node:node /usr/src/app/node_modules ./node_modules
+COPY --from=build --chown=node:node /usr/src/app/package*.json ./
+COPY --from=build --chown=node:node /usr/src/agent-runtime /usr/src/agent-runtime
+COPY --from=build --chown=node:node /usr/src/app/chat-widget/dist ./chat-widget/dist
+USER node
 
 # Readiness includes the runner's database registration and recent heartbeat.
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \

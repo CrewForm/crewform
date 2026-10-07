@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { withExecutionScope, executionFetch, executionSignal } from './executionScope';
+import { loadTenantEntities } from './tenantEntities';
 // Copyright (C) 2026 CrewForm
 //
 // OrchestratorExecutor — brain agent delegates to workers via tool calls,
@@ -133,6 +135,10 @@ RULES:
 // ─── Main Orchestrator Loop ──────────────────────────────────────────────────
 
 export async function processOrchestratorRun(run: TeamRun): Promise<void> {
+    return withExecutionScope('team_runs', run.id, run.workspace_id, () => processOrchestratorRunInner(run));
+}
+
+async function processOrchestratorRunInner(run: TeamRun): Promise<void> {
     console.log(`[Orchestrator] Processing run ${run.id}`);
 
     let totalTokens = 0;
@@ -141,6 +147,7 @@ export async function processOrchestratorRun(run: TeamRun): Promise<void> {
     let finalOutput: string | null = null; // Track the finalized output for webhook dispatch
 
     try {
+        executionSignal()?.throwIfAborted();
         // 1. Fetch team to get config
         const teamResponse = await supabase
             .from('teams')
@@ -160,12 +167,8 @@ export async function processOrchestratorRun(run: TeamRun): Promise<void> {
         }
 
         // 2. Fetch all worker agents
-        const workersResponse = await supabase
-            .from('agents')
-            .select('*')
-            .in('id', config.worker_agent_ids);
+        const workers = await loadTenantEntities<Agent>('agents', run.workspace_id, config.worker_agent_ids);
 
-        const workers = (workersResponse.data as Agent[] | null) ?? [];
         if (workers.length === 0) {
             throw new Error('No worker agents found for this orchestrator team');
         }

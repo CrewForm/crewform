@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { readJson } from '../_shared/body.ts';
 // Copyright (C) 2026 CrewForm
 //
 // activate-license — Edge Function for self-hosted customers to activate
@@ -44,7 +45,7 @@ serve(async (req: Request) => {
     try {
         const auth = await authenticateRequest(req);
 
-        const body = await req.json() as { licenseKey?: string };
+        const body = await readJson(req) as { licenseKey?: string };
         const licenseKey = body.licenseKey?.trim();
 
         if (!licenseKey) {

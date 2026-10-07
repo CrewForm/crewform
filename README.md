@@ -399,10 +399,10 @@ Move from scripts and prototypes to managed agent systems with visual operations
 
 CrewForm uses an **open-core** model: a free Community Edition under AGPL-3.0 and a proprietary Enterprise Edition.
 
-| | Free | Pro | Team | Enterprise |
+| | Free | Pro | Team | Custom on-premises |
 |---|---|---|---|---|
 | Agents | 3 | 25 | Unlimited | Unlimited |
-| Tasks/month | 50 | 1,000 | Unlimited | Unlimited |
+| Workflow runs/month | 50 | 1,000 | 10,000 | Contracted |
 | Teams | 1 | 10 | Unlimited | Unlimited |
 | Members | 1 | 3 | 25 | Unlimited |
 | MCP Protocol | ✅ | ✅ | ✅ | ✅ |
@@ -527,7 +527,7 @@ CrewForm is an open-source AI orchestration platform that lets you deploy, manag
 <details>
 <summary><strong>Is CrewForm free to use?</strong></summary>
 
-Yes. CrewForm's Community Edition is open-source under the AGPL v3 license. You can self-host it for free. We also offer a hosted version with a free tier at [crewform.tech](https://crewform.tech). Paid plans (Pro $39/mo, Team $99/mo, Enterprise custom) unlock additional features.
+Yes. CrewForm's Community Edition is open-source under the AGPL v3 license. You can self-host it for free. We also offer a hosted version with a free tier at [crewform.tech](https://crewform.tech). Paid plans (Pro $15/mo, Team $49/mo, Custom on-premises) unlock additional features.
 </details>
 
 <details>

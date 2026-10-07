@@ -26,7 +26,7 @@ function getKeyBytes(): Uint8Array {
 }
 
 async function importKey(): Promise<CryptoKey> {
-    return crypto.subtle.importKey('raw', getKeyBytes(), 'AES-GCM', false, ['encrypt', 'decrypt']);
+    return crypto.subtle.importKey('raw', new Uint8Array(getKeyBytes()), 'AES-GCM', false, ['encrypt', 'decrypt']);
 }
 
 export function isEncryptedSecret(value: string): boolean {
@@ -48,9 +48,9 @@ export async function decryptSecret(value: string): Promise<string> {
     const [, ivValue, ciphertextValue] = value.split(':');
     if (!ivValue || !ciphertextValue) throw new Error('Malformed encrypted secret');
     const plaintext = await crypto.subtle.decrypt(
-        { name: 'AES-GCM', iv: base64ToBytes(ivValue) },
+        { name: 'AES-GCM', iv: new Uint8Array(base64ToBytes(ivValue)) },
         await importKey(),
-        base64ToBytes(ciphertextValue),
+        new Uint8Array(base64ToBytes(ciphertextValue)),
     );
     return new TextDecoder().decode(plaintext);
 }

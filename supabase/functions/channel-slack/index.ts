@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { readText } from '../_shared/body.ts';
 // Copyright (C) 2026 CrewForm
 
 /**
@@ -47,7 +48,7 @@ Deno.serve(async (req: Request) => {
     }
 
     try {
-        const rawBody = await req.text();
+        const rawBody = await readText(req);
         const signingSecret = Deno.env.get('SLACK_SIGNING_SECRET');
         const timestamp = req.headers.get('x-slack-request-timestamp');
         const signature = req.headers.get('x-slack-signature');

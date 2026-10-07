@@ -7,7 +7,7 @@ import type { TeamRun } from '@/types'
 
 /**
  * React Query mutation for re-running a failed/completed/cancelled team run.
- * Resets the run to pending so the Task Runner picks it up again.
+ * Creates a new run, preserving prior results and reserving its allowance.
  */
 export function useRerunTeamRun() {
     const queryClient = useQueryClient()

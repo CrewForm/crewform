@@ -51,9 +51,9 @@ All code **inside** the `ee/` directory is proprietary and requires a valid Ente
 To use Enterprise features, you need a license key:
 
 1. **CrewForm Cloud** — Enterprise features are included with paid subscriptions at [crewform.tech](https://crewform.tech):
-   - **Pro** — $39/month (Channels, custom tools, advanced analytics)
-   - **Team** — $99/month (Collaboration mode, memory, RBAC)
-   - **Enterprise** — Custom pricing (Audit logs and swarm; SSO is planned)
+   - **Pro** — $15/month (Channels, custom tools, advanced analytics)
+   - **Team** — $49/month (Collaboration mode, memory, RBAC)
+   - **Custom on-premises** — Custom pricing (Audit logs and swarm; SSO is planned)
 2. **Self-hosted** — Contact [team@crewform.tech](mailto:team@crewform.tech) for a self-hosted license key
 
 ## Contributing

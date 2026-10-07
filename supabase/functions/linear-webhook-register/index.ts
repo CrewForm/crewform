@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { readJson } from '../_shared/body.ts';
 // Copyright (C) 2026 CrewForm
 
 /**
@@ -52,7 +53,7 @@ Deno.serve(async (req: Request) => {
             });
         }
 
-        const body = (await req.json()) as RegisterRequest;
+        const body = (await readJson(req)) as unknown as RegisterRequest;
         const { api_key, team_id, label } = body;
 
         if (!api_key || !team_id) {

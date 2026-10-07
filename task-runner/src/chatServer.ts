@@ -3,7 +3,9 @@
 // External websites embed a <script> tag that talks to these endpoints.
 // Mounts at /chat/* on the task runner HTTP server.
 
+import {issueVisitorToken,verifyVisitorToken} from './widgetSession';
 import type { IncomingMessage, ServerResponse } from 'http';
+import { readBody, HttpInputError, boundedJson } from './httpInput';
 import { supabase } from './supabase';
 import { agUiEventBus, AgUiEventType } from './agUiEventBus';
 import type { AgUiEvent } from './agUiEventBus';
@@ -124,21 +126,13 @@ function checkOrigin(req: IncomingMessage, allowedDomains: string[]): boolean {
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-function readBody(req: IncomingMessage): Promise<string> {
-    return new Promise((resolve, reject) => {
-        let body = '';
-        req.on('data', (chunk: Buffer) => { body += chunk.toString(); });
-        req.on('end', () => resolve(body));
-        req.on('error', reject);
-    });
-}
 
 function sendJson(res: ServerResponse, status: number, data: unknown, origin?: string) {
     res.writeHead(status, {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': origin ?? '*',
         'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Api-Key, X-Visitor-Id',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Api-Key, X-CrewForm-Visitor-Token',
         'Access-Control-Allow-Credentials': 'true',
     });
     res.end(JSON.stringify(data));
@@ -194,7 +188,7 @@ async function appendMessages(
         .single();
 
     const currentMessages = ((session as { messages: ChatMessage[] } | null)?.messages ?? []) as ChatMessage[];
-    const updatedMessages = [...currentMessages, userMessage, assistantMessage];
+    const updatedMessages = [...currentMessages, userMessage, assistantMessage].slice(-40).map(message => ({ ...message, content: message.content.slice(0, 20_000) }));
 
     await supabase
         .from('chat_sessions')
@@ -283,19 +277,20 @@ async function handleSendMessage(
     let body: { message: string; visitorId: string };
     try {
         const raw = await readBody(req);
-        body = JSON.parse(raw) as typeof body;
-    } catch {
+        body = boundedJson(raw) as typeof body;
+    } catch (error) {
+            if (error instanceof HttpInputError) throw error;
         sendJson(res, 400, { error: 'Invalid JSON body' });
         return;
     }
 
-    if (!body.message?.trim()) {
+    if (typeof body.message !== 'string' || !body.message.trim() || body.message.length > 20_000) {
         sendJson(res, 400, { error: 'Message is required' });
         return;
     }
 
-    if (!body.visitorId) {
-        sendJson(res, 400, { error: 'visitorId is required' });
+    if (!verifyVisitorToken(config.id,body.visitorId)) {
+        sendJson(res, 400, { error: 'A valid widget session is required' });
         return;
     }
 
@@ -309,11 +304,21 @@ async function handleSendMessage(
         return;
     }
 
+    const reservation = await supabase.rpc('reserve_chat_request', { p_widget_id: config.id });
+    if (reservation.error || reservation.data !== true) {
+        sendJson(res, reservation.error ? 503 : 429, { error: 'Widget capacity unavailable; retry later' });
+        return;
+    }
+    const cleanup = await supabase.from('chat_sessions').delete().eq('widget_config_id', config.id)
+        .lt('updated_at', new Date(Date.now() - 30 * 86400_000).toISOString());
+    if (cleanup.error) { sendJson(res, 503, {error: 'Session storage unavailable'}); return; }
+
     // Get or create session
     let session: ChatSession;
     try {
         session = await getOrCreateSession(config, body.visitorId);
     } catch (err: unknown) {
+        if(err instanceof HttpInputError) throw err;
         const msg = err instanceof Error ? err.message : 'Session creation failed';
         console.error(`[Chat Widget] Session error: ${msg}`);
         sendJson(res, 500, { error: `Session error: ${msg}` });
@@ -434,11 +439,10 @@ async function handleGetHistory(
     res: ServerResponse,
     config: ChatWidgetConfig,
 ) {
-    const url = new URL(req.url ?? '', `http://${req.headers.host}`);
-    const visitorId = url.searchParams.get('visitorId');
+    const visitorId = req.headers['x-crewform-visitor-token'];
 
-    if (!visitorId) {
-        sendJson(res, 400, { error: 'visitorId query param is required' });
+    if (!verifyVisitorToken(config.id,visitorId)) {
+        sendJson(res, 400, { error: 'A valid widget session is required' });
         return;
     }
 
@@ -524,7 +528,7 @@ export async function handleChatRequest(
         res.writeHead(204, {
             'Access-Control-Allow-Origin': req.headers.origin ?? '*',
             'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Api-Key, X-Visitor-Id',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Api-Key, X-CrewForm-Visitor-Token',
             'Access-Control-Allow-Credentials': 'true',
             'Access-Control-Max-Age': '86400',
         });
@@ -554,6 +558,12 @@ export async function handleChatRequest(
             return true;
         }
 
+        if (req.method === 'POST' && cleanUrl === '/chat/session') {
+            const input=boundedJson(await readBody(req));
+            const token=verifyVisitorToken(config.id,input.visitorId)?input.visitorId:issueVisitorToken(config.id);
+            sendJson(res,200,{visitorId:token});return true;
+        }
+
         if (req.method === 'POST' && cleanUrl === '/chat/message') {
             await handleSendMessage(req, res, config);
             return true;
@@ -564,6 +574,7 @@ export async function handleChatRequest(
             return true;
         }
     } catch (err: unknown) {
+        if(err instanceof HttpInputError) throw err;
         const msg = err instanceof Error ? err.message : 'Internal server error';
         console.error(`[Chat Widget] Unhandled error on ${cleanUrl}: ${msg}`);
         if (!res.headersSent) {

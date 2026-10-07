@@ -42,11 +42,9 @@ historical outputs to configured destinations. Review task IDs, destinations,
 and dates before deciding to run or cancel them. Do not bulk-convert all
 `pending` tasks to `dispatched`: pending tasks may be intentional drafts.
 
-## Choose one scheduler
+## Scheduler ownership and duplicate prevention
 
-The current runner and Edge Function each evaluate triggers independently.
-They do not share an atomic claim for a scheduled firing, so running both can
-create duplicates. Use one until that transaction is implemented.
+With migration 088 and the matching runner/Edge code, both evaluators use `enqueue_scheduled_firing`. The transaction locks the workspace and trigger, compares the previously observed firing and enqueues once. Old evaluator binaries still bypass this protection: deploy both implementations before allowing overlap. Keep one primary scheduler for simpler operations.
 
 ### Always-on runner (smallest change)
 
@@ -111,6 +109,100 @@ context enrichment. Do not switch enriched schedules without implementing
 parity. Verify `net._http_response`, `trigger_log`, and actual task completion;
 checking just the cron job or the enqueue log is insufficient.
 
+## Reviewed hardening and pricing rollout
+
+The reviewed catalogue is Free / Pro $15 / Team $49 per workspace per month.
+Custom is an on-premises offer. The stored `enterprise` key remains compatible
+with existing licences; it is not a new Cloud checkout plan. Provider inference
+is separate. A workflow run is one task or one team run; step calls and automatic retries
+are not additional monthly runs. An explicit rerun creates a new job and uses
+a new allowance, preserving prior results. Inputs are copied before dispatch;
+failed copying leaves a draft. Failed work after execution starts uses its
+reservation; pre-start cancellation releases it. Past-due subscriptions receive seven days from first observed delinquency;
+afterward hosted quotas use Free entitlements until recovery. Existing past-due
+rows use their last update as the migration baseline. Stored paid-plan identity
+is retained for billing recovery, while the effective plan controls execution.
+
+Existing paid Team customers
+retain their prior unlimited run allowance through a database override.
+
+`shared/plan-catalogue.json` generates TypeScript and SQL definitions. Run
+`npm run plans:generate` after edits and `npm run plans:check` in CI. To update
+the separate landing checkout too, use the generator's `--landing` flag.
+
+Before rollout:
+
+1. Export schema, application/auth data and private storage with the existing
+   backup process. Verify a restore and preserve the encryption key separately.
+   The local synthetic restore test does not establish production recovery.
+2. Run `scripts/tests/review-rollout-preflight.sql` read-only. Compare the live
+   schema with a staged 086 baseline and resolve any drift. A project with empty
+   migration history must not receive a blind `supabase db push`: that can replay
+   historical schema/seed/cron operations. Do not apply locally staged IDs.
+3. Generate the **new** 087–103 upgrade only with
+   `node scripts/prepare-review-rollout.mjs /separate/new/output-directory`.
+   Review its transaction and apply to a restored staging database first.
+   Inventory Storage policies: broad manual policies can OR away restrictive
+   policies and need explicit reconciliation. The upgrade replaces the named
+   historical attachments policies and keeps the attachments bucket private.
+4. Deploy matching Edge Functions and runner, including the authenticated
+   internal outbound guard. Edge secrets `TASK_RUNNER_URL` and `WEBHOOK_SECRET`
+   must refer to the same trusted runner; this is a backend credential. Requests
+   fail closed when that guard is missing. Block that internal path at public
+   ingress where possible. Configure request/connection/time limits in ingress.
+5. Create **new** monthly USD Stripe prices for 1500 and 4900 cents, and set
+   `STRIPE_PRO_PRICE_ID` / `STRIPE_TEAM_PRICE_ID`. Keep previous IDs in comma
+   separated `STRIPE_PRO_LEGACY_PRICE_IDS` / `STRIPE_TEAM_LEGACY_PRICE_IDS` so
+   renewals retain their plan. Do not bulk-update existing subscriptions.
+   Checkout rejects a configured price whose amount/currency/interval differs
+   from the catalogue. Verify the billing portal's allowed price changes too.
+6. Verify workspace role isolation, quota failure, webhook replay, a new signup,
+   renewal and cancellation in Stripe test mode before the live switch. Deploy
+   frontend and landing pricing together only after checkout is ready.
+
+Production rollback requires restoring the compatible application version
+and reviewing database/Stripe state; do not blindly drop new usage/delivery
+records. Record migration baseline and applied IDs once the production schema
+comparison is complete. Neither bundle generation nor local tests deploy fixes.
+
+Native execution requires immutable user attribution and a current database
+consent snapshot. API/service-key jobs cannot inherit a personal login. Agent
+configuration, inputs, team configuration and uploaded object versions must
+still match the creator's approved dispatch, and membership must remain valid.
+The actual loaded agent row must match that snapshot too. Active native work
+locks its agent/team/profile/template configuration until completion or
+cancellation; operational status updates remain allowed. Refresh approval by reviewing and redispatching your own pending job. Uploaded
+input objects cannot be overwritten through the authenticated Storage policy.
+CLI/MCP stdio programs and installed ACP agents remain trusted local code, not
+an operating-system sandbox. Optional adapters need their own inventory.
+
+Public widget history requires a server-issued 30-day session credential signed
+for that widget. Caller-chosen visitor IDs and old widget caches cannot read it.
+The new widget build is required with the new runner. `WIDGET_SESSION_SECRET`
+(or `WEBHOOK_SECRET` as a fallback) must be set; rotating it invalidates existing
+visitor sessions. History credentials travel in a header, not a URL query.
+
+Public widgets receive a durable aggregate hourly limit, bounded history and
+three queued/active requests at most. Their execution has at most 2 tool rounds,
+2048 output tokens, no API fallback, and no inherited private tools. Explicit
+`config.public_widget_tools` may grant `grammar_check`; `knowledge_search` also
+requires an explicit nonempty `knowledge_base_ids` scope. Publishing that scope
+makes those documents available to widget visitors; review it deliberately.
+
+Output-route/Zapier delivery is queued in the same transaction as job state.
+HTTP destinations receive a stable `Idempotency-Key`; other services may not
+support deduplication. Expired delivery leases become `uncertain`. An owner/admin
+may use `retry_output_delivery(id, true)` after checking the destination, since
+an interrupted external write may already have succeeded. Failed deliveries
+require an explicit retry; they are not silently declared delivered.
+
+Approval requests and responses persist with task/interaction/step identity,
+expiry and replay rejection. The helper can reuse an unchanged pending request.
+Current executors do not have a general checkpoint/resume engine: interrupted
+active jobs fail with an explanation rather than replaying tools/provider calls.
+Review prior effects and create a new run deliberately. Runtime attempt records
+measure worker wall time, not CPU time, an infrastructure invoice or model cost.
+
 ## Safe rollout of runner reliability changes
 
 1. Review the historical queue and choose what to keep. Resolve invalid team
@@ -131,10 +223,10 @@ checking just the cron job or the enqueue log is insufficient.
    registry bug, so continue monitoring the registration if rolling back.
 
 Shutdown preserves dead runner rows until recovery, rather than deleting the
-ownership link on unfinished jobs. Recovery is still at-least-once execution:
-external writes need idempotency, and approvals need durable continuation.
-The fixes do not establish exactly-once delivery or safe resumption of every
-interrupted workflow.
+ownership link on unfinished jobs. Recovery fails interrupted active work for manual review. It does not rerun
+provider calls or external writes automatically. Durable responses/deliveries
+preserve decisions and uncertainty, while general workflow checkpoints remain
+a separate implementation.
 
 ## Hosting choices
 

@@ -8,20 +8,16 @@ import { supabase } from '@/lib/supabase'
 import { useWorkspace } from '@/hooks/useWorkspace'
 import { useEELicense } from '@/hooks/useEELicense'
 import { getValidatedAt, validateLicenseKey } from '@/db/eeLicense'
-import { FEATURE_MIN_PLAN } from '@/lib/featureFlags'
+import { PLAN_CATALOGUE } from '@/lib/planCatalogue'
 
 // ─── Plan presets ────────────────────────────────────────────────────────────
 
 const PLANS = ['pro', 'team', 'enterprise'] as const
 
 function featuresForPlan(plan: string): string[] {
-    return Object.entries(FEATURE_MIN_PLAN)
-        .filter(([, minPlan]) => {
-            const order = { Pro: 0, Team: 1, Enterprise: 2 } as Record<string, number>
-            const planLabel = plan.charAt(0).toUpperCase() + plan.slice(1)
-            return (order[minPlan] ?? 0) <= (order[planLabel] ?? 0)
-        })
-        .map(([feature]) => feature)
+    if (!(plan in PLAN_CATALOGUE.plans)) return []
+    const definition = PLAN_CATALOGUE.plans[plan as keyof typeof PLAN_CATALOGUE.plans]
+    return [...PLAN_CATALOGUE.communityFeatures, ...definition.features]
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -113,7 +109,7 @@ export function LicenseAdminPanel() {
             <div>
                 <h2 className="text-lg font-semibold text-gray-200">License Management</h2>
                 <p className="mt-1 text-sm text-gray-500">
-                    Generate and manage Enterprise license keys for workspaces.
+                    Generate and manage paid license keys for workspaces.
                 </p>
             </div>
 
@@ -214,7 +210,7 @@ export function LicenseAdminPanel() {
                         >
                             {PLANS.map((p) => (
                                 <option key={p} value={p}>
-                                    {p.charAt(0).toUpperCase() + p.slice(1)} ({featuresForPlan(p).length} features)
+                                    {PLAN_CATALOGUE.plans[p].name} ({featuresForPlan(p).length} features)
                                 </option>
                             ))}
                         </select>

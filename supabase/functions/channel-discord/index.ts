@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { readText } from '../_shared/body.ts';
 // Copyright (C) 2026 CrewForm
 
 /**
@@ -67,7 +68,8 @@ async function followUp(interactionToken: string, content: string): Promise<void
 
 // ─── Ed25519 Signature Verification ──────────────────────────────────────────
 
-import nacl from 'https://esm.sh/tweetnacl@1.0.3';
+import * as naclModule from 'https://esm.sh/tweetnacl@1.0.3';
+const nacl = ((naclModule as unknown as {default?: typeof naclModule}).default ?? naclModule);
 
 function hexToUint8Array(hex: string): Uint8Array {
     const bytes = new Uint8Array(hex.length / 2);
@@ -104,7 +106,7 @@ function verifyDiscordSignature(req: Request, body: string): boolean {
 
 async function handleConnect(
     interaction: DiscordInteraction,
-    supabase: ReturnType<typeof createClient>,
+    supabase: ReturnType<typeof createClient<any>>,
 ): Promise<void> {
     const channelId = interaction.channel_id ?? '';
     const code = interaction.data?.options?.find(o => o.name === 'code')?.value;
@@ -136,7 +138,7 @@ async function handleConnect(
 
 async function handleAsk(
     interaction: DiscordInteraction,
-    supabase: ReturnType<typeof createClient>,
+    supabase: ReturnType<typeof createClient<any>>,
     managedBotToken: string,
 ): Promise<void> {
     const channelId = interaction.channel_id ?? '';
@@ -269,7 +271,7 @@ Deno.serve(async (req: Request) => {
 
     try {
         // Read body as text for signature verification
-        const body = await req.text();
+        const body = await readText(req);
 
         // Verify Discord signature
         const isValid = verifyDiscordSignature(req, body);

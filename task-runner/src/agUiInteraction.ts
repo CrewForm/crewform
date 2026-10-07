@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { isDeepStrictEqual } from 'node:util';
+import { waitForDurableResponse } from './durableInteraction';
 // AG-UI Interaction Helper — allows executors to request user input and pause execution.
 
 import { randomUUID } from 'crypto';
@@ -36,8 +38,8 @@ export async function requestUserInteraction(
         wizard?: WizardDefinition;
     },
 ): Promise<InteractionResponse> {
-    const interactionId = randomUUID();
-    const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+    let interactionId: string = randomUUID();
+    let timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
     const context: InteractionContext = {
         interactionId,
@@ -51,14 +53,28 @@ export async function requestUserInteraction(
         wizard: options.wizard,
     };
 
+    const previous = await supabase.from('tasks').select('status, interaction_context').eq('id',taskId).single();
+    if (previous.error) throw new Error(previous.error.message);
+    if (previous.data?.status === 'waiting_for_input' && previous.data.interaction_context) {
+        const saved = previous.data.interaction_context as InteractionContext;
+        const comparable = (value: InteractionContext) => JSON.parse(JSON.stringify({type:value.type,title:value.title,description:value.description,data:value.data,choices:value.choices,wizard:value.wizard}));
+        if (!isDeepStrictEqual(comparable(saved),comparable(context))) throw new Error('Pending interaction has different authorization context');
+        interactionId = saved.interactionId;
+        context.interactionId = interactionId;
+        context.requestedAt = saved.requestedAt;
+        context.timeoutMs = saved.timeoutMs;
+        timeoutMs = Math.max(0,saved.requestedAt+saved.timeoutMs-Date.now());
+    }
+
     // 1. Update task status to waiting_for_input with interaction context
-    await supabase
+    const persisted = await supabase
         .from('tasks')
         .update({
             status: 'waiting_for_input',
             interaction_context: context,
         })
-        .eq('id', taskId);
+        .eq('id', taskId).in('status', ['running', 'waiting_for_input']);
+    if (persisted.error) throw new Error(persisted.error.message);
 
     // 2. Emit INTERACTION_REQUEST event to SSE subscribers
     agUiEventBus.emit(taskId, {
@@ -77,16 +93,16 @@ export async function requestUserInteraction(
 
     // 3. Block until response or timeout
     try {
-        const response = await agUiEventBus.waitForResponse(taskId, interactionId, timeoutMs);
+        const response = await waitForDurableResponse(taskId, interactionId, timeoutMs);
 
-        // 4. Clear interaction context (status already reset by /respond endpoint)
+        // 4. Resume only after reading the durable decision.
         await supabase
             .from('tasks')
             .update({
                 status: 'running',
                 interaction_context: null,
             })
-            .eq('id', taskId);
+            .eq('id', taskId).in('status', ['running', 'waiting_for_input']);
 
         return response;
     } catch (err) {
@@ -98,7 +114,7 @@ export async function requestUserInteraction(
                 error: `User interaction timed out: ${options.title}`,
                 interaction_context: null,
             })
-            .eq('id', taskId);
+            .eq('id', taskId).in('status', ['running', 'waiting_for_input']);
 
         throw err;
     }
@@ -234,7 +250,7 @@ export async function requestWizard(
     wizard: WizardDefinition,
     timeoutMs = 600_000,
 ): Promise<WizardResult> {
-    const interactionId = randomUUID();
+    let interactionId: string = randomUUID();
     const stepResponses = new Map<string, WizardStepResponse>();
     const orderedResponses: WizardStepResponse[] = [];
 
@@ -248,15 +264,25 @@ export async function requestWizard(
         wizard,
     };
 
+    const previous = await supabase.from('tasks').select('status, interaction_context').eq('id',taskId).single();
+    if(previous.error) throw new Error(previous.error.message);
+    if(previous.data?.status==='waiting_for_input' && previous.data.interaction_context) {
+        const saved=previous.data.interaction_context as InteractionContext;
+        if(saved.type!=='wizard' || !isDeepStrictEqual(saved.wizard,wizard)) throw new Error('Pending wizard has different authorization context');
+        interactionId=saved.interactionId;context.interactionId=interactionId;
+        context.requestedAt=saved.requestedAt;context.timeoutMs=saved.timeoutMs;
+        timeoutMs=Math.max(0,saved.requestedAt+saved.timeoutMs-Date.now());
+    }
     // 1. Set task to waiting_for_input with wizard context
-    await supabase
+    const persisted = await supabase
         .from('tasks')
         .update({
             status: 'waiting_for_input',
             interaction_context: context,
         })
-        .eq('id', taskId);
+        .eq('id', taskId).in('status', ['running', 'waiting_for_input']);
 
+    if(persisted.error) throw new Error(persisted.error.message);
     // 2. Emit the full wizard INTERACTION_REQUEST
     agUiEventBus.emit(taskId, {
         type: AgUiEventType.INTERACTION_REQUEST,
@@ -272,6 +298,7 @@ export async function requestWizard(
 
     // 3. Loop: wait for each step response from the frontend
     const deadline = Date.now() + timeoutMs;
+    const consumedSteps = new Set<string>();
 
     try {
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
@@ -281,7 +308,7 @@ export async function requestWizard(
                 throw new Error(`Wizard timed out after ${timeoutMs}ms`);
             }
 
-            const response = await agUiEventBus.waitForResponse(taskId, interactionId, remaining);
+            const response = await waitForDurableResponse(taskId, interactionId, remaining, consumedSteps);
 
             // User cancelled the entire wizard
             if (response.wizardCancelled) {
@@ -295,7 +322,7 @@ export async function requestWizard(
                 await supabase
                     .from('tasks')
                     .update({ status: 'running', interaction_context: null })
-                    .eq('id', taskId);
+                    .eq('id', taskId).in('status', ['running', 'waiting_for_input']);
 
                 return { completed: false, responses: orderedResponses };
             }
@@ -333,7 +360,7 @@ export async function requestWizard(
                 await supabase
                     .from('tasks')
                     .update({ status: 'running', interaction_context: null })
-                    .eq('id', taskId);
+                    .eq('id', taskId).in('status', ['running', 'waiting_for_input']);
 
                 return { completed: true, responses: orderedResponses };
             }
@@ -367,7 +394,7 @@ export async function requestWizard(
                 error: `Wizard timed out: ${wizard.title}`,
                 interaction_context: null,
             })
-            .eq('id', taskId);
+            .eq('id', taskId).in('status', ['running', 'waiting_for_input']);
 
         throw err;
     }

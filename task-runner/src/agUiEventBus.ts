@@ -92,7 +92,11 @@ class AgUiEventBus {
                         resolve = null;
                         r({ value: event, done: false });
                     } else {
-                        queue.push(event);
+                        if (queue.length >= 256) {
+                            queue.length = 0;
+                            queue.push({type: AgUiEventType.RUN_ERROR, timestamp: Date.now(), error: 'Stream consumer too slow'});
+                            done = true; emitter.removeListener(channel, handler);
+                        } else queue.push(event);
                     }
 
                     // Stop the iterator on terminal events

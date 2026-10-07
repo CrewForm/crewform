@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { readJson } from '../_shared/body.ts';
 // Copyright (C) 2026 CrewForm
 
 /**
@@ -48,7 +49,7 @@ Deno.serve(async (req: Request) => {
         if (!webhookSecret || req.headers.get('x-telegram-bot-api-secret-token') !== webhookSecret) {
             return new Response('Unauthorized', { status: 401 });
         }
-        const update = (await req.json()) as TelegramUpdate;
+        const update = (await readJson(req)) as unknown as TelegramUpdate;
 
         if (!update.message?.text) {
             return ok({ ok: true, skipped: true });

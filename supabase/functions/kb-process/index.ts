@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { safeRemoteFetch } from '../_shared/urlSafety.ts';
+import { readJson } from '../_shared/body.ts';
 // Copyright (C) 2026 CrewForm
 //
 // kb-process — Process a knowledge base document.
@@ -142,7 +144,7 @@ async function generateEmbeddings(
         ? `${baseURL}/embeddings`
         : 'https://api.openai.com/v1/embeddings';
 
-    const response = await fetch(url, {
+    const response = await safeRemoteFetch(url, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -153,7 +155,7 @@ async function generateEmbeddings(
             input: texts.map((t) => t.slice(0, 8000)),
             dimensions: 1536,
         }),
-    });
+    }, true);
 
     if (!response.ok) {
         const text = await response.text();
@@ -222,7 +224,7 @@ Deno.serve(async (req: Request) => {
             return jsonOk({ error: 'Unauthorized' });
         }
 
-        const body = await req.json() as { document_id: string };
+        const body = await readJson(req) as { document_id: string };
         if (!body.document_id) {
             return jsonOk({ error: 'document_id is required' });
         }

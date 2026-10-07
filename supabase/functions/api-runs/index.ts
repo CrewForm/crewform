@@ -56,7 +56,7 @@ Deno.serve(async (req: Request) => {
                 }
 
                 // List runs — v2 supports cursor-based pagination
-                const limit = parseInt(url.searchParams.get('limit') ?? '50', 10);
+                const limit = Math.min(100, Math.max(1, Number.parseInt(url.searchParams.get('limit') ?? '50', 10) || 50));
                 const cursor = url.searchParams.get('cursor');
 
                 let query = auth.supabaseClient
@@ -110,6 +110,7 @@ Deno.serve(async (req: Request) => {
                         input_task: result.data.input_task,
                         status: 'pending',
                         created_by: auth.userId,
+                        actor_type: auth.actorType, actor_id: auth.actorId,
                     })
                     .select()
                     .single();

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 CrewForm
 
+import { PLAN_CATALOGUE } from '@/lib/planCatalogue'
 import { Check, X, Loader2 } from 'lucide-react'
 import { useWorkspace } from '@/hooks/useWorkspace'
 import { useCreateCheckout } from '@/hooks/useBilling'
@@ -14,19 +15,25 @@ interface PlanFeature {
     enterprise: string | boolean
 }
 
+const resourceFeature = (label: string, resource: keyof typeof PLAN_CATALOGUE.plans.free.limits): PlanFeature => ({
+    label,
+    ...Object.fromEntries(Object.entries(PLAN_CATALOGUE.plans).map(([key, plan]) => [key,
+        plan.limits[resource] === -1 ? 'Unlimited' : plan.limits[resource].toLocaleString(),
+    ])),
+}) as PlanFeature
 const FEATURES: PlanFeature[] = [
-    { label: 'Agents', free: '3', pro: '25', team: 'Unlimited', enterprise: 'Unlimited' },
-    { label: 'Tasks / month', free: '50', pro: '1,000', team: 'Unlimited', enterprise: 'Unlimited' },
-    { label: 'Teams', free: '1', pro: '10', team: 'Unlimited', enterprise: 'Unlimited' },
-    { label: 'Members', free: '1', pro: '3', team: '25', enterprise: 'Unlimited' },
-    { label: 'Triggers', free: '1', pro: '10', team: 'Unlimited', enterprise: 'Unlimited' },
+    resourceFeature('Agents', 'agents'),
+    resourceFeature('Workflow runs / month', 'tasks_per_month'),
+    resourceFeature('Teams', 'teams'),
+    resourceFeature('Members', 'members'),
+    resourceFeature('Triggers', 'triggers'),
     { label: 'Models (BYOK)', free: true, pro: true, team: true, enterprise: true },
     { label: 'MCP Protocol', free: true, pro: true, team: true, enterprise: true },
     { label: 'AG-UI Protocol', free: true, pro: true, team: true, enterprise: true },
-    { label: 'Knowledge Base', free: '3 docs', pro: '25 docs', team: 'Unlimited', enterprise: 'Unlimited' },
+    resourceFeature('Knowledge documents', 'knowledge_documents'),
     { label: 'A2A Consume', free: true, pro: true, team: true, enterprise: true },
-    { label: 'A2A Publish', free: false, pro: true, team: true, enterprise: true },
-    { label: 'Orchestrator Mode', free: false, pro: true, team: true, enterprise: true },
+    { label: 'A2A Publish', free: true, pro: true, team: true, enterprise: true },
+    { label: 'Orchestrator Mode', free: true, pro: true, team: true, enterprise: true },
     { label: 'Custom Tools', free: false, pro: true, team: true, enterprise: true },
     { label: 'Messaging Channels', free: false, pro: true, team: true, enterprise: true },
     { label: 'Advanced Analytics', free: false, pro: true, team: true, enterprise: true },
@@ -38,12 +45,11 @@ const FEATURES: PlanFeature[] = [
     { label: 'Priority Support', free: false, pro: false, team: true, enterprise: true },
 ]
 
-const PLANS = [
-    { key: 'free' as const, name: 'Free', price: '$0', period: 'forever', highlight: false },
-    { key: 'pro' as const, name: 'Pro', price: '$39', period: '/month', highlight: true },
-    { key: 'team' as const, name: 'Team', price: '$99', period: '/month', highlight: false },
-    { key: 'enterprise' as const, name: 'Enterprise', price: 'Custom', period: '', highlight: false },
-]
+const PLANS = (['free', 'pro', 'team', 'enterprise'] as const).map(key => {
+    const plan = PLAN_CATALOGUE.plans[key]
+    return { key, name: plan.name, price: plan.monthlyUsd === null ? 'Custom' : `$${plan.monthlyUsd}`,
+        period: plan.deployment === 'on-premises' ? ' on-premises' : key === 'free' ? 'forever' : '/month', highlight: key === 'pro' }
+})
 
 const PLAN_ORDER: Record<string, number> = { free: 0, pro: 1, team: 2, enterprise: 3 }
 
@@ -56,14 +62,16 @@ export function PricingTable() {
     function handleUpgrade(plan: 'pro' | 'team' | 'enterprise') {
         if (!workspaceId) return
         if (plan === 'enterprise') {
-            window.open('mailto:team@crewform.tech?subject=Enterprise%20Plan%20Inquiry', '_blank')
+            window.open('mailto:team@crewform.tech?subject=Custom%20On-Premises%20Inquiry', '_blank')
             return
         }
         checkoutMutation.mutate({ workspaceId, plan })
     }
 
     return (
-        <div className="grid gap-4 lg:grid-cols-4">
+        <div className="space-y-4">
+            <p className="text-sm text-gray-400">Cloud prices apply to new subscriptions. Existing subscriptions retain their current pricing until changed. Custom deployments are on-premises.</p>
+            <div className="grid gap-4 lg:grid-cols-4">
             {PLANS.map((plan) => {
                 const planTier = PLAN_ORDER[plan.key] ?? 0
                 const isCurrent = plan.key === currentPlan
@@ -159,6 +167,7 @@ export function PricingTable() {
                     </div>
                 )
             })}
+            </div>
         </div>
     )
 }

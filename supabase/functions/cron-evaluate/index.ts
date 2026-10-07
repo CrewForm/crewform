@@ -138,22 +138,6 @@ function isTriggerDue(cronExpression: string, lastFiredAt: string | null, create
     return false;
 }
 
-async function resolveWorkspaceOwner(
-    db: ReturnType<typeof createClient<any>>,
-    workspaceId: string,
-): Promise<string> {
-    const { data, error } = await db
-        .from('workspaces')
-        .select('owner_id')
-        .eq('id', workspaceId)
-        .single();
-
-    if (error || !data) {
-        throw new Error(`Could not resolve workspace owner: ${error?.message ?? 'workspace not found'}`);
-    }
-
-    return (data as { owner_id: string }).owner_id;
-}
 
 // ─── Template Rendering ─────────────────────────────────────────────────────
 
@@ -230,90 +214,18 @@ Deno.serve(async (req: Request) => {
 
                 const title = renderTemplate(trigger.task_title_template);
                 const description = renderTemplate(trigger.task_description_template);
-                const ownerId = await resolveWorkspaceOwner(db, trigger.workspace_id);
-
-                let taskId: string | null = null;
-                let teamRunId: string | null = null;
-
-                if (trigger.team_id) {
-                    const inputTask = description ? `${title}\n\n${description}` : title;
-                    const runResult = await db
-                        .from('team_runs')
-                        .insert({
-                            workspace_id: trigger.workspace_id,
-                            team_id: trigger.team_id,
-                            input_task: inputTask,
-                            status: 'pending',
-                            created_by: ownerId,
-                        })
-                        .select('id')
-                        .single();
-
-                    if (runResult.error) {
-                        await db.from('trigger_log').insert({
-                            trigger_id: trigger.id,
-                            status: 'failed',
-                            error: runResult.error.message,
-                        });
-                        console.error(`[CronEvaluate] Failed to create team run for trigger ${trigger.id}:`, runResult.error.message);
-                        continue;
-                    }
-
-                    teamRunId = (runResult.data as { id: string }).id;
-                    firedTeamRuns++;
-                    teamRunIds.push(teamRunId);
-                } else if (trigger.agent_id) {
-                    const taskResult = await db
-                        .from('tasks')
-                        .insert({
-                            workspace_id: trigger.workspace_id,
-                            title,
-                            description,
-                            assigned_agent_id: trigger.agent_id,
-                            status: 'dispatched',
-                            priority: 'medium',
-                            created_by: ownerId,
-                            scheduled_for: new Date().toISOString(),
-                            metadata: {
-                                source: 'cron_trigger',
-                                trigger_id: trigger.id,
-                            },
-                        })
-                        .select('id')
-                        .single();
-
-                    if (taskResult.error) {
-                        await db.from('trigger_log').insert({
-                            trigger_id: trigger.id,
-                            status: 'failed',
-                            error: taskResult.error.message,
-                        });
-                        console.error(`[CronEvaluate] Failed to create task for trigger ${trigger.id}:`, taskResult.error.message);
-                        continue;
-                    }
-
-                    taskId = (taskResult.data as { id: string }).id;
-                    firedTasks++;
-                    taskIds.push(taskId);
-                } else {
-                    throw new Error('Trigger has no agent_id or team_id');
-                }
-
-                // Update last_fired_at
-                await db
-                    .from('agent_triggers')
-                    .update({ last_fired_at: new Date().toISOString() })
-                    .eq('id', trigger.id);
-
-                // Log success
-                await db.from('trigger_log').insert({
-                    trigger_id: trigger.id,
-                    task_id: taskId,
-                    status: 'fired',
+                const enqueue = await db.rpc('enqueue_scheduled_firing', {
+                    p_trigger_id: trigger.id, p_observed_last_fired: trigger.last_fired_at,
+                    p_title: title, p_description: description,
                 });
-
-                fired++;
-                firedTriggerIds.push(trigger.id);
+                if (enqueue.error) throw new Error(enqueue.error.message);
+                const firing = (enqueue.data as Array<{task_id: string | null; team_run_id: string | null}> | null)?.[0];
+                if (!firing) continue;
+                const taskId = firing.task_id;
+                const teamRunId = firing.team_run_id;
+                if (taskId) { firedTasks++; taskIds.push(taskId); }
+                if (teamRunId) { firedTeamRuns++; teamRunIds.push(teamRunId); }
+                fired++; firedTriggerIds.push(trigger.id);
                 console.log(`[CronEvaluate] Created ${taskId ? `task ${taskId}` : `team run ${teamRunId}`} from trigger ${trigger.id}`);
             } catch (err) {
                 const errMsg = err instanceof Error ? err.message : String(err);

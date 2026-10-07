@@ -3,6 +3,7 @@
 // Mounts at POST /ag-ui/:agentId/sse and POST /ag-ui/:agentId/respond
 
 import type { IncomingMessage, ServerResponse } from 'http';
+import { readBody, HttpInputError, boundedJson } from './httpInput';
 import { supabase } from './supabase';
 import { agUiEventBus } from './agUiEventBus';
 import type { AgUiEvent } from './agUiEventBus';
@@ -47,14 +48,6 @@ async function authenticateRequest(
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-function readBody(req: IncomingMessage): Promise<string> {
-    return new Promise((resolve, reject) => {
-        let body = '';
-        req.on('data', (chunk: Buffer) => { body += chunk.toString(); });
-        req.on('end', () => resolve(body));
-        req.on('error', reject);
-    });
-}
 
 function sendJson(res: ServerResponse, status: number, data: unknown) {
     res.writeHead(status, {
@@ -117,8 +110,9 @@ export async function handleAgUiRequest(
         };
         try {
             const body = await readBody(req);
-            input = JSON.parse(body) as typeof input;
-        } catch {
+            input = boundedJson(body) as typeof input;
+        } catch (error) {
+            if (error instanceof HttpInputError) throw error;
             sendJson(res, 400, { error: 'Invalid JSON body' });
             return true;
         }
@@ -217,8 +211,9 @@ export async function handleAgUiRequest(
         };
         try {
             const raw = await readBody(req);
-            body = JSON.parse(raw) as typeof body;
-        } catch {
+            body = boundedJson(raw) as typeof body;
+        } catch (error) {
+            if (error instanceof HttpInputError) throw error;
             sendJson(res, 400, { error: 'Invalid JSON body' });
             return true;
         }
@@ -270,20 +265,12 @@ export async function handleAgUiRequest(
             respondedAt: Date.now(),
         };
 
-        // Submit the response — this unblocks the waiting executor
+        const saved = await supabase.rpc('submit_interaction_response', {
+            p_workspace_id: auth.workspaceId, p_agent_id: agentId,
+            p_task_id: body.threadId, p_response: response,
+        });
+        if (saved.error) { sendJson(res, 409, {error: 'Interaction rejected or expired'}); return true; }
         agUiEventBus.respond(body.threadId, response);
-
-        // For wizard steps, don't clear the interaction context yet — the wizard loop handles that
-        if (!body.wizardStepId && !body.wizardCancelled) {
-            // Clear interaction_context and reset status
-            await supabase
-                .from('tasks')
-                .update({
-                    status: 'running',
-                    interaction_context: null,
-                })
-                .eq('id', body.threadId);
-        }
 
         sendJson(res, 200, { ok: true, interactionId: body.interactionId });
         return true;

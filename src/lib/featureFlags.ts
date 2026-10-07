@@ -3,39 +3,25 @@
 //
 // featureFlags.ts — Runtime feature gating for CE/EE split.
 
+import { PLAN_CATALOGUE } from './planCatalogue'
 import type { ReactNode } from 'react'
 import { useEELicense } from '@/hooks/useEELicense'
 
-export const COMMUNITY_FEATURES = new Set(['orchestrator_mode', 'marketplace_publish', 'a2a_publish', 'chat_widget'])
+export const COMMUNITY_FEATURES = new Set<string>(PLAN_CATALOGUE.communityFeatures)
 
 /**
  * Minimum plan required for each EE feature.
- * Used to show the correct badge label (Pro / Team / Enterprise).
+ * Used to show the correct badge label (Pro / Team / Custom).
  */
-export const FEATURE_MIN_PLAN: Record<string, string> = {
-    // Community capabilities
-    orchestrator_mode: 'Free',
-    marketplace_publish: 'Free',
-    a2a_publish: 'Free',
-    chat_widget: 'Free',
-    // Pro tier
-    prompt_history: 'Pro',
-    advanced_analytics: 'Pro',
-    file_attachments: 'Pro',
-    advanced_webhooks: 'Pro',
-    team_triggers: 'Pro',
-    billing: 'Pro',
-    messaging_channels: 'Pro',
-    custom_tools: 'Pro',
-    // Team tier
-    collaboration_mode: 'Team',
-    team_memory: 'Team',
-    rbac: 'Team',
-    // Enterprise tier
-    audit_logs: 'Enterprise',
-    swarm: 'Enterprise',
-    admin_panel: 'Enterprise',
-}
+export const FEATURE_MIN_PLAN: Record<string, string> = (() => {
+    const minimum: Record<string, string> = Object.fromEntries(PLAN_CATALOGUE.communityFeatures.map(feature => [feature, 'Free']))
+    for (const plan of Object.values(PLAN_CATALOGUE.plans)) {
+        for (const feature of plan.features) {
+            if (!(feature in minimum)) minimum[feature] = plan.name
+        }
+    }
+    return minimum
+})()
 
 /**
  * Get the minimum plan label for a feature.

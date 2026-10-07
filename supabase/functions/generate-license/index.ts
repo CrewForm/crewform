@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { readJson } from '../_shared/body.ts';
 // Copyright (C) 2026 CrewForm
 //
 // generate-license — Admin-only Edge Function to create EE license keys.
@@ -62,7 +63,7 @@ serve(async (req: Request) => {
         }
 
         // Parse request body
-        const body = await req.json() as {
+        const body = await readJson(req) as {
             workspaceId?: string;
             plan?: string;
             features?: string[];

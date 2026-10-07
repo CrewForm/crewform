@@ -20,7 +20,7 @@ const UpdateTaskSchema = z.object({
     title: z.string().min(1).max(200).optional(),
     description: z.string().optional(),
     priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
-    status: z.enum(['pending', 'dispatched', 'running', 'completed', 'failed', 'cancelled']).optional(),
+    status: z.enum(['pending', 'dispatched', 'cancelled']).optional(),
     assigned_agent_id: z.string().uuid().nullable().optional(),
     assigned_team_id: z.string().uuid().nullable().optional(),
     metadata: z.record(z.unknown()).optional(),
@@ -58,7 +58,7 @@ Deno.serve(async (req: Request) => {
                 }
 
                 // List tasks — v2 supports cursor-based pagination
-                const limit = parseInt(url.searchParams.get('limit') ?? '50', 10);
+                const limit = Math.min(100, Math.max(1, Number.parseInt(url.searchParams.get('limit') ?? '50', 10) || 50));
                 const cursor = url.searchParams.get('cursor');
 
                 let query = auth.supabaseClient
@@ -102,6 +102,7 @@ Deno.serve(async (req: Request) => {
                         ...result.data,
                         workspace_id: auth.workspaceId,
                         created_by: auth.userId,
+                        actor_type: auth.actorType, actor_id: auth.actorId,
                         ...(shouldDispatch ? { status: 'dispatched' } : {}),
                     })
                     .select()

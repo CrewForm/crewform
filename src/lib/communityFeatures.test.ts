@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { renderHook } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-const mocks = vi.hoisted(() => ({single: vi.fn()}))
+const mocks = vi.hoisted(() => ({single: vi.fn(), rpc: vi.fn()}))
 vi.mock('@/hooks/useEELicense', () => ({useEELicense: () => ({hasFeature: () => false, isLoading: false, isEnterprise: false})}))
-vi.mock('@/lib/supabase', () => ({supabase: {from: () => ({select: () => ({eq: () => ({single: mocks.single})})})}}))
+vi.mock('@/lib/supabase', () => ({supabase: {rpc: mocks.rpc, from: () => ({select: () => ({eq: () => ({single: mocks.single})})})}}))
 import { useEEFeature } from './featureFlags'
 function useConfiguredFeature(feature: string) { return useEEFeature('workspace', feature) }
 import { checkQuota } from '@/db/billing'
@@ -19,15 +19,15 @@ describe('community adoption entitlements', () => {
         const { result } = renderHook(useConfiguredFeature, { initialProps: 'audit_logs' })
         expect(result.current.enabled).toBe(false)
     })
-    it('removes hosted resource limits from readable CE workspaces', async () => {
+    it('uses server deployment policy even when the browser declares CE', async () => {
         vi.stubEnv('VITE_CREWFORM_EDITION', 'ce')
-        mocks.single.mockResolvedValue({data: {plan: 'free', is_beta: false, trial_expires_at: null}, error: null})
-        expect(await checkQuota('workspace', 'agents')).toMatchObject({allowed: true, limit: -1})
-        expect(await checkQuota('workspace', 'csv_export')).toMatchObject({allowed: false})
+        mocks.rpc.mockResolvedValue({data:{allowed:false,current:3,limit:3,resource:'agents'},error:null})
+        expect(await checkQuota('workspace', 'agents')).toMatchObject({allowed: false, limit: 3})
+        expect(mocks.rpc).toHaveBeenCalledWith('get_workspace_quota',{p_workspace_id:'workspace',p_resource:'agents'})
     })
     it('does not bypass workspace authorization when CE quota limits are removed', async () => {
         vi.stubEnv('VITE_CREWFORM_EDITION', 'ce')
-        mocks.single.mockResolvedValue({data: null, error: {message: 'access denied'}})
+        mocks.rpc.mockResolvedValue({data: null, error: {message: 'access denied'}})
         expect(await checkQuota('another-workspace', 'agents')).toMatchObject({allowed: false})
     })
 })

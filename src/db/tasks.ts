@@ -2,6 +2,7 @@
 // Copyright (C) 2026 CrewForm
 
 import { supabase } from '@/lib/supabase'
+import { copyInputAttachments } from '@/db/attachments'
 import { enforceQuota } from '@/lib/enforceQuota'
 import type { Task, TaskStatus, TaskPriority } from '@/types'
 
@@ -60,7 +61,8 @@ export interface CreateTaskInput {
     workspace_id: string
     title: string
     description: string
-    assigned_agent_id: string
+    assigned_agent_id: string | null
+    assigned_team_id?: string | null
     priority: TaskPriority
     status: TaskStatus
     created_by: string
@@ -69,7 +71,7 @@ export interface CreateTaskInput {
 }
 
 export async function createTask(input: CreateTaskInput): Promise<Task> {
-    await enforceQuota(input.workspace_id, 'tasks_per_month')
+    if (input.status !== 'pending') await enforceQuota(input.workspace_id, 'tasks_per_month')
 
     const result = await supabase
         .from('tasks')
@@ -97,24 +99,16 @@ export async function updateTaskStatus(
     return result.data as Task
 }
 
-/** Re-run a task: reset to dispatched, clear previous results */
+/** Re-run as a new workflow, preserving prior output and reserving a new allowance. */
 export async function rerunTask(id: string): Promise<Task> {
-    const result = await supabase
-        .from('tasks')
-        .update({
-            status: 'dispatched' as TaskStatus,
-            result: null,
-            error: null,
-            metadata: {},
-            claimed_by_runner: null,
-            scheduled_for: null,
-        })
-        .eq('id', id)
-        .select()
-        .single()
-
-    if (result.error) throw result.error
-    return result.data as Task
+    const original = await supabase.from('tasks').select('*').eq('id',id).single()
+    if (original.error) throw original.error
+    const task = original.data as Task
+    const auth = await supabase.auth.getUser()
+    if (!auth.data.user) throw new Error('Sign in to create a new run')
+    const created = await createTask({workspace_id:task.workspace_id,title:task.title,description:task.description,assigned_agent_id:task.assigned_agent_id,assigned_team_id:task.assigned_team_id,priority:task.priority,status:'pending',created_by:auth.data.user.id})
+    await copyInputAttachments(task.workspace_id,task.id,created.id,'task',auth.data.user.id)
+    return updateTaskStatus(created.id,'dispatched')
 }
 
 /** Update the scheduled date of a task */

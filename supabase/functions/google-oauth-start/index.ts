@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { readJson } from '../_shared/body.ts';
 // Copyright (C) 2026 CrewForm
 
 /**
@@ -33,7 +34,7 @@ Deno.serve(async (req: Request) => {
 
     try {
         const auth = await authenticateRequest(req);
-        const body = await req.json() as { workspace_id?: string };
+        const body = await readJson(req) as { workspace_id?: string };
         if (!body.workspace_id) return badRequest('workspace_id is required');
         const { data: membership } = await auth.supabaseClient.from('workspace_members').select('role')
             .eq('workspace_id', body.workspace_id).eq('user_id', auth.userId).single();

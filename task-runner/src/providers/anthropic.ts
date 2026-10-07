@@ -1,3 +1,4 @@
+import { executionFetch } from '../executionScope';
 import Anthropic from '@anthropic-ai/sdk';
 import type { TokenUsage } from '../types';
 
@@ -9,7 +10,7 @@ export async function executeAnthropic(
     onChunk: (text: string) => Promise<void>,
     maxTokens?: number | null
 ): Promise<{ result: string; usage: TokenUsage }> {
-    const anthropic = new Anthropic({ apiKey });
+    const anthropic = new Anthropic({ apiKey, fetch: executionFetch, timeout: 120_000, maxRetries: 0 });
     let fullText = '';
     let promptTokens = 0;
     let completionTokens = 0;

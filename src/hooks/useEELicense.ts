@@ -13,6 +13,7 @@ const PLAN_HIERARCHY: Record<string, number> = {
     pro: 1,
     team: 2,
     enterprise: 3,
+    custom: 3,
 }
 
 function planLevel(plan: string): number {

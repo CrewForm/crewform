@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { readText } from '../_shared/body.ts';
 // Copyright (C) 2026 CrewForm
 
 /**
@@ -105,7 +106,7 @@ Deno.serve(async (req: Request) => {
     }
 
     try {
-        const rawBody = await req.text();
+        const rawBody = await readText(req);
         const payload = JSON.parse(rawBody) as LinearWebhookPayload;
         if (!payload.webhookTimestamp || Math.abs(Date.now() - payload.webhookTimestamp) > 5 * 60_000) {
             return new Response('Stale webhook', { status: 401 });

@@ -4,6 +4,7 @@
 // and can call CrewForm agents as if they were MCP tools.
 
 import type { IncomingMessage, ServerResponse } from 'http';
+import { readBody, HttpInputError, boundedJson } from './httpInput';
 import { supabase } from './supabase';
 import { processTask } from './executor';
 import type { Task } from './types';
@@ -76,14 +77,6 @@ async function authenticateRequest(
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-function readBody(req: IncomingMessage): Promise<string> {
-    return new Promise((resolve, reject) => {
-        let body = '';
-        req.on('data', (chunk: Buffer) => { body += chunk.toString(); });
-        req.on('end', () => resolve(body));
-        req.on('error', reject);
-    });
-}
 
 function sendJson(res: ServerResponse, status: number, data: unknown) {
     res.writeHead(status, {
@@ -345,8 +338,9 @@ export async function handleMcpServerRequest(
         let rpcReq: JsonRpcRequest;
         try {
             const body = await readBody(req);
-            rpcReq = JSON.parse(body) as JsonRpcRequest;
-        } catch {
+            rpcReq = boundedJson(body) as unknown as JsonRpcRequest;
+        } catch (error) {
+            if (error instanceof HttpInputError) throw error;
             sendJsonRpc(res, null, undefined, { code: -32700, message: 'Parse error' });
             return true;
         }
