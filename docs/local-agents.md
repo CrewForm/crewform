@@ -17,15 +17,16 @@ Subscription eligibility, available models and quotas depend on your native acco
 
 ## Standalone CLI
 
-Build the CLI from source until `@crewformhq/cli` has its first npm release. Its installed executable remains `crewform`.
+Install the published [`@crewformhq/cli`](https://www.npmjs.com/package/@crewformhq/cli) package. Its executable is `crewform`; Node.js 20 or later is required.
 
 ```bash
-npm --prefix cli ci
-npm --prefix cli run build
-node cli/dist/cli.js doctor
-node cli/dist/cli.js init --runtime codex --output codex.json
-node cli/dist/cli.js run codex.json --input examples/fixtures/review.patch --json
+npm install -g @crewformhq/cli
+crewform doctor
+crewform init --runtime codex --output codex.json
+crewform run codex.json --input changes.txt --json
 ```
+
+Supply the file or patch to review in `changes.txt`. For repository development, build from source with `npm --prefix cli ci` and `npm --prefix cli run build`, then invoke `node cli/dist/cli.js` instead of `crewform`.
 
 For Claude use `--runtime claude`; Gemini/Copilot default to ACP. For Codex or Claude ACP, add `--transport acp`. The doctor checks versions without reading credentials or submitting prompts. Sign in using the native tool's own command before running a workflow.
 

@@ -275,17 +275,16 @@ npx @crewformhq/cli pull <agent-id>
 
 ## Try a local agent workflow
 
-The npm package is `@crewformhq/cli`; the executable is `crewform`. Until the first npm release is published, build from source:
+Install the published [`@crewformhq/cli`](https://www.npmjs.com/package/@crewformhq/cli) package; the executable is `crewform`:
 
 ```bash
-npm --prefix cli ci
-npm --prefix cli run build
-node cli/dist/cli.js doctor
-node cli/dist/cli.js init --runtime codex --output codex.json
-node cli/dist/cli.js run codex.json --input examples/fixtures/review.patch --json
+npm install -g @crewformhq/cli
+crewform doctor
+crewform init --runtime codex --output codex.json
+crewform run codex.json --input changes.txt --json
 ```
 
-Sign in with the native tool first. Native login eligibility and plan limits apply; CrewForm does not claim unlimited or zero-cost execution. See [local agents](docs/local-agents.md), [three reproducible examples](examples/README.md) and [complete local setup](docs/self-hosting.md).
+Put the code or patch you want reviewed in `changes.txt`, and sign in with the native tool first. Native login eligibility and plan limits apply; CrewForm does not claim unlimited or zero-cost execution. See [local agents](docs/local-agents.md), [three reproducible examples](examples/README.md) and [complete local setup](docs/self-hosting.md).
 
 Self-hosted Community Edition has no hosted resource quotas. The plan table below describes CrewForm Cloud limits.
 
