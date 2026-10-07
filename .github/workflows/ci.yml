@@ -58,6 +58,7 @@ jobs:
         run: npm run lint
 
       - name: Generated security runtime and plan catalogue
+        working-directory: .
         run: |
           npm run plans:check
           node scripts/sync-security-runtime.mjs --check
@@ -95,6 +96,7 @@ jobs:
         run: npm ci
 
       - name: Generated security runtime and plan catalogue
+        working-directory: .
         run: |
           npm run plans:check
           node scripts/sync-security-runtime.mjs --check
