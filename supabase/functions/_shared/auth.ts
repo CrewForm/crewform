@@ -5,6 +5,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 export interface AuthContext {
     userId: string;
+    actorType: 'user' | 'api_key';
+    actorId: string;
     workspaceId: string;
     plan: string;
     apiVersion: number;
@@ -63,6 +65,7 @@ export async function authenticateRequest(req: Request): Promise<AuthContext> {
 
         return {
             userId: user.id,
+            actorType: 'user', actorId: user.id,
             workspaceId,
             plan,
             apiVersion,
@@ -126,7 +129,8 @@ export async function authenticateRequest(req: Request): Promise<AuthContext> {
         const ws = wsData as { owner_id: string; plan?: string };
 
         return {
-            userId: ws.owner_id,
+            userId: ws.owner_id, // compatibility for non-execution records; never a personal-account grant
+            actorType: 'api_key', actorId: record.id,
             workspaceId: record.workspace_id,
             plan: ws.plan ?? 'free',
             apiVersion,

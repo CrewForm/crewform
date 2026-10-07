@@ -640,3 +640,5 @@ Common error codes:
 | `422` | Validation error |
 
 
+
+Task PATCH requests may set `pending`, `dispatched`, or `cancelled`. Running and terminal execution results are owned by the runner.

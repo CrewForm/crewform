@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { safeFetch } from './urlSafety.js';
 // Copyright (C) 2026 CrewForm
 //
 // tools.ts — Standalone tool executor for CLI use.
@@ -61,20 +62,6 @@ const TOOL_REGISTRY: Record<string, ToolDefinition> = {
                     body: { type: 'string', description: 'Request body for POST/PUT requests (JSON string)' },
                 },
                 required: ['url'],
-            },
-        },
-    },
-    code_interpreter: {
-        type: 'function',
-        function: {
-            name: 'code_interpreter',
-            description: 'Execute JavaScript code in a sandboxed environment. Returns the result of the last expression or console output.',
-            parameters: {
-                type: 'object',
-                properties: {
-                    code: { type: 'string', description: 'JavaScript code to execute' },
-                },
-                required: ['code'],
             },
         },
     },
@@ -169,7 +156,7 @@ async function executeToolCall(
                     args.body as string | undefined,
                 );
             case 'code_interpreter':
-                return executeCodeInterpreter(args.code as string);
+                return 'Error: code_interpreter is disabled because local JavaScript execution is not isolated.';
             case 'read_file':
                 return await executeReadFile(args.url as string);
             case 'grammar_check':
@@ -254,39 +241,15 @@ async function executeHttpRequest(url: string, method: string, body?: string): P
         opts.headers = { ...opts.headers, 'Content-Type': 'application/json' };
     }
 
-    const response = await fetch(url, opts);
+    const response = await safeFetch(url, opts);
     const text = await response.text();
     const statusInfo = `HTTP ${response.status} ${response.statusText}`;
     const truncated = text.length > 4000 ? text.slice(0, 4000) + '\n... (truncated)' : text;
     return `${statusInfo}\n\n${truncated}`;
 }
 
-function executeCodeInterpreter(code: string): string {
-    try {
-        const logs: string[] = [];
-        const mockConsole = {
-            log: (...args: unknown[]) => logs.push(args.map(String).join(' ')),
-            warn: (...args: unknown[]) => logs.push(`[warn] ${args.map(String).join(' ')}`),
-            error: (...args: unknown[]) => logs.push(`[error] ${args.map(String).join(' ')}`),
-        };
-
-        const fn = new Function('console', 'Math', 'JSON', 'Date', 'parseInt', 'parseFloat', 'isNaN', 'isFinite',
-            `"use strict";\n${code}`);
-        const result: unknown = fn(mockConsole, Math, JSON, Date, parseInt, parseFloat, isNaN, isFinite);
-
-        const output = logs.length > 0 ? logs.join('\n') : '';
-        const returnValue = result !== undefined ? String(result) : '';
-
-        if (output && returnValue) return `Console output:\n${output}\n\nReturn value: ${returnValue}`;
-        return output || returnValue || '(no output)';
-    } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        return `Code execution error: ${msg}`;
-    }
-}
-
 async function executeReadFile(url: string): Promise<string> {
-    const response = await fetch(url, {
+    const response = await safeFetch(url, {
         headers: { 'User-Agent': 'CrewForm-CLI/1.0' },
     });
     if (!response.ok) {

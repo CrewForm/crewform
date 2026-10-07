@@ -1,3 +1,6 @@
+import { publicWidgetAgent } from './publicWidgetPolicy';
+import { withExecutionScope, executionFetch, executionSignal } from './executionScope';
+import { loadTenantEntities } from './tenantEntities';
 import { parseExecution } from '@crewformhq/agent-runtime';
 import { executeLocalAgent } from './externalAgent';
 import { supabase } from './supabase';
@@ -49,6 +52,10 @@ function inferProvider(model: string): string | null {
 }
 
 export async function processTask(task: Task) {
+    return withExecutionScope('tasks', task.id, task.workspace_id, () => processTaskInner(task));
+}
+
+async function processTaskInner(task: Task) {
     // Find the auto-created agent_tasks record (created by DB trigger on dispatch)
     let agentTaskId: string | null = null;
     let agent: Agent | null = null;
@@ -64,6 +71,12 @@ export async function processTask(task: Task) {
     }
 
     try {
+        executionSignal()?.throwIfAborted();
+        // Claim RPCs return a small projection. Reload authoritative metadata
+        // so public-widget policy and caller context cannot disappear at execution.
+        const snapshot = await supabase.from('tasks').select('*').eq('id',task.id).eq('workspace_id',task.workspace_id).single();
+        if (snapshot.error || snapshot.data?.status !== 'running') throw new Error('Task is no longer executable');
+        task = {...task, ...snapshot.data} as Task;
         console.log(`[TaskRunner] Claimed task ${task.id} (Agent: ${task.assigned_agent_id})`);
 
         if (!task.assigned_agent_id) {
@@ -104,6 +117,10 @@ export async function processTask(task: Task) {
         if (agentError || !agent) {
             throw new Error(`Failed to load agent: ${agentError?.message}`);
         }
+        if (task.metadata?.source === 'chat-widget') {
+            agent = publicWidgetAgent(agent);
+        }
+
 
         // 1b. Mark agent as busy
         await supabase
@@ -160,8 +177,13 @@ export async function processTask(task: Task) {
 
         let userPrompt = `Task Title: ${task.title}\n\nTask Description:\n${task.description}`;
 
+        if (task.metadata?.source === 'chat-widget') {
+            systemPrompt = systemPrompt.slice(0, 20_000);
+            userPrompt = userPrompt.slice(0, 20_000);
+        }
+
         // Load input file attachments
-        const inputFiles = await loadInputFiles(task.id, null);
+        const inputFiles = await loadInputFiles(task.id, null, task.workspace_id);
         if (inputFiles.length > 0) {
             const { textBlock } = buildFileContext(inputFiles, effectiveModel);
             if (textBlock) userPrompt += textBlock;
@@ -210,13 +232,7 @@ export async function processTask(task: Task) {
             const customToolIds = agentTools
                 .filter(t => t.startsWith('custom:'))
                 .map(t => t.replace('custom:', ''));
-            const ctResult = await supabase
-                .from('custom_tools')
-                .select('*')
-                .in('id', customToolIds);
-            if (ctResult.data) {
-                customToolConfigs = ctResult.data as CustomToolConfig[];
-            }
+            customToolConfigs = await loadTenantEntities<CustomToolConfig>('custom_tools', task.workspace_id, customToolIds);
             console.log(`[TaskRunner] Loaded ${customToolConfigs.length.toString()} custom tools`);
         }
 
@@ -284,7 +300,7 @@ export async function processTask(task: Task) {
         try {
             if (external) {
                 executionResult = await executeLocalAgent(external, {
-                    workspaceId: task.workspace_id, taskId: task.id, systemPrompt, userPrompt,
+                    workspaceId: task.workspace_id, agentId:agent.id,agentSnapshot:agent, taskId: task.id, systemPrompt, userPrompt,
                     model: effectiveModel, onStream: updateResultStream,
                 });
             } else if (hasTools) {
@@ -309,6 +325,7 @@ export async function processTask(task: Task) {
                         : undefined,
                     task.id,
                     apiKeyData?.base_url,
+                    task.metadata?.source === 'chat-widget' ? 2 : 10,
                 );
             } else if (providerLower === 'anthropic') {
                 executionResult = await executeAnthropic(rawKey, effectiveModel, systemPrompt, userPrompt, updateResultStream, agent.max_tokens);
@@ -617,6 +634,7 @@ async function executeToolUseTask(
     knowledgeContext?: { workspaceId: string; documentIds?: string[] },
     taskId?: string,
     customBaseUrl?: string | null,
+    maxRounds = 10,
 ): Promise<{ result: string; usage: TokenUsage; toolCallLogs: ToolCallLog[] }> {
     // Determine base URL for OpenAI-compatible providers
     const baseURLMap: Record<string, string> = {
@@ -652,7 +670,7 @@ async function executeToolUseTask(
     }
 
     const validatedBaseUrl = baseURL ? (await validateProviderBaseUrl(baseURL)).toString() : undefined;
-    const openai = new OpenAI({ apiKey, ...(validatedBaseUrl ? { baseURL: validatedBaseUrl } : {}) });
+    const openai = new OpenAI({ apiKey, fetch: executionFetch, timeout: 120_000, maxRetries: 0, ...(validatedBaseUrl ? { baseURL: validatedBaseUrl } : {}) });
     const tools = getToolDefinitions(toolNames, customTools);
 
     const toolLoopResult = await executeWithToolLoop(
@@ -728,6 +746,7 @@ async function executeToolUseTask(
         mcpServers,
         knowledgeContext,
         taskId,
+        maxRounds,
     );
 
     void tools; // definitions are used internally by the loop

@@ -68,12 +68,15 @@ export function supportsImages(model: string): boolean {
 export async function loadInputFiles(
     taskId: string | null,
     teamRunId: string | null,
+    workspaceId: string,
 ): Promise<FileContent[]> {
     // Query file_attachments where direction = 'input'
     let query = supabase
         .from('file_attachments')
         .select('*')
-        .eq('direction', 'input');
+        .eq('direction', 'input')
+        .eq('workspace_id', workspaceId)
+        .limit(6);
 
     if (taskId) {
         query = query.eq('task_id', taskId);
@@ -84,21 +87,24 @@ export async function loadInputFiles(
     }
 
     const { data: records, error } = await query;
-    if (error || !records || records.length === 0) return [];
+    if (error) throw new Error('Input attachment lookup failed');
+    if (!records || records.length === 0) return [];
 
+    if (records.length > 5) throw new Error('Too many input attachments');
     const contents: FileContent[] = [];
 
     for (const record of records as FileAttachmentRecord[]) {
+        if (record.workspace_id !== workspaceId || !record.storage_path.startsWith(`${workspaceId}/${taskId ?? teamRunId}/input/`) || record.storage_path.split('/').some(part => part === '..' || part === '.') || record.file_size < 0 || record.file_size > 10 * 1024 * 1024) throw new Error('Invalid input attachment scope or size');
         try {
             const { data: blob, error: dlError } = await supabase.storage
                 .from(BUCKET)
                 .download(record.storage_path);
 
             if (dlError || !blob) {
-                console.warn(`[FileReader] Failed to download ${record.file_name}:`, dlError?.message);
-                continue;
+                throw new Error('Required input attachment download failed');
             }
 
+            if (blob.size > 10 * 1024 * 1024) throw new Error('Attachment exceeds size limit');
             if (TEXT_TYPES.has(record.file_type)) {
                 // Text file: read as string
                 const text = await blob.text();
@@ -110,9 +116,7 @@ export async function loadInputFiles(
             } else if (IMAGE_TYPES.has(record.file_type)) {
                 // Image file: convert to base64
                 const buffer = await blob.arrayBuffer();
-                const base64 = btoa(
-                    String.fromCharCode(...new Uint8Array(buffer)),
-                );
+                const base64 = Buffer.from(buffer).toString('base64');
                 contents.push({
                     fileName: record.file_name,
                     mimeType: record.file_type,
@@ -138,7 +142,7 @@ export async function loadInputFiles(
                 });
             }
         } catch (err: unknown) {
-            console.error(`[FileReader] Error processing ${record.file_name}:`, err instanceof Error ? err.message : String(err));
+            throw new Error(`Required input attachment could not be loaded: ${err instanceof Error ? err.message : 'invalid input'}`);
         }
     }
 

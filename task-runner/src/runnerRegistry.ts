@@ -1,5 +1,5 @@
 import os from 'os';
-import { supabase } from './supabase';
+import { setRunnerIdentity, supabase } from './supabase';
 
 let runnerId: string | null = null;
 let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
@@ -39,6 +39,7 @@ export async function registerRunner(handleLeaseLost?: () => void): Promise<stri
     }
 
     runnerId = data.id as string;
+    setRunnerIdentity(runnerId);
     lastHeartbeatAt = Date.now();
     leaseLost = false;
     if (handleLeaseLost) onLeaseLost = handleLeaseLost;

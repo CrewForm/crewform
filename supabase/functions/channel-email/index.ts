@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { readText } from '../_shared/body.ts';
 // Copyright (C) 2026 CrewForm
 
 /**
@@ -48,7 +49,7 @@ Deno.serve(async (req: Request) => {
     }
 
     try {
-        const rawBody = await req.text();
+        const rawBody = await readText(req);
         const webhookSecret = Deno.env.get('RESEND_WEBHOOK_SECRET');
         if (!webhookSecret) return new Response('Webhook verification unavailable', { status: 503 });
         let payload: ResendWebhookPayload;

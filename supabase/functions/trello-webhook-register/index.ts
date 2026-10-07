@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { readJson } from '../_shared/body.ts';
 // Copyright (C) 2026 CrewForm
 
 /**
@@ -46,7 +47,7 @@ Deno.serve(async (req: Request) => {
         const { data: { user }, error: authError } = await userClient.auth.getUser();
         if (authError || !user) return unauthorized('Unauthorized');
         if (req.method === 'POST') {
-            const body = (await req.json()) as RegisterBody;
+            const body = (await readJson(req)) as unknown as RegisterBody;
             const { api_key, token, board_id, channel_id } = body;
 
             if (!api_key || !token || !board_id || !channel_id) {

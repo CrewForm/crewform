@@ -75,7 +75,7 @@ export function LicenseActivation() {
                 <h3 className="text-sm font-semibold text-gray-200">Activate License</h3>
             </div>
             <p className="mb-4 text-xs text-gray-500">
-                Paste your license key below to unlock Pro, Team, or Enterprise features.
+                Paste your license key below to unlock Pro, Team, or Custom features.
             </p>
 
             <div className="flex gap-2">

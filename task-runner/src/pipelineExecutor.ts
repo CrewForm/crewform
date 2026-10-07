@@ -1,3 +1,5 @@
+import { withExecutionScope, executionFetch, executionSignal } from './executionScope';
+import { loadTenantEntities } from './tenantEntities';
 import { parseExecution } from '@crewformhq/agent-runtime';
 import { executeLocalAgent } from './externalAgent';
 import { supabase } from './supabase';
@@ -26,11 +28,16 @@ import { validateProviderBaseUrl } from './urlSafety';
  * 6. Handle failures (retry / stop / skip)
  */
 export async function processPipelineRun(run: TeamRun): Promise<void> {
+    return withExecutionScope('team_runs', run.id, run.workspace_id, () => processPipelineRunInner(run));
+}
+
+async function processPipelineRunInner(run: TeamRun): Promise<void> {
     let totalTokens = 0;
     let totalCost = 0;
     let teamData: { name: string; mode: string; config: PipelineConfig; output_route_ids: string[] | null } | null = null;
 
     try {
+        executionSignal()?.throwIfAborted();
         console.log(`[PipelineExecutor] Starting run ${run.id} for team ${run.team_id}`);
 
         // 1. Fetch team config
@@ -58,7 +65,7 @@ export async function processPipelineRun(run: TeamRun): Promise<void> {
         }
 
         // 2. Load input files for the team run
-        const inputFiles = await loadInputFiles(null, run.id);
+        const inputFiles = await loadInputFiles(null, run.id, run.workspace_id);
         let fileContextBlock = '';
         if (inputFiles.length > 0) {
             // Peek at first step's agent model to determine multimodal support
@@ -396,7 +403,7 @@ async function executeStep(input: StepInput): Promise<StepResult | null> {
 
             if (external) {
                 if (hasTools) throw new Error('External agents own their tools. Remove CrewForm tools.');
-                executionResult = await executeLocalAgent(external, {workspaceId: run.workspace_id, teamRunId: run.id, systemPrompt, userPrompt, model: agent.model});
+                executionResult = await executeLocalAgent(external, {workspaceId: run.workspace_id, agentId:agent.id,agentSnapshot:agent, teamRunId: run.id, systemPrompt, userPrompt, model: agent.model});
             } else if (hasTools) {
                 // ── Tool-Use Mode ──
                 console.log(`[PipelineExecutor] Step ${stepIndex + 1} agent has ${agentTools.length} tools: ${agentTools.join(', ')}`);
@@ -423,7 +430,7 @@ async function executeStep(input: StepInput): Promise<StepResult | null> {
                 const hasCustomTools = agentTools.some(t => t.startsWith('custom:'));
                 if (hasCustomTools) {
                     const customToolIds = agentTools.filter(t => t.startsWith('custom:')).map(t => t.replace('custom:', ''));
-                    const ctResult = await supabase.from('custom_tools').select('*').in('id', customToolIds);
+                    const ctResult = {data: await loadTenantEntities<CustomToolConfig>('custom_tools', run.workspace_id, customToolIds)};
                     if (ctResult.data) customToolConfigs = ctResult.data as CustomToolConfig[];
                 }
 
@@ -431,7 +438,7 @@ async function executeStep(input: StepInput): Promise<StepResult | null> {
                 const OpenAI = (await import('openai')).default;
                 const baseURL = baseURLMap[provider];
                 const validatedBaseUrl = baseURL ? (await validateProviderBaseUrl(baseURL)).toString() : undefined;
-                const openai = new OpenAI({ apiKey: rawKey, ...(validatedBaseUrl ? { baseURL: validatedBaseUrl } : {}) });
+                const openai = new OpenAI({ apiKey: rawKey, fetch: executionFetch, timeout: 120_000, maxRetries: 0, ...(validatedBaseUrl ? { baseURL: validatedBaseUrl } : {}) });
                 const tools = getToolDefinitions(agentTools, customToolConfigs);
 
                 const toolLoopResult = await executeWithToolLoop(
@@ -697,7 +704,7 @@ async function executeFanOutStep(input: StepInput): Promise<StepResult | null> {
             for (let i = 0; i < results.length; i++) {
                 const result = results[i];
                 // Look up agent name
-                const { data: agentData } = await supabase.from('agents').select('name').eq('id', parallelAgentIds[i]).single();
+                const { data: agentData } = await supabase.from('agents').select('name').eq('id', parallelAgentIds[i]).eq('workspace_id', run.workspace_id).single();
                 const agentName = (agentData as { name: string } | null)?.name ?? `Agent ${i + 1}`;
 
                 if (result) {
@@ -730,7 +737,7 @@ async function executeFanOutStep(input: StepInput): Promise<StepResult | null> {
         const settledResults = await Promise.allSettled(branchPromises);
         for (let i = 0; i < settledResults.length; i++) {
             const settled = settledResults[i];
-            const { data: agentData } = await supabase.from('agents').select('name').eq('id', parallelAgentIds[i]).single();
+            const { data: agentData } = await supabase.from('agents').select('name').eq('id', parallelAgentIds[i]).eq('workspace_id', run.workspace_id).single();
             const agentName = (agentData as { name: string } | null)?.name ?? `Agent ${i + 1}`;
 
             if (settled.status === 'fulfilled' && settled.value) {

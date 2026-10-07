@@ -1,17 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { beforeEach, afterEach, describe, it, expect, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
-    single: vi.fn(), execute: vi.fn(), eq: vi.fn(),
+    consent: vi.fn(), single: vi.fn(), execute: vi.fn(), eq: vi.fn(),
 }));
-vi.mock('./supabase', () => ({supabase: {from: () => ({select: () => ({eq: mocks.eq})})}}));
+vi.mock('./supabase', () => ({supabase: {rpc: mocks.consent, from: () => ({select: () => ({eq: mocks.eq})})}}));
 vi.mock('@crewformhq/agent-runtime', () => ({executeExternal: mocks.execute}));
 import { executeLocalAgent } from './externalAgent';
 const execution = {kind: 'external', agent: 'codex', transport: 'cli'} as const;
-const input = {workspaceId: 'workspace', taskId: 'task', model: 'default', systemPrompt: 'system', userPrompt: 'prompt'};
+const input = {workspaceId: 'workspace', agentId:'agent',agentSnapshot:{}, taskId: 'task', model: 'default', systemPrompt: 'system', userPrompt: 'prompt'};
 beforeEach(() => {
     vi.clearAllMocks();
+    mocks.consent.mockResolvedValue({data:true,error:null});
     mocks.eq.mockReturnValue({eq: mocks.eq, single: mocks.single});
-    mocks.single.mockResolvedValue({data: {status: 'running', created_by: 'owner'}, error: null});
+    mocks.single.mockResolvedValue({data: {status: 'running', created_by: 'owner', actor_type: 'user'}, error: null});
     mocks.execute.mockResolvedValue({result: 'done', usage: {usageKnown: false}, toolCallLogs: []});
 });
 afterEach(() => vi.unstubAllEnvs());
@@ -31,12 +32,20 @@ describe('trusted native runner boundary', () => {
     });
     it('refuses another member’s task even in the configured workspace', async () => {
         configure();
-        mocks.single.mockResolvedValue({data: {status: 'running', created_by: 'other-member'}, error: null});
+        mocks.single.mockResolvedValue({data: {status: 'running', created_by: 'other-member', actor_type: 'user'}, error: null});
         mocks.execute.mockImplementation(async (_execution, invocation) => {
             if (invocation.signal.aborted) throw new Error('External execution cancelled.');
             return {result: 'unexpected'};
         });
         await expect(executeLocalAgent(execution, input)).rejects.toThrow('cancelled');
+        expect(mocks.execute).not.toHaveBeenCalled();
+    });
+    it('rejects workspace API keys and system jobs attributed to the owner', async () => {
+        configure();
+        for (const actor_type of ['api_key', 'system', 'legacy']) {
+            mocks.single.mockResolvedValue({data: {status: 'running', created_by: 'owner', actor_type}, error: null});
+            await expect(executeLocalAgent(execution, input)).rejects.toThrow('not owned');
+        }
         expect(mocks.execute).not.toHaveBeenCalled();
     });
     it('runs in the operator directory and preserves unknown accounting', async () => {

@@ -1,6 +1,6 @@
 {
   "name": "@crewformhq/cli",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Run portable agent workflows using model APIs, Ollama, and local Codex, Claude or ACP agents.",
   "keywords": [
     "ai",
@@ -32,7 +32,9 @@
     "crewform": "./dist/cli.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "src",
+    "tsconfig.json"
   ],
   "scripts": {
     "dev": "tsx src/cli.ts",
@@ -43,15 +45,16 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
+    "@crewformhq/agent-runtime": "file:../agent-runtime",
     "@google/generative-ai": "^0.24.1",
-    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@modelcontextprotocol/sdk": "^1.32.1",
     "chalk": "^5.4.1",
     "commander": "^13.1.0",
     "dotenv": "^17.3.1",
     "openai": "^6.25.0",
     "ora": "^8.2.0",
-    "zod": "^4.3.6",
-    "@crewformhq/agent-runtime": "file:../agent-runtime"
+    "undici": "^6.29.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/node": "^22.15.0",

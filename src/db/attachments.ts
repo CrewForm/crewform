@@ -179,3 +179,14 @@ export const ATTACHMENT_LIMITS = {
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     ],
 } as const
+
+/** Copy reviewed inputs to a new draft; never reuse a foreign parent/path. */
+export async function copyInputAttachments(workspaceId: string, sourceId: string, targetId: string, kind: 'task' | 'team', userId: string): Promise<void> {
+    const rows = kind === 'task' ? await fetchTaskAttachments(sourceId) : await fetchTeamRunAttachments(sourceId)
+    for (const row of rows.filter(value => value.direction === 'input')) {
+        if (row.workspace_id !== workspaceId || !row.storage_path.startsWith(`${workspaceId}/${sourceId}/input/`)) throw new Error('Invalid attachment scope')
+        const {data, error} = await supabase.storage.from(BUCKET).download(row.storage_path)
+        if (error) throw new Error('Input download failed; the new run remains a draft')
+        await uploadAttachment({workspaceId,taskId:kind === 'task' ? targetId : undefined,teamRunId:kind === 'team' ? targetId : undefined,direction:'input',userId,file:new File([data],row.file_name,{type:row.file_type})})
+    }
+}

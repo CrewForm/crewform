@@ -248,7 +248,7 @@ export interface AgentTask {
 
 // ─── Team Run ─────────────────────────────────────────────────────────────────
 
-export type TeamRunStatus = 'pending' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled'
+export type TeamRunStatus = 'draft' | 'pending' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled'
 
 export interface TeamRun {
   id: string

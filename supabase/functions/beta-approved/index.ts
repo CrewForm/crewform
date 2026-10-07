@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { readJson } from '../_shared/body.ts';
 // Copyright (C) 2026 CrewForm
 
 /**
@@ -32,7 +33,7 @@ Deno.serve(async (req: Request) => {
         const auth = await authenticateRequest(req);
         const { data: isAdmin } = await auth.supabaseClient.rpc('is_super_admin');
         if (isAdmin !== true) return forbidden('Super-admin access required');
-        const payload = (await req.json()) as ApprovalPayload;
+        const payload = (await readJson(req)) as unknown as ApprovalPayload;
 
         if (!payload.email) {
             return badRequest('Missing email field');

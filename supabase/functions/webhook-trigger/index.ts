@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { readJson } from '../_shared/body.ts';
 // Copyright (C) 2026 CrewForm
 
 /**
@@ -124,7 +125,7 @@ Deno.serve(async (req: Request) => {
         try {
             const contentType = req.headers.get('content-type') ?? '';
             if (contentType.includes('application/json')) {
-                payload = (await req.json()) as Record<string, unknown>;
+                payload = (await readJson(req)) as unknown as Record<string, unknown>;
             }
         } catch {
             // Non-JSON or empty body — that's fine, proceed with empty payload

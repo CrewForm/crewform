@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils'
 import { SpeechToTextButton } from '@/components/shared/SpeechToTextButton'
 import { FileUploadZone } from '@/components/shared/FileUploadZone'
 import { SlidePanel } from '@/components/shared/SlidePanel'
+import { updateTaskStatus } from '@/db/tasks'
 import { uploadAttachments } from '@/db/attachments'
 import type { TaskPriority } from '@/types'
 import type { ZodError } from 'zod'
@@ -71,14 +72,14 @@ export function CreateTaskModal({ onClose, initialDate }: CreateTaskModalProps) 
                     description: validated.description,
                     assigned_agent_id: validated.assigned_agent_id,
                     priority: validated.priority,
-                    status: dispatch ? 'pending' : 'pending',
+                    status: 'pending',
                     created_by: user.id,
                     scheduled_for: scheduledFor ? new Date(scheduledFor).toISOString() : null,
                 },
                 {
                     onSuccess: (created) => {
                         void (async () => {
-                            // Upload attached files (non-blocking — task is created even if upload fails)
+                            // Complete inputs before dispatch so consent binds the uploaded versions.
                             if (files.length > 0) {
                                 setIsUploading(true)
                                 try {
@@ -90,10 +91,15 @@ export function CreateTaskModal({ onClose, initialDate }: CreateTaskModalProps) 
                                         userId: user.id,
                                     })
                                 } catch (err) {
-                                    console.error('[CreateTask] File upload error:', err)
+                                    setFieldErrors({ description: err instanceof Error ? err.message : 'File upload failed. The task remains a draft.' })
+                                    return
                                 } finally {
                                     setIsUploading(false)
                                 }
+                            }
+                            if (dispatch) {
+                                try { await updateTaskStatus(created.id, 'dispatched') }
+                                catch (err) { setFieldErrors({ description: err instanceof Error ? err.message : 'Dispatch failed. The task remains a draft.' }); return }
                             }
                             onClose()
                         })()

@@ -8,6 +8,7 @@ import { useRerunTeamRun } from '@/hooks/useRerunTeamRun'
 import type { TeamRun, TeamRunStatus } from '@/types'
 
 const STATUS_CONFIG: Record<TeamRunStatus, { label: string; icon: typeof CheckCircle2; className: string }> = {
+    draft: { label: 'Draft', icon: Clock, className: 'text-gray-400 bg-gray-500/10' },
     pending: { label: 'Pending', icon: Clock, className: 'text-gray-400 bg-gray-500/10' },
     running: { label: 'Running', icon: Loader2, className: 'text-blue-400 bg-blue-500/10 animate-pulse' },
     paused: { label: 'Paused', icon: CirclePause, className: 'text-yellow-400 bg-yellow-500/10' },

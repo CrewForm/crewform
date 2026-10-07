@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { executionFetch } from './executionScope';
 // Copyright (C) 2026 CrewForm
 //
 // Shared LLM execution helper — used by both pipeline and orchestrator executors.
@@ -94,7 +95,7 @@ export async function executeLLMCall(input: LLMCallInput): Promise<LLMCallResult
     const external = parseExecution(agent.config);
     if (external) {
         if (agent.tools?.length) throw new Error('External agents own their tools. Remove CrewForm tools from this agent.');
-        const result = await executeLocalAgent(external, {...input, model: agent.model});
+        const result = await executeLocalAgent(external, {...input, agentId:agent.id,agentSnapshot:agent, model: agent.model});
         // Track native calls separately so aggregate API estimates cannot imply
         // that subscription work had a measured zero-dollar cost.
         if (input.teamRunId && input.recordNativeUsage !== false) await writeTeamRunUsageRecord({
@@ -188,7 +189,7 @@ export async function executeLLMCall(input: LLMCallInput): Promise<LLMCallResult
         const OpenAI = (await import('openai')).default;
         const baseURL = baseURLMap[provider];
         const validatedBaseUrl = baseURL ? (await validateProviderBaseUrl(baseURL)).toString() : undefined;
-        const openai = new OpenAI({ apiKey: rawKey, ...(validatedBaseUrl ? { baseURL: validatedBaseUrl } : {}) });
+        const openai = new OpenAI({ fetch: executionFetch, timeout: 120_000, maxRetries: 0, apiKey: rawKey, ...(validatedBaseUrl ? { baseURL: validatedBaseUrl } : {}) });
         void getToolDefinitions(agentTools, customToolConfigs); // validate
 
         const toolLoopResult = await executeWithToolLoop(

@@ -97,8 +97,8 @@ export async function getPlanLimit(plan: string, resource: string): Promise<numb
 /** Count current resource usage for a workspace */
 export async function fetchCurrentUsage(workspaceId: string): Promise<UsageSummary> {
     const startOfMonth = new Date()
-    startOfMonth.setDate(1)
-    startOfMonth.setHours(0, 0, 0, 0)
+    startOfMonth.setUTCDate(1)
+    startOfMonth.setUTCHours(0, 0, 0, 0)
 
     const [agents, tasks, teams, members, triggers, installs, kbDocs] = await Promise.all([
         supabase
@@ -106,10 +106,11 @@ export async function fetchCurrentUsage(workspaceId: string): Promise<UsageSumma
             .select('id', { count: 'exact', head: true })
             .eq('workspace_id', workspaceId),
         supabase
-            .from('tasks')
-            .select('id', { count: 'exact', head: true })
+            .from('execution_usage')
+            .select('job_id', { count: 'exact', head: true })
             .eq('workspace_id', workspaceId)
-            .gte('created_at', startOfMonth.toISOString()),
+            .eq('month', startOfMonth.toISOString().slice(0,10))
+            .neq('state','released'),
         supabase
             .from('teams')
             .select('id', { count: 'exact', head: true })
@@ -122,10 +123,7 @@ export async function fetchCurrentUsage(workspaceId: string): Promise<UsageSumma
             .from('agent_triggers')
             .select('id', { count: 'exact', head: true })
             .eq('workspace_id', workspaceId),
-        supabase
-            .from('marketplace_installs')
-            .select('id', { count: 'exact', head: true })
-            .eq('workspace_id', workspaceId),
+        Promise.resolve({count: 0}), // Template copying has no separate installation cap.
         supabase
             .from('knowledge_documents')
             .select('id', { count: 'exact', head: true })
@@ -138,7 +136,7 @@ export async function fetchCurrentUsage(workspaceId: string): Promise<UsageSumma
         teams: teams.count ?? 0,
         members: members.count ?? 0,
         triggers: triggers.count ?? 0,
-        marketplaceInstalls: installs.count ?? 0,
+        marketplaceInstalls: installs.count,
         knowledgeDocuments: kbDocs.count ?? 0,
     }
 }
@@ -150,64 +148,9 @@ export async function checkQuota(
     workspaceId: string,
     resource: string,
 ): Promise<QuotaCheckResult> {
-    // Fetch workspace to get plan and beta flag
-    const wsResult = await supabase
-        .from('workspaces')
-        .select('plan, is_beta, trial_expires_at')
-        .eq('id', workspaceId)
-        .single()
-
-    if (wsResult.error) {
-        // If we can't read workspace, deny by default
-        return { allowed: false, current: 0, limit: 0, resource }
-    }
-
-    const ws = wsResult.data as { plan: string; is_beta: boolean; trial_expires_at: string | null }
-
-    if (isCommunityEdition()) return { allowed: resource !== 'csv_export', current: 0, limit: resource === 'csv_export' ? 0 : -1, resource }
-
-    // Beta workspaces bypass all quota limits
-    if (ws.is_beta) {
-        return { allowed: true, current: 0, limit: -1, resource }
-    }
-
-    // Trial check: if trial is active, use 'team' tier
-    const trialActive = ws.trial_expires_at != null && new Date(ws.trial_expires_at) > new Date()
-    const plan = trialActive ? 'team' : (ws.plan || 'free')
-
-    // Get limit for this resource
-    const limit = await getPlanLimit(plan, resource)
-
-    // Unlimited
-    if (limit === -1) {
-        return { allowed: true, current: 0, limit: -1, resource }
-    }
-
-    // Feature flag (csv_export, orchestrator, a2a_publish) — 0 means disabled, 1 means enabled
-    if (resource === 'csv_export' || resource === 'orchestrator' || resource === 'a2a_publish') {
-        return { allowed: limit > 0, current: 0, limit, resource }
-    }
-
-    // Get current usage
-    const usage = await fetchCurrentUsage(workspaceId)
-    const currentMap: Record<string, number> = {
-        agents: usage.agents,
-        tasks_per_month: usage.tasksThisMonth,
-        teams: usage.teams,
-        members: usage.members,
-        triggers: usage.triggers,
-        marketplace_installs: usage.marketplaceInstalls,
-        knowledge_documents: usage.knowledgeDocuments,
-    }
-
-    const current = currentMap[resource] ?? 0
-
-    return {
-        allowed: current < limit,
-        current,
-        limit,
-        resource,
-    }
+    const result: {data: unknown; error: {message: string} | null} = await supabase.rpc('get_workspace_quota', {p_workspace_id: workspaceId,p_resource:resource})
+    if (result.error) return {allowed:false,current:0,limit:0,resource}
+    return result.data as QuotaCheckResult
 }
 
 // ─── Stripe Session Calls ───────────────────────────────────────────────────
@@ -217,10 +160,9 @@ export async function createCheckoutSession(
     workspaceId: string,
     plan: 'pro' | 'team',
 ): Promise<{ url: string }> {
-    void workspaceId // workspace context is inferred from JWT
     const result: { data: unknown; error: { message: string } | null } =
         await supabase.functions.invoke('stripe-checkout', {
-            body: { plan },
+            body: { plan, workspace_id: workspaceId },
         })
 
     if (result.error) throw new Error(result.error.message)
@@ -231,9 +173,8 @@ export async function createCheckoutSession(
 export async function createPortalSession(
     workspaceId: string,
 ): Promise<{ url: string }> {
-    void workspaceId // workspace context is inferred from JWT
     const result: { data: unknown; error: { message: string } | null } =
-        await supabase.functions.invoke('stripe-portal', {})
+        await supabase.functions.invoke('stripe-portal', { body: { workspace_id: workspaceId } })
 
     if (result.error) throw new Error(result.error.message)
     return result.data as { url: string }

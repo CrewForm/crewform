@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { readJson } from '../_shared/body.ts';
 // Copyright (C) 2026 CrewForm
 //
 // revoke-license — Admin-only Edge Function to deactivate an EE license.
@@ -33,7 +34,7 @@ serve(async (req: Request) => {
             return unauthorized('Only workspace owners can revoke licenses');
         }
 
-        const body = await req.json() as { licenseId?: string };
+        const body = await readJson(req) as { licenseId?: string };
 
         if (!body.licenseId) {
             return badRequest('licenseId is required');

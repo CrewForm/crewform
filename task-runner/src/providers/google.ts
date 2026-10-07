@@ -1,3 +1,4 @@
+import { executionSignal } from '../executionScope';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import type { TokenUsage } from '../types';
 
@@ -18,7 +19,7 @@ export async function executeGoogle(
 
     let fullText = '';
 
-    const result = await genModel.generateContentStream(userPrompt);
+    const result = await genModel.generateContentStream(userPrompt, {signal: executionSignal(), timeout: 120_000});
 
     for await (const chunk of result.stream) {
         const chunkText = chunk.text();

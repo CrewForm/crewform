@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { readText } from '../_shared/body.ts';
 // Copyright (C) 2026 CrewForm
 
 /**
@@ -79,7 +80,7 @@ Deno.serve(async (req: Request) => {
     }
 
     try {
-        const rawBody = await req.text();
+        const rawBody = await readText(req);
         const appSecret = Deno.env.get('TRELLO_APP_SECRET');
         const signature = req.headers.get('x-trello-webhook');
         const callbackUrl = `${Deno.env.get('SUPABASE_URL')!}/functions/v1/channel-trello`;

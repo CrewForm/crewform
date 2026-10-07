@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { readJson } from '../_shared/body.ts';
 // Copyright (C) 2026 CrewForm
 
 /**
@@ -43,7 +44,7 @@ Deno.serve(async (req: Request) => {
         if (!expectedSecret || req.headers.get('x-webhook-secret') !== expectedSecret) {
             return new Response('Unauthorized', { status: 401 });
         }
-        const payload = (await req.json()) as WebhookPayload;
+        const payload = (await readJson(req)) as unknown as WebhookPayload;
         const { record } = payload;
 
         if (!record?.email) {

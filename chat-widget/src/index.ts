@@ -54,6 +54,7 @@ class CrewFormChatWidget {
   private config: WidgetConfig | null = null;
   private theme: ChatTheme;
   private visitorId: string;
+  private sessionKey: string;
   private shadow: ShadowRoot;
   private container: HTMLDivElement;
   private messagesEl!: HTMLDivElement;
@@ -72,6 +73,7 @@ class CrewFormChatWidget {
   }) {
     const baseUrl = options.baseUrl ?? this.inferBaseUrl();
     this.api = new ChatApi(baseUrl, options.apiKey);
+    this.sessionKey = `cf_chat_session_v2_${options.apiKey}`;
 
     // Resolve theme
     let themePartial: Partial<ChatTheme> = {};
@@ -112,13 +114,7 @@ class CrewFormChatWidget {
   }
 
   private getOrCreateVisitorId(): string {
-    const key = 'cf_chat_visitor_id';
-    let id = localStorage.getItem(key);
-    if (!id) {
-      id = 'v_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
-      localStorage.setItem(key, id);
-    }
-    return id;
+    return localStorage.getItem(this.sessionKey) ?? '';
   }
 
   private async init() {
@@ -130,6 +126,8 @@ class CrewFormChatWidget {
     // Fetch config (get agent name, welcome message, etc.)
     try {
       this.config = await this.api.getConfig();
+      this.visitorId = await this.api.getSession(this.visitorId);
+      localStorage.setItem(this.sessionKey,this.visitorId);
       // Merge server theme with local overrides
       if (this.config.theme) {
         this.theme = resolveTheme({ ...this.config.theme as Partial<ChatTheme>, ...this.theme });

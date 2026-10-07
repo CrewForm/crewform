@@ -4,7 +4,7 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 
 const db = vi.hoisted(() => ({ from: vi.fn(), rpc: vi.fn() }));
-vi.mock('./supabase', () => ({ supabase: db }));
+vi.mock('./supabase', () => ({ setRunnerIdentity: vi.fn(), supabase: db }));
 
 let registry: typeof import('./runnerRegistry');
 let chain: Record<string, ReturnType<typeof vi.fn>>;

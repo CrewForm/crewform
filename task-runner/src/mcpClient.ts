@@ -16,7 +16,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import type { ToolDefinition } from './toolExecutor';
-import { safeFetch, validateExternalUrl } from './urlSafety';
+import { safeFetchInput, validateExternalUrl } from './urlSafety';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -57,10 +57,7 @@ export async function connectToServer(server: McpServerConfig): Promise<Client> 
     );
 
     let transport;
-    const guardedFetch = (input: string | URL | Request, init?: RequestInit) => {
-        const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
-        return safeFetch(url, init, 0);
-    };
+    const guardedFetch = safeFetchInput;
 
     switch (server.transport) {
         case 'streamable-http': {

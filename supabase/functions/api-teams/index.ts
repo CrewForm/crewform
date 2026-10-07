@@ -72,7 +72,7 @@ Deno.serve(async (req: Request) => {
                 }
 
                 // List teams — v2 supports cursor-based pagination
-                const limit = parseInt(url.searchParams.get('limit') ?? '50', 10);
+                const limit = Math.min(100, Math.max(1, Number.parseInt(url.searchParams.get('limit') ?? '50', 10) || 50));
                 const cursor = url.searchParams.get('cursor');
 
                 let query = auth.supabaseClient

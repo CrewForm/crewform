@@ -130,234 +130,47 @@ async function loadAttachmentsForPayload(
  * Fire webhooks for a task event. Never throws — failures are logged but
  * never block the task completion flow.
  */
-export async function dispatchWebhooks(
-    task: TaskInfo,
-    agent: AgentInfo & { id?: string },
-    event: string,
-    outputRouteIds: string[] | null = null,
-): Promise<void> {
-    try {
-        // 1. Fetch active routes for this workspace + event
-        let query = supabase
-            .from('output_routes')
-            .select('*')
-            .eq('workspace_id', task.workspace_id)
-            .eq('is_active', true)
-            .contains('events', [event]);
-
-        // If specific routes are requested, filter to those IDs
-        if (outputRouteIds !== null) {
-            if (outputRouteIds.length === 0) return; // empty array = no dispatch
-            query = query.in('id', outputRouteIds);
-        }
-
-        const { data: routes, error } = await query;
-
-        if (error || !routes || routes.length === 0) return;
-
-        // 2. Build payload
-        const attachments = await loadAttachmentsForPayload(task.id, null);
-        const payload: WebhookPayload = {
-            id: task.id,
-            event,
-            task_id: task.id,
-            team_run_id: null,
-            task_title: task.title,
-            agent_name: agent.name,
-            status: task.status,
-            result_preview: task.result ? task.result.substring(0, 500) : null,
-            result_full: task.result ?? null,
-            error: task.error ?? null,
-            timestamp: new Date().toISOString(),
-            attachments,
-        };
-
-        // 3. Dispatch to each route (fire-and-forget, parallel)
-        const promises = (routes as OutputRoute[]).map((route) =>
-            deliverWithRetry(route, task.id, event, payload),
-        );
-        await Promise.allSettled(promises);
-
-        // 4. Also dispatch to Zapier subscriptions (scoped to this agent)
-        void dispatchZapierHooks(task.workspace_id, event, payload, agent.id ?? null, null);
-    } catch (err: unknown) {
-        // Never let webhook errors bubble up
-        console.error('[Webhooks] Dispatch error:', err instanceof Error ? err.message : String(err));
-    }
+export async function dispatchWebhooks(_task: TaskInfo, _agent: AgentInfo & {id?: string}, _event: string, _routes: string[] | null = null): Promise<void> {
+    await drainOutputDeliveries();
 }
-
-/**
- * Fire webhooks for a team run event (team_run.completed, team_run.failed).
- * Never throws — failures are logged but never block the run flow.
- */
-export async function dispatchTeamRunWebhooks(
-    teamRun: TeamRunInfo,
-    teamName: string,
-    event: string,
-    outputRouteIds: string[] | null = null,
-): Promise<void> {
-    try {
-        let query = supabase
-            .from('output_routes')
-            .select('*')
-            .eq('workspace_id', teamRun.workspace_id)
-            .eq('is_active', true)
-            .contains('events', [event]);
-
-        // If specific routes are requested, filter to those IDs
-        if (outputRouteIds !== null) {
-            if (outputRouteIds.length === 0) return; // empty array = no dispatch
-            query = query.in('id', outputRouteIds);
-        }
-
-        const { data: routes, error } = await query;
-
-        if (error || !routes || routes.length === 0) return;
-
-        const attachments = await loadAttachmentsForPayload(null, teamRun.id);
-
-        // ── Ensure we have the output ──────────────────────────────────────
-        // Some executors may not pass the output inline. As a safety net,
-        // always fetch from DB if the passed value is missing.
-        let resolvedOutput = teamRun.output ?? null;
-        if (!resolvedOutput && teamRun.status === 'completed') {
-            const { data: runRow } = await supabase
-                .from('team_runs')
-                .select('output')
-                .eq('id', teamRun.id)
-                .single();
-            resolvedOutput = (runRow as { output: string | null } | null)?.output ?? null;
-            if (resolvedOutput) {
-                console.log(`[Webhooks] Fetched output from DB for run ${teamRun.id} (${resolvedOutput.length} chars)`);
-            } else {
-                console.warn(`[Webhooks] No output found in DB for completed run ${teamRun.id}`);
-            }
-        }
-
-        console.log(`[Webhooks] Team run ${teamRun.id} payload: status=${teamRun.status}, output=${resolvedOutput ? resolvedOutput.length + ' chars' : 'null'}`);
-
-        const payload: WebhookPayload = {
-            id: teamRun.id,
-            event,
-            task_id: null,
-            team_run_id: teamRun.id,
-            task_title: teamRun.input_task,
-            agent_name: teamName,
-            status: teamRun.status,
-            result_preview: resolvedOutput ? resolvedOutput.substring(0, 500) : null,
-            result_full: resolvedOutput,
-            error: teamRun.error_message ?? null,
-            timestamp: new Date().toISOString(),
-            attachments,
-        };
-
-        const promises = (routes as OutputRoute[]).map((route) =>
-            deliverWithRetry(route, teamRun.id, event, payload),
-        );
-        await Promise.allSettled(promises);
-
-        // Also dispatch to Zapier subscriptions (scoped to this team)
-        void dispatchZapierHooks(teamRun.workspace_id, event, payload, null, teamRun.team_id);
-    } catch (err: unknown) {
-        console.error('[Webhooks] Team run dispatch error:', err instanceof Error ? err.message : String(err));
-    }
+export async function dispatchTeamRunWebhooks(_run: TeamRunInfo, _name: string, _event: string, _routes: string[] | null = null): Promise<void> {
+    await drainOutputDeliveries();
 }
-
-/**
- * Dispatch to any Zapier REST Hook subscriptions for this workspace + event.
- * Never throws — failures are logged but never block the calling flow.
- */
-async function dispatchZapierHooks(
-    workspaceId: string,
-    event: string,
-    payload: WebhookPayload,
-    agentId: string | null = null,
-    teamId: string | null = null,
-): Promise<void> {
+let draining = false;
+export async function drainOutputDeliveries(): Promise<void> {
+    if (draining) return;
+    draining = true;
     try {
-        // Fetch all subscriptions for this workspace + event, then filter in-app
-        // to match: (sub.agent_id === agentId OR sub.agent_id IS NULL)
-        //       AND (sub.team_id  === teamId  OR sub.team_id  IS NULL)
-        const { data: subs, error } = await supabase
-            .from('zapier_subscriptions')
-            .select('id, target_url, agent_id, team_id')
-            .eq('workspace_id', workspaceId)
-            .eq('event', event);
-
-        if (error || !subs || subs.length === 0) return;
-
-        // Filter: only fire subscriptions where the filter matches or is null (workspace-wide)
-        const matchingSubs = (subs as Array<{ id: string; target_url: string; agent_id: string | null; team_id: string | null }>)
-            .filter((sub) => {
-                const agentMatch = sub.agent_id === null || sub.agent_id === agentId;
-                const teamMatch = sub.team_id === null || sub.team_id === teamId;
-                return agentMatch && teamMatch;
-            });
-
-        if (matchingSubs.length === 0) return;
-
-        const deliveries = matchingSubs.map(async (sub) => {
+        const claimed = await supabase.rpc('claim_output_deliveries');
+        if (claimed.error) throw new Error(claimed.error.message);
+        for (const job of claimed.data ?? []) {
+            let state = 'failed';
+            let error: string | null = null;
+            const payload = job.payload as WebhookPayload;
             try {
-                const resp = await safeFetch(sub.target_url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload),
-                    signal: AbortSignal.timeout(10000),
-                });
-
-                if (!resp.ok) {
-                    console.warn(`[Zapier] Hook ${sub.id} returned ${resp.status}`);
-                    // If Zapier returns 410 Gone, the subscription was cancelled — clean it up
-                    if (resp.status === 410) {
-                        await supabase.from('zapier_subscriptions').delete().eq('id', sub.id);
-                        console.log(`[Zapier] Removed stale subscription ${sub.id}`);
-                    }
+                payload.attachments = await loadAttachmentsForPayload(payload.task_id, payload.team_run_id);
+                if (job.route_kind === 'zapier') {
+                    const route = await supabase.from('zapier_subscriptions').select('target_url').eq('id', job.route_id).eq('workspace_id', job.workspace_id).single();
+                    if (route.error || !route.data) throw new Error('Subscription unavailable');
+                    const response = await safeFetch(route.data.target_url, {method: 'POST', headers: {'Content-Type': 'application/json', 'Idempotency-Key': job.id}, body: JSON.stringify(payload)});
+                    state = response.ok ? 'sent' : 'failed';
+                    await response.body?.cancel();
+                } else {
+                    const route = await supabase.from('output_routes').select('*').eq('id', job.route_id).eq('workspace_id', job.workspace_id).eq('is_active', true).single();
+                    if (route.error || !route.data) throw new Error('Output route unavailable');
+                    const result = await deliver(route.data as OutputRoute, {...payload, delivery_id: job.id} as WebhookPayload);
+                    state = result.ok ? 'sent' : 'failed';
+                    await logDelivery(job.route_id, job.job_id, job.event, result.ok ? 'success' : 'failed', result.statusCode, null, payload);
                 }
-            } catch (err: unknown) {
-                console.error(`[Zapier] Hook ${sub.id} failed:`, err instanceof Error ? err.message : String(err));
+            } catch (err) {
+                state = 'uncertain';
+                error = err instanceof Error ? err.message : 'Delivery error';
             }
-        });
-
-        await Promise.allSettled(deliveries);
-    } catch (err: unknown) {
-        console.error('[Zapier] Dispatch error:', err instanceof Error ? err.message : String(err));
-    }
-}
-
-// ─── Delivery with 1 retry ──────────────────────────────────────────────────
-
-async function deliverWithRetry(
-    route: OutputRoute,
-    taskId: string,
-    event: string,
-    payload: WebhookPayload,
-): Promise<void> {
-    let lastError: string | null = null;
-    let statusCode: number | null = null;
-
-    for (let attempt = 0; attempt < 2; attempt++) {
-        try {
-            if (attempt > 0) {
-                await sleep(5000);
-            }
-
-            const result = await deliver(route, payload);
-            statusCode = result.statusCode;
-
-            if (result.ok) {
-                await logDelivery(route.id, taskId, event, 'success', statusCode, null, payload);
-                return;
-            }
-
-            lastError = `HTTP ${result.statusCode}`;
-        } catch (err: unknown) {
-            lastError = err instanceof Error ? err.message : String(err);
+            const saved = await supabase.from('output_delivery_queue').update({state, last_error: error, lease_until: null}).eq('id',job.id).eq('lease',job.lease).eq('state','delivering');
+            if (saved.error) throw new Error(saved.error.message);
         }
-    }
-
-    // Both attempts failed
-    await logDelivery(route.id, taskId, event, 'failed', statusCode, lastError, payload);
-    console.error(`[Webhooks] Failed to deliver to "${route.name}" (${route.destination_type}): ${lastError}`);
+    } catch (err) { console.error('[Delivery queue]', err instanceof Error ? err.message : 'Queue unavailable'); }
+    finally { draining = false; }
 }
 
 // ─── Destination handlers ───────────────────────────────────────────────────
@@ -417,6 +230,7 @@ async function deliverHTTP(
     const headers: Record<string, string> = {
         'Content-Type': 'application/json',
         'User-Agent': 'CrewForm-Webhook/1.0',
+        'Idempotency-Key': (payload as WebhookPayload & {delivery_id?: string}).delivery_id ?? `${route.id}:${payload.id}:${payload.event}`,
     };
 
     if (secret) {
@@ -442,6 +256,7 @@ async function deliverHTTP(
         signal: AbortSignal.timeout(10000),
     });
 
+    await resp.body?.cancel();
     return { ok: resp.ok, statusCode: resp.status };
 }
 
@@ -1296,6 +1111,7 @@ async function deliverGitHubIssue(
                 'Accept': 'application/vnd.github+json',
                 'X-GitHub-Api-Version': '2022-11-28',
                 'User-Agent': 'CrewForm-Webhook/1.0',
+        'Idempotency-Key': (payload as WebhookPayload & {delivery_id?: string}).delivery_id ?? `${route.id}:${payload.id}:${payload.event}`,
             },
             body: JSON.stringify({
                 title: `${emoji} ${payload.task_title}`.substring(0, 256),

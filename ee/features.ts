@@ -27,46 +27,5 @@ export type EEFeature = (typeof EE_FEATURES)[keyof typeof EE_FEATURES];
  * All features included in each plan tier.
  * Higher tiers include all features from lower tiers.
  */
-export const PLAN_FEATURES: Record<string, EEFeature[]> = {
-    pro: [
-        EE_FEATURES.PROMPT_HISTORY,
-        EE_FEATURES.ADVANCED_ANALYTICS,
-        EE_FEATURES.FILE_ATTACHMENTS,
-        EE_FEATURES.ADVANCED_WEBHOOKS,
-        EE_FEATURES.TEAM_TRIGGERS,
-        EE_FEATURES.BILLING,
-        EE_FEATURES.MESSAGING_CHANNELS,
-        EE_FEATURES.CUSTOM_TOOLS,
-    ],
-    team: [
-        // All pro features plus:
-        EE_FEATURES.PROMPT_HISTORY,
-        EE_FEATURES.ADVANCED_ANALYTICS,
-        EE_FEATURES.FILE_ATTACHMENTS,
-        EE_FEATURES.ADVANCED_WEBHOOKS,
-        EE_FEATURES.TEAM_TRIGGERS,
-        EE_FEATURES.BILLING,
-        EE_FEATURES.MESSAGING_CHANNELS,
-        EE_FEATURES.CUSTOM_TOOLS,
-        EE_FEATURES.COLLABORATION_MODE,
-        EE_FEATURES.TEAM_MEMORY,
-        EE_FEATURES.RBAC,
-    ],
-    enterprise: [
-        // All team features plus:
-        EE_FEATURES.PROMPT_HISTORY,
-        EE_FEATURES.ADVANCED_ANALYTICS,
-        EE_FEATURES.FILE_ATTACHMENTS,
-        EE_FEATURES.ADVANCED_WEBHOOKS,
-        EE_FEATURES.TEAM_TRIGGERS,
-        EE_FEATURES.BILLING,
-        EE_FEATURES.COLLABORATION_MODE,
-        EE_FEATURES.TEAM_MEMORY,
-        EE_FEATURES.RBAC,
-        EE_FEATURES.CUSTOM_TOOLS,
-        EE_FEATURES.MESSAGING_CHANNELS,
-        EE_FEATURES.AUDIT_LOGS,
-        EE_FEATURES.SWARM,
-        EE_FEATURES.ADMIN_PANEL,
-    ],
-};
+import { PLAN_CATALOGUE } from './planCatalogue';
+export const PLAN_FEATURES: Record<string, EEFeature[]> = Object.fromEntries(Object.entries(PLAN_CATALOGUE.plans).map(([key, plan]) => [key, [...plan.features] as EEFeature[]]));

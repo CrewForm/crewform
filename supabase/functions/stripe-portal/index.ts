@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { readJson } from '../_shared/body.ts';
 // Copyright (C) 2026 CrewForm
 //
 // stripe-portal — Creates a Stripe Customer Portal Session so users can
@@ -6,7 +7,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { handleCors } from '../_shared/cors.ts';
-import { badRequest, unauthorized, serverError, methodNotAllowed } from '../_shared/response.ts';
+import { badRequest, forbidden, unauthorized, serverError, methodNotAllowed } from '../_shared/response.ts';
 
 import Stripe from 'https://esm.sh/stripe@14?target=deno';
 
@@ -39,19 +40,22 @@ Deno.serve(async (req: Request) => {
             return unauthorized('Invalid or expired token');
         }
 
-        // Get workspace
+        // An explicit workspace and billing role are required before contacting Stripe.
+        const body = await readJson(req);
+        const workspaceId = body.workspace_id;
+        if (typeof workspaceId !== 'string' || !/^[0-9a-f-]{36}$/i.test(workspaceId)) return badRequest('workspace_id is required');
         const { data: membership, error: memberError } = await userClient
             .from('workspace_members')
-            .select('workspace_id')
+            .select('workspace_id, role')
             .eq('user_id', user.id)
-            .limit(1)
+            .eq('workspace_id', workspaceId)
             .single();
 
         if (memberError || !membership) {
             return unauthorized('User is not a member of any workspace');
         }
 
-        const workspaceId = (membership as { workspace_id: string }).workspace_id;
+        if (!['owner', 'admin'].includes((membership as { role: string }).role)) return forbidden('Billing requires owner or admin access');
 
         // ── Get Stripe Customer ID ─────────────────────────────────────
         const serviceClient = createClient(

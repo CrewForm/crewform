@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { safeFetchInput, validateExternalUrl } from './urlSafety.js';
 // Copyright (C) 2026 CrewForm
 //
 // mcpClient.ts — MCP client for CLI use.
@@ -8,7 +9,7 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { StdioClientTransport, getDefaultEnvironment } from '@modelcontextprotocol/sdk/client/stdio.js';
 import type { ToolDefinition } from './tools.js';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -49,7 +50,7 @@ export async function connectToServer(server: McpServerConfig): Promise<Client> 
     if (existing) return existing.client;
 
     const client = new Client(
-        { name: 'crewform-cli', version: '0.1.0' },
+        { name: 'crewform-cli', version: '0.1.1' },
         { capabilities: {} },
     );
 
@@ -58,15 +59,15 @@ export async function connectToServer(server: McpServerConfig): Promise<Client> 
     switch (server.transport) {
         case 'streamable-http': {
             transport = new StreamableHTTPClientTransport(
-                new URL(server.url),
-                { requestInit: { headers: server.config.headers ?? {} } },
+                await validateExternalUrl(server.url),
+                { requestInit: { headers: server.config.headers ?? {} }, fetch: safeFetchInput },
             );
             break;
         }
         case 'sse': {
             transport = new SSEClientTransport(
-                new URL(server.url),
-                { requestInit: { headers: server.config.headers ?? {} } },
+                await validateExternalUrl(server.url),
+                { requestInit: { headers: server.config.headers ?? {} }, fetch: safeFetchInput },
             );
             break;
         }
@@ -76,7 +77,7 @@ export async function connectToServer(server: McpServerConfig): Promise<Client> 
                 command,
                 args: server.config.args ?? [],
                 env: {
-                    ...process.env,
+                    ...getDefaultEnvironment(),
                     ...(server.config.env ?? {}),
                 } as Record<string, string>,
             });

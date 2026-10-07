@@ -100,7 +100,7 @@ describe('runner runtime', () => {
         await import('./index');
         await flush();
         state.healthy = false;
-        const res = { writeHead: vi.fn(), end: vi.fn() };
+        const res = { once: vi.fn(), writeHead: vi.fn(), end: vi.fn() };
         state.httpHandler!({ method: 'GET', url: '/health' } as IncomingMessage, res as unknown as ServerResponse);
         await flush();
         expect(res.writeHead).toHaveBeenCalledWith(503, { 'Content-Type': 'application/json' });
@@ -111,7 +111,7 @@ describe('runner runtime', () => {
         await import('./index');
         await flush();
         state.a2a.mockRejectedValueOnce(new Error('upstream unavailable'));
-        const res = { writeHead: vi.fn(), end: vi.fn(), headersSent: false };
+        const res = { once: vi.fn(), writeHead: vi.fn(), end: vi.fn(), headersSent: false };
         state.httpHandler!({ method: 'GET', url: '/a2a/test' } as IncomingMessage, res as unknown as ServerResponse);
         await flush();
         expect(res.writeHead).toHaveBeenCalledWith(500, { 'Content-Type': 'application/json' });

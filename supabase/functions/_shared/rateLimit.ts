@@ -81,7 +81,8 @@ export async function checkRateLimit(
     );
 
     // Determine the limit — per-key override takes precedence
-    const limit = perKeyOverride ?? PLAN_RATE_LIMITS[plan] ?? DEFAULT_LIMIT;
+    const planLimit = PLAN_RATE_LIMITS[plan] ?? DEFAULT_LIMIT;
+    const limit = Math.min(planLimit, Math.max(1, perKeyOverride ?? planLimit));
 
     // Window = current minute (truncated to minute boundary)
     const now = new Date();
@@ -96,14 +97,14 @@ export async function checkRateLimit(
         });
 
         if (error) {
-            // On error, allow the request (fail-open) but log
+            // On error, deny new work (fail closed)
             console.error('[rateLimit] RPC error:', error.message);
-            return { allowed: true, limit, remaining: limit, resetAt };
+            return { allowed: false, limit, remaining: 0, resetAt };
         }
 
         const row = (data as Array<{ current_count: number; allowed: boolean }>)?.[0];
         if (!row) {
-            return { allowed: true, limit, remaining: limit, resetAt };
+            return { allowed: false, limit, remaining: 0, resetAt };
         }
 
         return {
@@ -113,9 +114,9 @@ export async function checkRateLimit(
             resetAt,
         };
     } catch (err) {
-        // Fail-open on unexpected errors
+        // Deny on unexpected errors
         const msg = err instanceof Error ? err.message : String(err);
         console.error('[rateLimit] Unexpected error:', msg);
-        return { allowed: true, limit, remaining: limit, resetAt };
+        return { allowed: false, limit, remaining: 0, resetAt };
     }
 }

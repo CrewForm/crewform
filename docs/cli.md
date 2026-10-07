@@ -325,7 +325,6 @@ The CLI accepts three config formats:
 |------|-------------|----------|
 | `web_search` | Search the web via Serper API | `SERPER_API_KEY` |
 | `http_request` | Make HTTP GET/POST requests | — |
-| `code_interpreter` | Run JavaScript code in a sandbox | — |
 | `read_file` | Read a file from a URL | — |
 | `grammar_check` | Check grammar and spelling | — |
 
@@ -360,3 +359,5 @@ OPENAI_API_KEY=${{ secrets.OPENAI_KEY }} \
 CREWFORM_API_KEY=${{ secrets.CREWFORM_KEY }} \
   crewform push $AGENT_ID --wait --json "Generate release notes" > notes.json
 ```
+
+The legacy `code_interpreter` tool is disabled: model-generated JavaScript must not execute inside the CLI process. Use a separately isolated execution service for code tools.

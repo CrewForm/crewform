@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { readText } from '../_shared/body.ts';
 // Copyright (C) 2026 CrewForm
 //
 // stripe-webhook — Handles incoming Stripe webhook events.
@@ -27,9 +28,9 @@ const PRO_PRICE = Deno.env.get('STRIPE_PRO_PRICE_ID')?.trim();
 const TEAM_PRICE = Deno.env.get('STRIPE_TEAM_PRICE_ID')?.trim();
 
 function resolvePlan(priceId: string): string {
-    if (priceId === PRO_PRICE) return 'pro';
-    if (priceId === TEAM_PRICE) return 'team';
-    return 'pro'; // fallback
+    if (priceId === PRO_PRICE || (Deno.env.get('STRIPE_PRO_LEGACY_PRICE_IDS') ?? '').split(',').map(id => id.trim()).includes(priceId)) return 'pro';
+    if (priceId === TEAM_PRICE || (Deno.env.get('STRIPE_TEAM_LEGACY_PRICE_IDS') ?? '').split(',').map(id => id.trim()).includes(priceId)) return 'team';
+    throw new Error('Unrecognized Stripe price; configure legacy price IDs explicitly');
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -43,7 +44,7 @@ function mapStripeStatus(status: string): string {
         case 'incomplete': return 'incomplete';
         case 'incomplete_expired': return 'cancelled';
         case 'unpaid': return 'past_due';
-        default: return 'active';
+        default: throw new Error('Unsupported Stripe subscription status');
     }
 }
 
@@ -73,7 +74,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // ── Verify webhook signature ───────────────────────────────────────
-    const body = await req.text();
+    const body = await readText(req);
     const sig = req.headers.get('stripe-signature');
 
     if (!sig) {
@@ -94,131 +95,27 @@ Deno.serve(async (req: Request) => {
     // ── Handle events ──────────────────────────────────────────────────
 
     try {
-        switch (event.type) {
-            case 'checkout.session.completed': {
-                const session = event.data.object as Stripe.Checkout.Session;
-                const workspaceId = session.metadata?.workspace_id;
-                const subscriptionId = session.subscription as string;
-
-                if (!workspaceId || !subscriptionId) {
-                    console.warn('[stripe-webhook] checkout.session.completed missing workspace_id or subscription');
-                    break;
-                }
-
-                // Fetch the full subscription to get price/plan info
-                const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-                const priceId = subscription.items.data[0]?.price.id ?? '';
-                const plan = resolvePlan(priceId);
-                const period = extractPeriodDates(subscription as unknown as Record<string, unknown>);
-
-                await supabase
-                    .from('subscriptions')
-                    .upsert({
-                        workspace_id: workspaceId,
-                        stripe_customer_id: session.customer as string,
-                        stripe_subscription_id: subscriptionId,
-                        plan,
-                        status: 'active',
-                        current_period_start: period.start,
-                        current_period_end: period.end,
-                        cancel_at_period_end: subscription.cancel_at_period_end,
-                    }, { onConflict: 'workspace_id' });
-
-                // Keep workspaces.plan in sync (UI reads from here)
-                await supabase
-                    .from('workspaces')
-                    .update({ plan })
-                    .eq('id', workspaceId);
-
-                console.log(`[stripe-webhook] Workspace ${workspaceId} upgraded to ${plan}`);
-                break;
-            }
-
-            case 'customer.subscription.updated': {
-                const subscription = event.data.object as Stripe.Subscription;
-                const workspaceId = subscription.metadata?.workspace_id;
-
-                if (!workspaceId) {
-                    console.warn('[stripe-webhook] subscription.updated missing workspace_id in metadata');
-                    break;
-                }
-
-                const priceId = subscription.items.data[0]?.price.id ?? '';
-                const plan = resolvePlan(priceId);
-                const status = mapStripeStatus(subscription.status);
-                const period = extractPeriodDates(subscription as unknown as Record<string, unknown>);
-
-                await supabase
-                    .from('subscriptions')
-                    .update({
-                        plan,
-                        status,
-                        current_period_start: period.start,
-                        current_period_end: period.end,
-                        cancel_at_period_end: subscription.cancel_at_period_end,
-                    })
-                    .eq('workspace_id', workspaceId);
-
-                // Keep workspaces.plan in sync
-                await supabase
-                    .from('workspaces')
-                    .update({ plan })
-                    .eq('id', workspaceId);
-
-                console.log(`[stripe-webhook] Workspace ${workspaceId} subscription updated: ${plan} (${status})`);
-                break;
-            }
-
-            case 'customer.subscription.deleted': {
-                const subscription = event.data.object as Stripe.Subscription;
-                const workspaceId = subscription.metadata?.workspace_id;
-
-                if (!workspaceId) {
-                    console.warn('[stripe-webhook] subscription.deleted missing workspace_id in metadata');
-                    break;
-                }
-
-                // Revert to free plan
-                await supabase
-                    .from('subscriptions')
-                    .update({
-                        plan: 'free',
-                        status: 'cancelled',
-                        stripe_subscription_id: null,
-                        cancel_at_period_end: false,
-                        current_period_start: null,
-                        current_period_end: null,
-                    })
-                    .eq('workspace_id', workspaceId);
-
-                // Keep workspaces.plan in sync
-                await supabase
-                    .from('workspaces')
-                    .update({ plan: 'free' })
-                    .eq('id', workspaceId);
-
-                console.log(`[stripe-webhook] Workspace ${workspaceId} subscription deleted → free`);
-                break;
-            }
-
-            case 'invoice.payment_failed': {
-                const invoice = event.data.object as Stripe.Invoice;
-                const subscriptionId = invoice.subscription as string | null;
-
-                if (!subscriptionId) break;
-
-                // Look up by stripe_subscription_id
-                await supabase
-                    .from('subscriptions')
-                    .update({ status: 'past_due' })
-                    .eq('stripe_subscription_id', subscriptionId);
-
-                console.log(`[stripe-webhook] Payment failed for subscription ${subscriptionId}`);
-                break;
-            }
-
-            default:
-                console.log(`[stripe-webhook] Unhandled event type: ${event.type}`);
+        let subscriptionId: string | null = null;
+        const replacement = event.type === 'checkout.session.completed';
+        if (replacement) subscriptionId = (event.data.object as Stripe.Checkout.Session).subscription as string | null;
+        else if (event.type.startsWith('customer.subscription.')) subscriptionId = (event.data.object as Stripe.Subscription).id;
+        else if (['invoice.payment_failed', 'invoice.paid'].includes(event.type)) subscriptionId = (event.data.object as Stripe.Invoice).subscription as string | null;
+        if (subscriptionId) {
+            // Signed events are notifications. Reconcile against current Stripe state.
+            const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+            const workspaceId = subscription.metadata?.workspace_id;
+            if (!workspaceId) throw new Error('Subscription workspace metadata missing');
+            const status = mapStripeStatus(subscription.status);
+            const plan = status === 'cancelled' ? 'free' : resolvePlan(subscription.items.data[0]?.price.id ?? '');
+            const period = extractPeriodDates(subscription as unknown as Record<string, unknown>);
+            const {error} = await supabase.rpc('apply_stripe_entitlement', {
+                p_event_id: event.id, p_event_created: event.created, p_workspace_id: workspaceId,
+                p_customer_id: typeof subscription.customer === 'string' ? subscription.customer : subscription.customer.id,
+                p_subscription_id: subscription.id, p_plan: plan, p_status: status,
+                p_period_start: period.start, p_period_end: period.end,
+                p_cancel_at_period_end: subscription.cancel_at_period_end, p_replacement: replacement,
+            });
+            if (error) throw new Error(error.message);
         }
     } catch (err) {
         console.error(`[stripe-webhook] Error handling ${event.type}:`, err);

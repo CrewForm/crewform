@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { readJson } from '../_shared/body.ts';
 // Copyright (C) 2026 CrewForm
 //
 // mcp-discover — Proxy for MCP tool discovery.
@@ -72,7 +73,7 @@ Deno.serve(async (req: Request) => {
         }
 
         // Parse request body
-        const body = await req.json() as {
+        const body = await readJson(req) as {
             server_url: string;
             server_headers?: Record<string, string>;
         };

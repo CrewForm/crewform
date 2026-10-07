@@ -53,7 +53,19 @@ export async function assertSafeProviderUrl(value: string): Promise<URL> {
     return assertSafeRemoteUrl(value);
 }
 
-export async function safeRemoteFetch(value: string, init: RequestInit): Promise<Response> {
-    const url = await assertSafeRemoteUrl(value);
-    return fetch(url, { ...init, redirect: 'error', signal: init.signal ?? AbortSignal.timeout(15_000) });
+export async function safeRemoteFetch(value: string, init: RequestInit, provider = false): Promise<Response> {
+    if (provider) await assertSafeProviderUrl(value); else await assertSafeRemoteUrl(value);
+    const runner = Deno.env.get('TASK_RUNNER_URL');
+    const secret = Deno.env.get('WEBHOOK_SECRET');
+    if (!runner || !secret) throw new Error('Outbound egress guard is not configured');
+    if (init.body !== undefined && typeof init.body !== 'string') throw new Error('Outbound body must be text');
+    // No second direct DNS/fetch gap inside the Edge runtime. Credentials and
+    // tenant data travel over the operator's trusted backend connection only.
+    const response = await fetch(`${runner.replace(/\/$/,'')}/_internal/remote-fetch`, {
+        method: 'POST', headers: {'Content-Type':'application/json','x-webhook-secret':secret},
+        body: JSON.stringify({url:value,method:init.method,headers:Object.fromEntries(new Headers(init.headers)),body:init.body,provider}),
+        redirect:'error', signal:init.signal ?? AbortSignal.timeout(20_000),
+    });
+    if ([401,403,502,503].includes(response.status)) throw new Error('Outbound egress guard unavailable');
+    return response;
 }

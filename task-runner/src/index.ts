@@ -1,3 +1,6 @@
+import { handleRemoteFetch } from './remoteFetchEndpoint';
+import { drainOutputDeliveries } from './webhookDispatcher';
+import { HttpInputError } from './httpInput';
 import http from 'http';
 import { supabase } from './supabase';
 import { processTask } from './executor';
@@ -273,16 +276,25 @@ async function poll() {
 // ─── Webhook Server ──────────────────────────────────────────────────────────
 
 function createWebhookServer(): http.Server {
-    return http.createServer((req, res) => {
+    let connections = 0;
+    const server = http.createServer((req, res) => {
+        if (connections >= 128) { res.writeHead(503); res.end(); return; }
+        connections++;
+        res.once('close', () => { connections--; });
         void routeRequest(req, res).catch((err: unknown) => {
             logError('HTTP request failed:', err);
             if (res.headersSent) res.destroy();
             else {
-                res.writeHead(500, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Internal server error' }));
+                res.writeHead(err instanceof HttpInputError ? err.status : 500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: err instanceof HttpInputError ? err.message : 'Internal server error' }));
+                if (err instanceof HttpInputError) res.once('finish', () => req.destroy());
             }
         });
     });
+    server.headersTimeout = 15_000;
+    server.requestTimeout = 30_000;
+    server.maxRequestsPerSocket = 100;
+    return server;
 }
 
 async function routeRequest(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
@@ -302,7 +314,7 @@ async function routeRequest(req: http.IncomingMessage, res: http.ServerResponse)
         res.end(JSON.stringify({ error: 'Runner is shutting down' }));
         return;
     }
-    for (const handler of [handleA2ARequest, handleAgUiRequest, handleMcpServerRequest, handleChatRequest, handleKbSearchRequest]) {
+    for (const handler of [handleRemoteFetch, handleA2ARequest, handleAgUiRequest, handleMcpServerRequest, handleChatRequest, handleKbSearchRequest]) {
         if (await handler(req, res)) return;
     }
     if (req.method === 'POST' && (req.url === '/webhook/task' || req.url === '/webhook/team-run')) {
@@ -498,6 +510,10 @@ async function start() {
 
         const channel = createRealtimeChannel();
         (globalThis as Record<string, unknown>).__realtimeChannel = channel;
+
+        // Durable queue survives a restart between job completion and network delivery.
+        maintenanceTimers.push(setInterval(() => { void drainOutputDeliveries(); }, 10_000));
+        void drainOutputDeliveries();
 
         // Start recovery sweep and trigger evaluation on fixed intervals
         maintenanceTimers.push(setInterval(() => {

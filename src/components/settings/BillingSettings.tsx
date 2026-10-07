@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { PLAN_CATALOGUE } from '@/lib/planCatalogue'
 // Copyright (C) 2026 CrewForm
 
 import { Loader2, CreditCard, ExternalLink, Sparkles } from 'lucide-react'
 import { useWorkspace } from '@/hooks/useWorkspace'
-import { useSubscription, useUsage, useCreatePortal } from '@/hooks/useBilling'
+import { useSubscription, useUsage, useQuotaCheck, useCreatePortal } from '@/hooks/useBilling'
 import { PricingTable } from '@/components/billing/PricingTable'
 import { cn } from '@/lib/utils'
 
@@ -59,6 +60,7 @@ export function BillingSettings() {
     const { data: subscription, isLoading: isLoadingSub } = useSubscription(workspaceId)
     const { data: usage, isLoading: isLoadingUsage } = useUsage(workspaceId)
     const portalMutation = useCreatePortal()
+    const { data: runQuota } = useQuotaCheck(workspaceId, 'tasks_per_month')
 
     // Single source of truth: workspace.plan
     const plan = workspace?.plan ?? 'free'
@@ -75,14 +77,9 @@ export function BillingSettings() {
     }
 
     // Plan limits — beta overrides everything to unlimited
-    const LIMITS: Record<string, Record<string, number>> = {
-        free: { agents: 3, tasks: 50, teams: 1, members: 1, triggers: 1 },
-        pro: { agents: 25, tasks: 1000, teams: 10, members: 3, triggers: 10 },
-        team: { agents: -1, tasks: -1, teams: -1, members: 25, triggers: -1 },
-        enterprise: { agents: -1, tasks: -1, teams: -1, members: -1, triggers: -1 },
-    }
+    const selectedPlan = PLAN_CATALOGUE.plans[plan as keyof typeof PLAN_CATALOGUE.plans]
+    const baseLimits = { ...selectedPlan.limits, tasks: runQuota?.limit ?? selectedPlan.limits.tasks_per_month }
 
-    const baseLimits = LIMITS[plan] ?? LIMITS.free
     // Beta workspaces get unlimited everything
     const limits = isBeta
         ? { agents: -1, tasks: -1, teams: -1, members: -1, triggers: -1 }
@@ -151,7 +148,7 @@ export function BillingSettings() {
                     <h3 className="mb-4 text-sm font-medium text-gray-200">Resource Usage</h3>
                     <div className="space-y-3">
                         <UsageMeter label="Agents" current={usage.agents} limit={limits.agents} />
-                        <UsageMeter label="Tasks (this month)" current={usage.tasksThisMonth} limit={limits.tasks} />
+                        <UsageMeter label="Workflow runs (this month)" current={usage.tasksThisMonth} limit={limits.tasks} />
                         <UsageMeter label="Teams" current={usage.teams} limit={limits.teams} />
                         <UsageMeter label="Workspace Members" current={usage.members} limit={limits.members} />
                         <UsageMeter label="Triggers" current={usage.triggers} limit={limits.triggers} />

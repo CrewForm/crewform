@@ -1,0 +1,79 @@
+{
+  "version": "5",
+  "redirects": {
+    "https://esm.sh/@supabase/supabase-js@2": "https://esm.sh/@supabase/supabase-js@2.112.3",
+    "https://esm.sh/stripe@14?target=deno": "https://esm.sh/stripe@14.25.0?target=deno"
+  },
+  "remote": {
+    "https://deno.land/std@0.168.0/async/abortable.ts": "80b2ac399f142cc528f95a037a7d0e653296352d95c681e284533765961de409",
+    "https://deno.land/std@0.168.0/async/deadline.ts": "2c2deb53c7c28ca1dda7a3ad81e70508b1ebc25db52559de6b8636c9278fd41f",
+    "https://deno.land/std@0.168.0/async/debounce.ts": "60301ffb37e730cd2d6f9dadfd0ecb2a38857681bd7aaf6b0a106b06e5210a98",
+    "https://deno.land/std@0.168.0/async/deferred.ts": "77d3f84255c3627f1cc88699d8472b664d7635990d5358c4351623e098e917d6",
+    "https://deno.land/std@0.168.0/async/delay.ts": "5a9bfba8de38840308a7a33786a0155a7f6c1f7a859558ddcec5fe06e16daf57",
+    "https://deno.land/std@0.168.0/async/mod.ts": "7809ad4bb223e40f5fdc043e5c7ca04e0e25eed35c32c3c32e28697c553fa6d9",
+    "https://deno.land/std@0.168.0/async/mux_async_iterator.ts": "770a0ff26c59f8bbbda6b703a2235f04e379f73238e8d66a087edc68c2a2c35f",
+    "https://deno.land/std@0.168.0/async/pool.ts": "6854d8cd675a74c73391c82005cbbe4cc58183bddcd1fbbd7c2bcda42b61cf69",
+    "https://deno.land/std@0.168.0/async/retry.ts": "e8e5173623915bbc0ddc537698fa418cf875456c347eda1ed453528645b42e67",
+    "https://deno.land/std@0.168.0/async/tee.ts": "3a47cc4e9a940904fd4341f0224907e199121c80b831faa5ec2b054c6d2eff5e",
+    "https://deno.land/std@0.168.0/http/server.ts": "e99c1bee8a3f6571ee4cdeb2966efad465b8f6fe62bec1bdb59c1f007cc4d155",
+    "https://esm.sh/@supabase/supabase-js@2.112.3": "f6b9130984301066587e8917dfab3b3d60be47dc966bd3d04c733bc9423c1cf9",
+    "https://esm.sh/stripe@14.25.0?target=deno": "d51f866ea5a2e00948bbd0fbcd10e389f0a74811d5320874d08fde4ff54e6ccc",
+    "https://esm.sh/svix-fetch@3.0.0": "5a1dba6b172e83a41384b51192fe349e1efa6474c061bb82f936103190eee4b9",
+    "https://esm.sh/svix-fetch@3.0.0/denonext/svix-fetch.mjs": "40f1a1c388e884af3d1639fb28cdf83f94da2fc1bf5b971fe7501083b291734c",
+    "https://esm.sh/svix@1.45.1": "86ec6389a4790a079e55b4a97ee173fcf902cb37feae7882eb80ce22a33ea85f",
+    "https://esm.sh/tweetnacl@1.0.3": "278caeeeb136b538b5839595306abfe0ed8e0263a990a446fd30d89aaef9a8c5",
+    "https://esm.sh/zod@3.23.8": "15e60c792ac21d4818f181671c7c74bf33bf7526d487dc524911e42785d8b5c2"
+  },
+  "workspace": {
+    "packageJson": {
+      "dependencies": [
+        "npm:@dagrejs/dagre@3",
+        "npm:@dnd-kit/core@^6.3.1",
+        "npm:@dnd-kit/sortable@10",
+        "npm:@dnd-kit/utilities@^3.2.2",
+        "npm:@eslint/js@^9.39.0",
+        "npm:@marsidev/react-turnstile@^1.5.0",
+        "npm:@playwright/test@^1.58.2",
+        "npm:@supabase/supabase-js@^2.45.0",
+        "npm:@tailwindcss/postcss@^4.3.3",
+        "npm:@tanstack/react-query@^5.59.0",
+        "npm:@testing-library/jest-dom@^6.6.0",
+        "npm:@testing-library/react@^16.1.0",
+        "npm:@types/d3-hierarchy@^3.1.7",
+        "npm:@types/node@^22.10.0",
+        "npm:@types/react-dom@^18.3.1",
+        "npm:@types/react@^18.3.12",
+        "npm:@vitejs/plugin-react@^6.0.5",
+        "npm:@xyflow/react@^12.10.2",
+        "npm:autoprefixer@^10.4.0",
+        "npm:clsx@^2.1.0",
+        "npm:eslint-plugin-react-hooks@5",
+        "npm:eslint-plugin-react-refresh@~0.4.16",
+        "npm:eslint@^9.39.0",
+        "npm:globals@^16.5.0",
+        "npm:jsdom@25",
+        "npm:lucide-react@0.460",
+        "npm:postcss@^8.4.0",
+        "npm:prettier-plugin-tailwindcss@0.6",
+        "npm:prettier@^3.4.0",
+        "npm:react-dom@^18.3.1",
+        "npm:react-markdown@^10.1.0",
+        "npm:react-router-dom@^7.18.2",
+        "npm:react@^18.3.1",
+        "npm:recharts@^3.7.0",
+        "npm:sonner@^2.0.7",
+        "npm:tailwind-merge@^2.5.0",
+        "npm:tailwindcss@^4.3.3",
+        "npm:typescript-eslint@^8.15.0",
+        "npm:typescript@^5.5.0",
+        "npm:vite@^8.2.1",
+        "npm:vitest@^4.1.10",
+        "npm:zod@^3.23.0",
+        "npm:zustand@^4.5.0"
+      ],
+      "overrides": {
+        "brace-expansion@1": "1.1.21"
+      }
+    }
+  }
+}

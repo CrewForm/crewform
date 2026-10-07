@@ -155,7 +155,6 @@ The CLI supports **16 LLM providers** out of the box:
 |------|-------------|----------|
 | `web_search` | Search the web via Serper | `SERPER_API_KEY` |
 | `http_request` | Make HTTP requests | — |
-| `code_interpreter` | Run JavaScript in sandbox | — |
 | `read_file` | Read file from URL | — |
 | `grammar_check` | Check grammar/spelling | — |
 
@@ -227,3 +226,5 @@ Local teams support pipeline mode. Each invocation starts a fresh native session
 Run `npm ci`, `npm run build`, `npm test`, and `npm pack`. The runtime is bundled in the CLI tarball; it does not require a second npm package release. Verify the tarball in a clean directory before publishing.
 
 The npm organization is `crewformhq`. Sign in with an account that has publish access to that organization, then use `npm publish --access public` with your account's required 2FA or trusted publishing setup. Organization creation alone does not grant the currently signed-in CLI account access. Never commit npm tokens.
+
+The legacy `code_interpreter` tool is disabled: model-generated JavaScript must not execute inside the CLI process. Use a separately isolated execution service for code tools.

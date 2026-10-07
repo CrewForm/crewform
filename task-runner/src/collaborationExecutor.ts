@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { withExecutionScope, executionFetch, executionSignal } from './executionScope';
 // Copyright (C) 2026 CrewForm
 //
 // CollaborationExecutor — agents take turns in a shared discussion thread,
@@ -23,6 +24,10 @@ interface ConversationMessage {
 // ─── Main Collaboration Loop ─────────────────────────────────────────────────
 
 export async function processCollaborationRun(run: TeamRun): Promise<void> {
+    return withExecutionScope('team_runs', run.id, run.workspace_id, () => processCollaborationRunInner(run));
+}
+
+async function processCollaborationRunInner(run: TeamRun): Promise<void> {
     console.log(`[Collaboration] Processing run ${run.id}`);
 
     let totalTokens = 0;
@@ -31,6 +36,7 @@ export async function processCollaborationRun(run: TeamRun): Promise<void> {
     let teamData: { name: string; config: CollaborationConfig; mode: string; output_route_ids: string[] | null } | null = null;
 
     try {
+        executionSignal()?.throwIfAborted();
         // 1. Fetch team config
         const teamResponse = await supabase
             .from('teams')

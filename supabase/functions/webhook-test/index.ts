@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { safeRemoteFetch } from '../_shared/urlSafety.ts';
+import { readJson } from '../_shared/body.ts';
 // Copyright (C) 2026 CrewForm
 
 /**
@@ -42,7 +44,7 @@ Deno.serve(async (req: Request) => {
         const auth = await authenticateRequest(req);
 
         // ── Parse body ──────────────────────────────────────────────────
-        const body = (await req.json()) as { route_id?: string };
+        const body = (await readJson(req)) as { route_id?: string };
         if (!body.route_id) {
             return badRequest('Missing route_id');
         }
@@ -85,7 +87,7 @@ Deno.serve(async (req: Request) => {
             case 'http': {
                 const url = routeRecord.config.url as string;
                 if (!url) return badRequest('Destination URL not configured');
-                resp = await fetch(url, {
+                resp = await safeRemoteFetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(testPayload),
@@ -99,7 +101,7 @@ Deno.serve(async (req: Request) => {
                 const slackBody = {
                     text: '✅ *CrewForm Webhook Test*\n\nThis is a test message to verify your Slack webhook is working correctly.',
                 };
-                resp = await fetch(url, {
+                resp = await safeRemoteFetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(slackBody),
@@ -122,7 +124,7 @@ Deno.serve(async (req: Request) => {
                         timestamp: new Date().toISOString(),
                     }],
                 };
-                resp = await fetch(url, {
+                resp = await safeRemoteFetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(discordBody),
@@ -171,7 +173,7 @@ Deno.serve(async (req: Request) => {
                         },
                     }],
                 };
-                resp = await fetch(url, {
+                resp = await safeRemoteFetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(teamsBody),
