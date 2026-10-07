@@ -59,6 +59,18 @@ export type BuiltInToolName = typeof BUILT_IN_TOOLS[number]['name']
  * Validates all fields before Supabase insert.
  */
 export const agentSchema = z.object({
+    config: z.record(z.unknown()).optional().superRefine((config, ctx) => {
+        const timeoutMs = z.number().int().min(1000).max(3600000).optional()
+        const native = {kind: z.literal('external'), timeoutMs}
+        const execution = z.union([
+            z.object({kind: z.literal('api')}),
+            z.object({...native, agent: z.enum(['codex', 'claude']), transport: z.literal('cli')}),
+            z.object({...native, agent: z.enum(['codex', 'claude', 'gemini', 'copilot']), transport: z.literal('acp')}),
+        ]).optional()
+        if (!execution.safeParse(config?.execution).success) {
+            ctx.addIssue({code: z.ZodIssueCode.custom, message: 'Choose a supported local agent and transport'})
+        }
+    }),
     name: z
         .string()
         .min(1, 'Name is required')

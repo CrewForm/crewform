@@ -41,6 +41,7 @@ export async function fetchAgentById(id: string): Promise<Agent | null> {
 /** Create a new agent */
 export interface CreateAgentInput {
     workspace_id: string
+    config?: Record<string, unknown>
     name: string
     description: string
     model: string

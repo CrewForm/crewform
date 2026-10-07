@@ -16,6 +16,8 @@ RUN npm ci
 # Accept build-time env vars for Vite
 ARG VITE_SUPABASE_URL
 ARG VITE_SUPABASE_ANON_KEY
+ARG VITE_TASK_RUNNER_URL
+ARG VITE_CREWFORM_EDITION=ce
 ARG VITE_APP_URL
 
 # Copy source and build

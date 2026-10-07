@@ -5,7 +5,6 @@
 // features.ts — Single source of truth for all EE feature names.
 
 export const EE_FEATURES = {
-    ORCHESTRATOR_MODE: 'orchestrator_mode',
     COLLABORATION_MODE: 'collaboration_mode',
     TEAM_MEMORY: 'team_memory',
     AUDIT_LOGS: 'audit_logs',
@@ -18,10 +17,8 @@ export const EE_FEATURES = {
     SWARM: 'swarm',
     BILLING: 'billing',
     RBAC: 'rbac',
-    MARKETPLACE_PUBLISH: 'marketplace_publish',
     CUSTOM_TOOLS: 'custom_tools',
     ADMIN_PANEL: 'admin_panel',
-    A2A_PUBLISH: 'a2a_publish',
 } as const;
 
 export type EEFeature = (typeof EE_FEATURES)[keyof typeof EE_FEATURES];
@@ -38,10 +35,8 @@ export const PLAN_FEATURES: Record<string, EEFeature[]> = {
         EE_FEATURES.ADVANCED_WEBHOOKS,
         EE_FEATURES.TEAM_TRIGGERS,
         EE_FEATURES.BILLING,
-        EE_FEATURES.ORCHESTRATOR_MODE,
         EE_FEATURES.MESSAGING_CHANNELS,
         EE_FEATURES.CUSTOM_TOOLS,
-        EE_FEATURES.A2A_PUBLISH,
     ],
     team: [
         // All pro features plus:
@@ -51,13 +46,11 @@ export const PLAN_FEATURES: Record<string, EEFeature[]> = {
         EE_FEATURES.ADVANCED_WEBHOOKS,
         EE_FEATURES.TEAM_TRIGGERS,
         EE_FEATURES.BILLING,
-        EE_FEATURES.ORCHESTRATOR_MODE,
         EE_FEATURES.MESSAGING_CHANNELS,
         EE_FEATURES.CUSTOM_TOOLS,
         EE_FEATURES.COLLABORATION_MODE,
         EE_FEATURES.TEAM_MEMORY,
         EE_FEATURES.RBAC,
-        EE_FEATURES.A2A_PUBLISH,
     ],
     enterprise: [
         // All team features plus:
@@ -67,7 +60,6 @@ export const PLAN_FEATURES: Record<string, EEFeature[]> = {
         EE_FEATURES.ADVANCED_WEBHOOKS,
         EE_FEATURES.TEAM_TRIGGERS,
         EE_FEATURES.BILLING,
-        EE_FEATURES.ORCHESTRATOR_MODE,
         EE_FEATURES.COLLABORATION_MODE,
         EE_FEATURES.TEAM_MEMORY,
         EE_FEATURES.RBAC,
@@ -75,8 +67,6 @@ export const PLAN_FEATURES: Record<string, EEFeature[]> = {
         EE_FEATURES.MESSAGING_CHANNELS,
         EE_FEATURES.AUDIT_LOGS,
         EE_FEATURES.SWARM,
-        EE_FEATURES.MARKETPLACE_PUBLISH,
         EE_FEATURES.ADMIN_PANEL,
-        EE_FEATURES.A2A_PUBLISH,
     ],
 };

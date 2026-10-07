@@ -1,0 +1,44 @@
+# Complete local Supabase stack for development/evaluation, not production.
+project_id = "crewform-local"
+[api]
+enabled = true
+port = 56321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+[db]
+port = 56322
+shadow_port = 56320
+major_version = 17
+[db.migrations]
+enabled = true
+[db.seed]
+enabled = false
+[realtime]
+enabled = true
+[studio]
+enabled = true
+port = 56323
+api_url = "http://127.0.0.1"
+[inbucket]
+enabled = true
+port = 56324
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000", "http://localhost:5173"]
+jwt_expiry = 3600
+enable_signup = true
+minimum_password_length = 8
+[auth.email]
+enable_signup = true
+enable_confirmations = false
+[edge_runtime]
+enabled = true
+policy = "per_worker"
+inspector_port = 56383
+[analytics]
+enabled = false

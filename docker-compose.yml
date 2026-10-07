@@ -1,89 +1,34 @@
-# ─────────────────────────────────────────────────────────────────────────────
-# CrewForm — Docker Compose (Self-Hosting)
-# ─────────────────────────────────────────────────────────────────────────────
-#
-# Usage:
-#   cp .env.example .env   # edit with your values
-#   docker compose up -d
-#
-# Services:
-#   postgres    — PostgreSQL 15 with persistent volume
-#   migrate     — Runs all SQL migrations, then exits
-#   frontend    — Vite build served via nginx (port 3000)
-#   task-runner — Node.js polling service
-# ─────────────────────────────────────────────────────────────────────────────
-
+# CrewForm application services. Requires a COMPLETE Supabase backend.
+# See docs/self-hosting.md for local Supabase or production setup.
 services:
-  # ── PostgreSQL ──────────────────────────────────────────────────────────
-  postgres:
-    image: postgres:15-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-crewform}
-      POSTGRES_USER: ${POSTGRES_USER:-crewform}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-crewform}" ]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
-  # ── Migrations ──────────────────────────────────────────────────────────
-  migrate:
-    image: postgres:15-alpine
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      PGHOST: postgres
-      PGPORT: "5432"
-      PGDATABASE: ${POSTGRES_DB:-crewform}
-      PGUSER: ${POSTGRES_USER:-crewform}
-      PGPASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
-    volumes:
-      - ./supabase/migrations:/migrations:ro
-      - ./docker/migrate.sh:/migrate.sh:ro
-    entrypoint: [ "sh", "/migrate.sh" ]
-
-  # ── Frontend ────────────────────────────────────────────────────────────
   frontend:
     build:
       context: .
       dockerfile: Dockerfile
       args:
-        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-http://localhost:8000}
-        VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:-}
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:?Set the browser-accessible Supabase URL}
+        VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:?Set the Supabase public key}
         VITE_APP_URL: ${VITE_APP_URL:-http://localhost:3000}
+        VITE_TASK_RUNNER_URL: ${VITE_TASK_RUNNER_URL:-http://localhost:3001}
+        VITE_CREWFORM_EDITION: ce
     restart: unless-stopped
     ports:
       - "${FRONTEND_PORT:-3000}:80"
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
-
-  # ── Task Runner ─────────────────────────────────────────────────────────
   task-runner:
     build:
       context: .
       dockerfile: task-runner/Dockerfile
     restart: unless-stopped
+    ports:
+      - "${RUNNER_BIND_ADDRESS:-127.0.0.1}:${RUNNER_PORT:-3001}:3001"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
-      VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-http://localhost:8000}
-      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-}
-      API_KEY_ENCRYPTION_KEY: ${API_KEY_ENCRYPTION_KEY:?API_KEY_ENCRYPTION_KEY is required}
+      VITE_SUPABASE_URL: ${SUPABASE_INTERNAL_URL:?Set a Supabase URL reachable from Docker}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:?Set the Supabase service-role key}
+      API_KEY_ENCRYPTION_KEY: ${API_KEY_ENCRYPTION_KEY:?Set the shared encryption key}
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET:?Set the shared webhook secret}
+      CREWFORM_EDITION: ce
       ALLOW_PRIVATE_PROVIDER_URLS: ${ALLOW_PRIVATE_PROVIDER_URLS:-false}
-      WEBHOOK_SECRET: ${WEBHOOK_SECRET:?WEBHOOK_SECRET is required}
       TRIGGER_SCHEDULER_ENABLED: ${TRIGGER_SCHEDULER_ENABLED:-true}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      GOOGLE_GENERATIVE_AI_API_KEY: ${GOOGLE_GENERATIVE_AI_API_KEY:-}
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
-
-volumes:
-  pgdata:
+      CREWFORM_EXTERNAL_AGENTS_ENABLED: "false"

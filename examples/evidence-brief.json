@@ -1,0 +1,80 @@
+{
+  "name": "Evidence brief",
+  "mode": "pipeline",
+  "agents": [
+    {
+      "ref_id": "extract",
+      "agent": {
+        "name": "Evidence extractor",
+        "model": "default",
+        "system_prompt": "Extract each source claim with its source ID. Do not invent market facts.",
+        "tools": [],
+        "config": {
+          "execution": {
+            "kind": "external",
+            "agent": "codex",
+            "transport": "cli"
+          }
+        }
+      }
+    },
+    {
+      "ref_id": "prioritize",
+      "agent": {
+        "name": "Opportunity analyst",
+        "model": "default",
+        "system_prompt": "Prioritize only supported opportunities. Cite source IDs and label assumptions.",
+        "tools": [],
+        "config": {
+          "execution": {
+            "kind": "external",
+            "agent": "codex",
+            "transport": "cli"
+          }
+        }
+      }
+    },
+    {
+      "ref_id": "write",
+      "agent": {
+        "name": "Brief writer",
+        "model": "default",
+        "system_prompt": "Write a concise executive brief with an evidence table, opportunities, risks and next validation questions. Preserve source IDs and uncertainty.",
+        "tools": [],
+        "config": {
+          "execution": {
+            "kind": "external",
+            "agent": "codex",
+            "transport": "cli"
+          }
+        }
+      }
+    }
+  ],
+  "config": {
+    "steps": [
+      {
+        "agent_ref": "extract",
+        "step_name": "Evidence extractor",
+        "instructions": "Extract each source claim with its source ID. Do not invent market facts.",
+        "on_failure": "stop",
+        "max_retries": 0
+      },
+      {
+        "agent_ref": "prioritize",
+        "step_name": "Opportunity analyst",
+        "instructions": "Prioritize only supported opportunities. Cite source IDs and label assumptions.",
+        "on_failure": "stop",
+        "max_retries": 0
+      },
+      {
+        "agent_ref": "write",
+        "step_name": "Brief writer",
+        "instructions": "Write a concise executive brief with an evidence table, opportunities, risks and next validation questions. Preserve source IDs and uncertainty.",
+        "on_failure": "stop",
+        "max_retries": 0
+      }
+    ],
+    "auto_handoff": true
+  }
+}

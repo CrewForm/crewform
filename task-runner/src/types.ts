@@ -147,6 +147,8 @@ export interface ApiKey {
 }
 
 export interface TokenUsage {
+    usageKnown?: boolean;
+    billingModel?: string;
     promptTokens: number;
     completionTokens: number;
     totalTokens: number;

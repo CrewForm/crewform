@@ -17,6 +17,6 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     css: true,
-    exclude: ['e2e/**', 'task-runner/**', '**/node_modules/**', 'crewform-landing/**', 'cli/**', 'zapier-app/**', 'chat-widget/**', 'dist/**'],
+    exclude: ['e2e/**', 'task-runner/**', '**/node_modules/**', 'crewform-landing/**', 'cli/**', 'zapier-app/**', 'chat-widget/**', 'dist/**', 'agent-runtime/**', '.crewform-local/**'],
   },
 })

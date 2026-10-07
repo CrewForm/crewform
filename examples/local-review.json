@@ -1,0 +1,13 @@
+{
+  "name": "Local reviewer",
+  "model": "default",
+  "system_prompt": "Review the supplied patch for security and correctness. Cite locations, explain fixes, distinguish evidence from assumptions. Do not apply changes.",
+  "tools": [],
+  "config": {
+    "execution": {
+      "kind": "external",
+      "agent": "codex",
+      "transport": "cli"
+    }
+  }
+}

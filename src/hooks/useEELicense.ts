@@ -4,7 +4,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { fetchEELicense } from '@/db/eeLicense'
 import type { EELicense } from '@/db/eeLicense'
-import { FEATURE_MIN_PLAN } from '@/lib/featureFlags'
+import { COMMUNITY_FEATURES, FEATURE_MIN_PLAN } from '@/lib/featureFlags'
 import { useWorkspace } from '@/hooks/useWorkspace'
 
 /** Plan hierarchy — higher index = more features */
@@ -49,6 +49,7 @@ export function useEELicense(workspaceId: string | undefined) {
      * using the effective plan (which is 'team' during trial).
      */
     function hasFeature(feature: string): boolean {
+        if (COMMUNITY_FEATURES.has(feature)) return true
         // Explicit feature in license record
         if (license?.features.includes(feature)) return true
 

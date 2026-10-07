@@ -7,6 +7,8 @@
 //        npx crewform chat agent.json
 //        npx crewform init
 //        npx crewform validate agent.json
+import { parseExecution, nativeEnvironment } from '@crewformhq/agent-runtime';
+import { spawnSync } from 'node:child_process';
 
 import { Command } from 'commander';
 import chalk from 'chalk';
@@ -26,7 +28,7 @@ import type { McpServerConfig } from './mcpClient.js';
 import { ApiClient, saveConfig, deleteConfig, getConfigPath, loadConfig } from './apiClient.js';
 
 // Load .env from current directory
-dotenv.config();
+dotenv.config({quiet: true});
 
 const VERSION = '0.1.0';
 
@@ -144,11 +146,13 @@ program
 program
     .command('init')
     .description('Create a starter agent or team config file')
+    .option('--runtime <agent>', 'Use a local codex, claude, gemini or copilot login')
+    .option('--transport <transport>', 'cli or acp (default: cli for Codex/Claude, acp otherwise)')
     .option('-t, --team', 'Generate a pipeline team config instead of an agent')
     .option('-n, --name <name>', 'Agent/team name')
     .option('-m, --model <model>', 'Model to use (default: llama3.3)')
     .option('-o, --output <file>', 'Output file path')
-    .action(async (options: { team?: boolean; name?: string; model?: string; output?: string }) => {
+    .action(async (options: { runtime?: string; transport?: string; team?: boolean; name?: string; model?: string; output?: string }) => {
         try {
             const isTeam = options.team ?? false;
             const defaultFile = isTeam ? 'team.json' : 'agent.json';
@@ -160,10 +164,11 @@ program
                 process.exit(1);
             }
 
+            if (options.runtime && isTeam) throw new Error('--runtime generates a single agent. Add it to a team config afterward.');
             // Detect Ollama for helpful messaging
-            const spinner = ora({ text: 'Checking for Ollama...', color: 'cyan' }).start();
-            const ollama = await detectOllama();
-            spinner.stop();
+            const spinner = options.runtime ? null : ora({ text: 'Checking for Ollama...', color: 'cyan' }).start();
+            const ollama = options.runtime ? {available: false, models: [] as string[]} : await detectOllama();
+            spinner?.stop();
 
             let content: string;
             if (isTeam) {
@@ -178,13 +183,25 @@ program
                 });
             }
 
+            if (options.runtime) {
+                const execution = {kind: 'external', agent: options.runtime, transport: options.transport ?? (['codex', 'claude'].includes(options.runtime) ? 'cli' : 'acp')};
+                parseExecution({execution});
+                const generated = JSON.parse(content);
+                const agent = generated.data ?? generated;
+                agent.config = {...agent.config, execution};
+                agent.model = options.model ?? 'default';
+                agent.tools = [];
+                content = JSON.stringify(generated, null, 2);
+            }
             writeFileSync(outputPath, content, 'utf-8');
 
             console.log('');
             console.log(chalk.green(`✓ Created ${outputPath}`));
             console.log('');
 
-            if (ollama.available) {
+            if (options.runtime) {
+                console.log(chalk.dim(`  Sign in using ${options.runtime} on this machine, then run the generated config.`));
+            } else if (ollama.available) {
                 console.log(chalk.dim(`  Ollama detected with ${ollama.models.length} model(s):`));
                 for (const model of ollama.models.slice(0, 5)) {
                     console.log(chalk.dim(`    • ${model}`));
@@ -606,7 +623,8 @@ async function runAgent(
     if (!options.quiet && !options.json) {
         console.log('');
         console.log(chalk.bold.cyan(`🤖 ${agent.name}`));
-        const provider = agent.provider ?? inferProvider(agent.model) ?? 'ollama';
+        const external = parseExecution(agent.config);
+        const provider = external ? `${external.agent} (${external.transport}, native login)` : (agent.provider ?? inferProvider(agent.model) ?? 'ollama');
         console.log(chalk.dim(`   ${agent.model} via ${provider}`));
         if (agent.tools?.length) {
             console.log(chalk.dim(`   Tools: ${agent.tools.join(', ')}`));
@@ -644,8 +662,9 @@ async function runAgent(
             agent: agent.name,
             model: agent.model,
             result: result.result,
-            usage: result.usage,
+            usage: jsonUsage(result.usage),
             toolCalls: result.toolCallLogs,
+            execution: result.execution,
         };
         console.log(JSON.stringify(jsonOutput, null, 2));
     } else if (options.stream === false || options.quiet) {
@@ -712,7 +731,7 @@ async function runTeam(
             ? (idx, stepName, stepResult) => {
                 const icon = stepResult.status === 'completed' ? '✅'
                     : stepResult.status === 'skipped' ? '⏭️' : '❌';
-                const tokenInfo = `${stepResult.usage.totalTokens} tokens · $${stepResult.usage.costEstimateUSD.toFixed(4)}`;
+                const tokenInfo = formatUsage(stepResult.usage);
                 const toolInfo = stepResult.toolCallLogs.length > 0 ? ` · ${stepResult.toolCallLogs.length} tool(s)` : '';
                 console.log(chalk.dim(`    ${icon} ${tokenInfo}${toolInfo}`));
                 if (stepResult.error) {
@@ -742,12 +761,12 @@ async function runTeam(
                 step: s.stepName,
                 agent: s.agentName,
                 status: s.status,
-                usage: s.usage,
+                usage: jsonUsage(s.usage),
                 toolCalls: s.toolCallLogs,
                 error: s.error,
             })),
             result: result.output,
-            usage: result.usage,
+            usage: jsonUsage(result.usage),
         };
         console.log(JSON.stringify(jsonOutput, null, 2));
     } else if (options.stream === false || options.quiet) {
@@ -762,7 +781,7 @@ async function runTeam(
         console.log(chalk.dim('─'.repeat(60)));
         console.log(chalk.dim(
             `  Pipeline complete: ${completedSteps}/${totalSteps} steps · ` +
-            `${result.usage.totalTokens} tokens · $${result.usage.costEstimateUSD.toFixed(4)} · ${elapsed}s`,
+            `${formatUsage(result.usage)} · ${elapsed}s`,
         ));
     }
 
@@ -775,6 +794,22 @@ async function runTeam(
 
     console.log('');
 }
+
+function jsonUsage(usage: {totalTokens: number; promptTokens: number; completionTokens: number; costEstimateUSD: number; usageKnown?: boolean}) {
+    return usage.usageKnown === false ? {...usage, totalTokens: null, promptTokens: null, completionTokens: null, costEstimateUSD: null} : usage;
+}
+
+function formatUsage(usage: {totalTokens: number; costEstimateUSD: number; usageKnown?: boolean}): string {
+    return usage.usageKnown === false ? 'Native account · token usage and cost unknown' : `${usage.totalTokens} tokens · $${usage.costEstimateUSD.toFixed(4)}`;
+}
+
+program.command('doctor').description('Check installed local agents without starting a model request').action(() => {
+    for (const command of ['codex', 'claude', 'gemini', 'copilot', 'codex-acp', 'claude-agent-acp']) {
+        const check = spawnSync(command, ['--version'], {encoding: 'utf8', timeout: 10000, env: nativeEnvironment(), shell: false});
+        console.log(`${command}: ${check.status === 0 ? (check.stdout.trim() || 'installed') : 'not available'}`);
+    }
+    console.log('Native login and subscription eligibility must be checked in each agent. No credentials were read or requests made.');
+});
 
 // ─── Parse & Run ─────────────────────────────────────────────────────────────
 

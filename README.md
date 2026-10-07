@@ -2,11 +2,11 @@
 
 <img src=".github/assets/crewform-banner.png" alt="CrewForm" width="400" />
 
-### The open control plane for interoperable AI agents
+### Own your agent workflows. Bring the tools you already use.
 
-**Self-hostable agent orchestration runtime with MCP + A2A + AG-UI**
+**Open-source workflows for model APIs, Ollama and local coding agents**
 
-CrewForm helps teams build, run, and observe multi-agent systems across tools, agents, models, memory, workflows, and frontends — without vendor lock-in.
+CrewForm lets developers chain agents into inspectable workflows, keep credentials on their own infrastructure, and export configurations to Git. Use model APIs or Ollama, or connect an installed Codex, Claude Code, Gemini or Copilot agent through local CLI/ACP execution.
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![CI](https://github.com/CrewForm/crewform/actions/workflows/ci.yml/badge.svg)](https://github.com/CrewForm/crewform/actions/workflows/ci.yml)
@@ -170,7 +170,7 @@ CrewForm is a self-hostable runtime with native support for the three protocols 
 📊<br/><strong>Analytics</strong><br/>Track tokens, costs, and agent performance
 </td>
 <td align="center" width="25%">
-⌨️<br/><strong>CLI Tool</strong><br/><code>npx crewform</code> — run agents from the terminal
+⌨️<br/><strong>CLI Tool</strong><br/><code>npx @crewformhq/cli</code> — run agents from the terminal
 </td>
 <td colspan="2"></td>
 </tr>
@@ -233,25 +233,25 @@ Run agents directly from your terminal — no browser, no Supabase, no Docker:
 
 ```bash
 # Create an agent config
-npx crewform init
+npx @crewformhq/cli init
 
 # Run it (defaults to Ollama; or set OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.)
-npx crewform run agent.json "Summarise the latest AI news"
+npx @crewformhq/cli run agent.json "Summarise the latest AI news"
 
 # Interactive chat
-npx crewform chat agent.json
+npx @crewformhq/cli chat agent.json
 
 # Run a multi-agent pipeline team
-npx crewform init --team
-npx crewform run team.json "Research and write about GraphQL"
+npx @crewformhq/cli init --team
+npx @crewformhq/cli run team.json "Research and write about GraphQL"
 
 # Connect to MCP servers
-npx crewform run agent.json --mcp servers.json "Query my database"
+npx @crewformhq/cli run agent.json --mcp servers.json "Query my database"
 
 # Connect to your CrewForm workspace
-npx crewform login
-npx crewform agents
-npx crewform pull <agent-id>
+npx @crewformhq/cli login
+npx @crewformhq/cli agents
+npx @crewformhq/cli pull <agent-id>
 ```
 
 > 📖 See the full [CLI Guide](cli/README.md) for all 12 commands, config formats, and platform integration.
@@ -272,6 +272,21 @@ npx crewform pull <agent-id>
 - [FAQ](#faq)
 - [How CrewForm Compares](#how-crewform-compares)
 - [License](#license)
+
+## Try a local agent workflow
+
+Install the published [`@crewformhq/cli`](https://www.npmjs.com/package/@crewformhq/cli) package; the executable is `crewform`:
+
+```bash
+npm install -g @crewformhq/cli
+crewform doctor
+crewform init --runtime codex --output codex.json
+crewform run codex.json --input changes.txt --json
+```
+
+Put the code or patch you want reviewed in `changes.txt`, and sign in with the native tool first. Native login eligibility and plan limits apply; CrewForm does not claim unlimited or zero-cost execution. See [local agents](docs/local-agents.md), [three reproducible examples](examples/README.md) and [complete local setup](docs/self-hosting.md).
+
+Self-hosted Community Edition has no hosted resource quotas. The plan table below describes CrewForm Cloud limits.
 
 ## Why CrewForm?
 
@@ -338,6 +353,10 @@ Move from scripts and prototypes to managed agent systems with visual operations
 
 ### Community Edition (Free & Open Source)
 
+- 🔗 **Basic Orchestrator Mode** — A coordinator delegates work to other agents
+- 🔌 **Native agent execution** — CLI/ACP support on your own machine or trusted runner
+- 🌍 **A2A and marketplace publishing** — Share agents and workflow templates
+
 - 🔑 **BYOK (Bring Your Own Key)** — Pay your LLM provider directly. Zero markup, zero middleman
 - 🤖 **Agent Management** — Create, configure, and monitor AI agents from a visual UI
 - 🏪 **Marketplace** — Browse and install agent templates built by the community
@@ -357,11 +376,10 @@ Move from scripts and prototypes to managed agent systems with visual operations
 - 💬 **Chat Widget** — Embed any agent on your website with a single `<script>` tag — streaming responses, domain whitelisting, customizable themes
 - 📦 **Export & Import** — Download agent/team configs as portable JSON; import into any workspace with automatic ID remapping
 - 📡 **Observability** — Opt-in OpenTelemetry + Langfuse integration for tracing LLM calls, tool use, and team runs
-- 🤝 **AG-UI Rich Interactions** — Agents can pause and request approval, data confirmation, or choices from the user mid-execution
+- 🤝 **AG-UI Rich Interactions** — Agents can pause and request approval, data confirmation, or choices from the user mid-execution. These interactions time out after five minutes and do not survive a worker restart
 
 ### Enterprise Edition (Paid Plans)
 
-- 🔗 **Orchestrator Mode** — Brain agent coordinates sub-agents via delegation trees *(Pro)*
 - 🛠️ **Custom Tools** — Extend agents with custom tool integrations *(Pro)*
 - 💬 **Collaboration Mode** — Agents discuss and debate tasks in real-time threads *(Team)*
 - 🧠 **Team Memory** — Shared pgvector semantic search across agents *(Team)*
@@ -391,10 +409,10 @@ CrewForm uses an **open-core** model: a free Community Edition under AGPL-3.0 an
 | AG-UI Protocol | ✅ | ✅ | ✅ | ✅ |
 | Knowledge Base | 3 docs | 25 docs | Unlimited | Unlimited |
 | A2A Consume | ✅ | ✅ | ✅ | ✅ |
-| A2A Publish | — | ✅ | ✅ | ✅ |
-| Chat Widget | — | ✅ | ✅ | ✅ |
+| A2A Publish | ✅ | ✅ | ✅ | ✅ |
+| Chat Widget | ✅ | ✅ | ✅ | ✅ |
 | Pipeline Mode | ✅ | ✅ | ✅ | ✅ |
-| Orchestrator Mode | — | ✅ | ✅ | ✅ |
+| Orchestrator Mode | ✅ | ✅ | ✅ | ✅ |
 | Collaboration Mode | — | — | ✅ | ✅ |
 | Team Memory | — | — | ✅ | ✅ |
 | Audit Logs | — | — | — | ✅ |
@@ -421,12 +439,12 @@ CrewForm uses an **open-core** model: a free Community Edition under AGPL-3.0 an
 | [A2A Protocol](https://docs.crewform.tech/a2a-protocol) | Agent-to-Agent interoperability |
 | [AG-UI Protocol](https://docs.crewform.tech/ag-ui-protocol) | Real-time SSE streaming for frontends |
 | [API Reference](https://docs.crewform.tech/api-reference) | REST API endpoints and authentication |
-| [Self-Hosting](https://docs.crewform.tech/self-hosting) | Docker Compose production deployment |
+| [Self-Hosting](https://docs.crewform.tech/self-hosting) | Complete Supabase backend + application deployment |
 | [Visual Workflow Builder](https://docs.crewform.tech/visual-workflow-builder) | Interactive canvas with live execution observability |
 | [Chat Widget](https://docs.crewform.tech/chat-widget) | Embed agents on any website with a script tag |
 | [Observability](https://docs.crewform.tech/observability) | OpenTelemetry + Langfuse tracing setup |
 | [Workflow Templates](https://docs.crewform.tech/workflow-templates) | Create, install, and share reusable workflow blueprints |
-| [CLI Tool](cli/README.md) | Run agents from the terminal with `npx crewform` |
+| [CLI Tool](cli/README.md) | Run agents from the terminal with `npx @crewformhq/cli` |
 | [Changelog](https://docs.crewform.tech/changelog) | Release notes and version history |
 
 ## Architecture
@@ -515,7 +533,7 @@ Yes. CrewForm's Community Edition is open-source under the AGPL v3 license. You 
 <details>
 <summary><strong>What is the CE/EE split?</strong></summary>
 
-CrewForm uses an open-core model. All code outside `ee/` is Community Edition (AGPL-3.0, free). Code inside `ee/` is Enterprise Edition (proprietary, requires a license key). CE includes agents, pipeline teams, marketplace, and self-hosting. EE adds orchestrator mode, collaboration, memory, audit logs, and more.
+CrewForm uses an open-core model. All code outside `ee/` is Community Edition (AGPL-3.0, free). Code inside `ee/` is Enterprise Edition (proprietary, requires a license key). CE includes agents, pipeline teams, marketplace, and self-hosting. CE also includes basic orchestration, A2A publishing and template sharing. EE adds collaboration, memory, audit logs and organizational controls.
 </details>
 
 <details>
@@ -554,28 +572,18 @@ CrewAI and LangGraph are code-first orchestration libraries. CrewForm is a self-
 
 ## How CrewForm Compares
 
-| Capability | CrewForm | Others |
-|---|---|---|
-| **Visual Control Plane** | ✅ Drag-and-drop canvas + live execution | Often code-only or basic flow editors |
-| **Multi-Agent Teams** | ✅ 3 modes — Pipeline, Orchestrator, Collaboration | Usually single-mode or code-defined |
-| **MCP Protocol** | ✅ Client + Server (bidirectional) | Typically client-only or unsupported |
-| **A2A Protocol** | ✅ Bidirectional (consume + publish) | Not supported |
-| **AG-UI Protocol** | ✅ SSE + rich interactions | Not supported |
-| **Protocol-Native Runtime** | ✅ MCP + A2A + AG-UI — native | Usually zero or one |
-| **LLM Providers** | ✅ 16 + Ollama (local) | Often limited or requires plugins |
-| **BYOK (zero markup)** | ✅ Your keys, your cost | Often limited providers or markup fees |
-| **Local Models (Ollama)** | ✅ Native, fully air-gapped | Varies |
-| **RAG / Knowledge Base** | ✅ Hybrid search + retrieval tester | Sometimes available, often requires plugins |
-| **Chat Widget** | ✅ One script tag, streaming, domain security | Rare — usually requires custom dev |
-| **Observability** | ✅ OTLP + Langfuse | Sometimes available |
-| **Fan-Out (Parallel)** | ✅ Built-in branching + merge | Rare in visual tools |
-| **Agent Marketplace** | ✅ Browse, install, publish | Rare in open-source tools |
-| **Workflow Templates** | ✅ Variable-driven blueprints with one-click install | Not available |
-| **Data Portability** | ✅ JSON export/import for agents and teams | Usually locked to platform |
-| **Self-Hosting** | ✅ One-command Docker Compose | Often cloud-only or complex setup |
-| **Open Source** | ✅ AGPL-3.0 | Varies |
+CrewForm focuses on developers who want to keep their agent logins, own their runtime and share workflows as code. Local CLI/ACP execution is available in the standalone CLI and trusted self-hosted runners; CrewForm Cloud does not access your local login.
 
-> CrewForm combines native MCP, A2A, and AG-UI with a visual runtime, self-hosting, BYOK, knowledge, APIs, and observability so teams can operate interoperable agent systems instead of stitching isolated tools together.
+| Project | Focus | Relationship to CrewForm |
+|---|---|---|
+| [CrewAI](https://docs.crewai.com/) | Code-defined crews and flows | An alternative for developers who prefer building orchestration in Python. |
+| [LangGraph](https://docs.langchain.com/oss/python/langgraph/overview) | Stateful graph orchestration | A framework for custom graph runtimes and durable execution. |
+| [Dify](https://docs.dify.ai/) | Visual LLM applications and workflows | An established option for broader application building. |
+| [n8n](https://docs.n8n.io/advanced-ai/) | Automation with AI agent nodes | An option when business integration workflows are the main requirement. |
+| [Agent Client Protocol](https://agentclientprotocol.com/) | Editor/client-to-agent interoperability | A complementary protocol used by CrewForm's local runtime, separate from A2A. |
+
+These links describe each project's own capabilities; they are not a benchmark or a claim that CrewForm has exclusive protocol support.
+
 
 ## License
 
@@ -606,7 +614,7 @@ You can use, modify, and distribute the Community Edition freely. Enterprise fea
 
 <div align="center">
 
-**CrewForm** — The open control plane for interoperable AI agents
+**CrewForm** — Own your agent workflows. Bring the tools you already use.
 
 [Website](https://crewform.tech) · [Docs](https://docs.crewform.tech) · [Discord](https://discord.gg/TAFasJCTWs) · [Twitter](https://twitter.com/CrewFormHQ)
 

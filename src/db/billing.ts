@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 CrewForm
 
+import { isCommunityEdition } from '@/lib/featureFlags'
+
 import { supabase } from '@/lib/supabase'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -70,7 +72,11 @@ export async function fetchPlanLimits(plan: string): Promise<PlanLimit[]> {
         .eq('plan', plan)
 
     if (result.error) throw result.error
-    return result.data as PlanLimit[]
+    const limits = result.data as PlanLimit[]
+    return isCommunityEdition() ? limits.map(limit => ({
+        ...limit,
+        max_value: limit.resource === 'csv_export' ? 0 : ['orchestrator', 'a2a_publish'].includes(limit.resource) ? 1 : -1,
+    })) : limits
 }
 
 /** Get the limit for a specific resource on a plan */
@@ -157,6 +163,8 @@ export async function checkQuota(
     }
 
     const ws = wsResult.data as { plan: string; is_beta: boolean; trial_expires_at: string | null }
+
+    if (isCommunityEdition()) return { allowed: resource !== 'csv_export', current: 0, limit: resource === 'csv_export' ? 0 : -1, resource }
 
     // Beta workspaces bypass all quota limits
     if (ws.is_beta) {

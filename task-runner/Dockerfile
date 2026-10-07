@@ -16,6 +16,7 @@ COPY chat-widget/src ./chat-widget/src
 RUN cd chat-widget && npx vite build
 
 # ── Build the task runner ────────────────────────────────────────────────────
+COPY agent-runtime /usr/src/agent-runtime
 COPY task-runner/package*.json ./
 RUN npm ci --include=dev
 

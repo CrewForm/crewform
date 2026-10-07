@@ -4,6 +4,7 @@
 // pipelineExecutor.ts — Local pipeline team execution engine.
 // Runs multi-agent pipelines from JSON config with step-by-step handoffs.
 // No Supabase dependency — all agents are inline in the config.
+import { parseExecution } from '@crewformhq/agent-runtime';
 
 import chalk from 'chalk';
 import { executeAgent } from './executor.js';
@@ -71,6 +72,7 @@ export async function executePipeline(
         throw new Error('Pipeline has no steps configured.');
     }
 
+    if (team.mode !== 'pipeline') throw new Error('The local CLI currently supports pipeline teams only.');
     // Build agent lookup by ref_id
     const agentMap = new Map<string, AgentConfig>();
     for (const entry of team.agents) {
@@ -144,6 +146,7 @@ export async function executePipeline(
             completionTokens: totalCompletionTokens,
             totalTokens,
             costEstimateUSD: totalCost,
+            usageKnown: stepResults.every(step => step.usage.usageKnown !== false),
         },
     };
 }
@@ -160,7 +163,7 @@ async function executeStepWithRetry(
     options: PipelineOptions,
     fanOutResults?: FanOutBranchResult[],
 ): Promise<StepResult> {
-    const maxAttempts = step.on_failure === 'retry' ? (step.max_retries ?? 1) + 1 : 1;
+    const maxAttempts = !parseExecution(agent.config) && step.on_failure === 'retry' ? (step.max_retries ?? 1) + 1 : 1;
 
     options.onStepStart?.(stepIndex, step.step_name, agent.name);
 
@@ -371,6 +374,7 @@ async function executeFanOutStep(
                 completionTokens: totalCompletionTokens,
                 totalTokens: totalPromptTokens + totalCompletionTokens,
                 costEstimateUSD: totalCost,
+                usageKnown: branchResults.every(branch => branch.usage.usageKnown !== false) && mergeResult.usage.usageKnown !== false,
             },
             toolCallLogs: [...allToolLogs, ...mergeResult.toolCallLogs],
             status: 'completed',
@@ -391,6 +395,7 @@ async function executeFanOutStep(
             completionTokens: totalCompletionTokens,
             totalTokens: totalPromptTokens + totalCompletionTokens,
             costEstimateUSD: totalCost,
+            usageKnown: branchResults.every(branch => branch.usage.usageKnown !== false),
         },
         toolCallLogs: allToolLogs,
         status: 'completed',

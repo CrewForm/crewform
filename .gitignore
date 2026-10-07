@@ -54,3 +54,6 @@ zapier-app/.env
 
 # Zapier build artifacts
 zapier-app/build/
+
+# Isolated complete local Supabase stack
+.crewform-local/

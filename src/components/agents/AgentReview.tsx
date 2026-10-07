@@ -17,6 +17,7 @@ interface AgentReviewProps {
  * Shows all configured values with Back + Create buttons.
  */
 export function AgentReview({ data, onBack, onCreate, isCreating, error }: AgentReviewProps) {
+    const execution = data.config?.execution as {kind?: string; agent?: string; transport?: string} | undefined
     const modelShort = data.model.split('/').pop() ?? data.model
     const initials = data.name
         .split(/\s+/)
@@ -52,8 +53,9 @@ export function AgentReview({ data, onBack, onCreate, isCreating, error }: Agent
 
                 {/* Details grid */}
                 <div className="space-y-4">
+                    <ReviewField label="Execution" value={execution?.kind === 'external' ? `${execution.agent} · ${execution.transport} · native login` : 'Model API or Ollama'} />
                     <ReviewField label="Model" value={modelShort} />
-                    <ReviewField label="Temperature" value={data.temperature.toFixed(1)} />
+                    {execution?.kind !== 'external' && <ReviewField label="Temperature" value={data.temperature.toFixed(1)} />}
                     {data.system_prompt && (
                         <div>
                             <span className="mb-1 block text-xs font-medium uppercase tracking-wider text-gray-500">

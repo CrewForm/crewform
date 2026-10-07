@@ -1,310 +1,73 @@
-# Self-Hosting CrewForm
+# Self-hosting CrewForm
 
-Run CrewForm on your own infrastructure with Docker Compose. This guide covers a **single-server deployment** suitable for teams and small organizations.
+CrewForm needs a **complete Supabase backend**: PostgreSQL, Auth, REST, Realtime, Storage and Edge Functions. The application Compose file runs the frontend and task runner; it does not turn plain PostgreSQL into Supabase.
 
-## Prerequisites
+## Local evaluation with Docker and Supabase CLI
 
-- **Docker** ≥ 24.0 and **Docker Compose** ≥ 2.20
-- **2 GB RAM** minimum (4 GB recommended)
-- **10 GB disk** for database + assets
-- A **Supabase project** (hosted) or PostgreSQL 15+ (direct mode)
-
-## Quick Start
+Install Node.js 20+, Docker and the [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started). Start Docker, then run from the repository root:
 
 ```bash
-# 1. Clone the repository
-git clone https://github.com/CrewForm/crewform.git
-cd crewform
-
-# 2. Configure environment
-cp .env.example .env
-# Edit .env — at minimum set POSTGRES_PASSWORD
-
-# 3. Start all services
-docker compose up -d
-
-# 4. Check status
-docker compose ps
+npm ci
+npm --prefix task-runner ci
+npm run local:prepare
+supabase start --workdir .crewform-local
+node scripts/local-services.mjs env
+npm --prefix task-runner run build
+docker compose --env-file .crewform-local/app.env up --build -d
 ```
 
-The frontend will be available at **http://localhost:3000**.
+Open `http://localhost:3000` and register a local account. Email confirmations are disabled for this local evaluation configuration. Studio is at `http://localhost:56323`; the backend API is at `http://localhost:56321`. These separate ports avoid Supabase's default ports.
 
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────┐
-│                    Docker Compose                    │
-│                                                     │
-│  ┌────────────┐  ┌──────────┐  ┌────────────────┐  │
-│  │  postgres   │  │ migrate  │  │   task-runner   │  │
-│  │  (PG 15)   │←─│ (17 SQL) │  │  (Node + tsx)   │  │
-│  │  :5432     │  │ one-shot │  │  polling loop   │  │
-│  └────────────┘  └──────────┘  └───────┬────────┘  │
-│         │                              │            │
-│         └──────────┬───────────────────┘            │
-│                    │                                │
-│  ┌─────────────────▼───────────────────────────┐    │
-│  │            frontend (nginx)                  │    │
-│  │          Vite build → :3000                  │    │
-│  └──────────────────────────────────────────────┘    │
-└───────────────────────┬─────────────────────────────┘
-                        │ (optional)
-                ┌───────▼────────┐
-                │    Ollama       │
-                │  :11434 (local) │
-                │  Local LLMs     │
-                └────────────────┘
-```
-
-## Services
-
-| Service | Image | Purpose | Port |
-|---------|-------|---------|------|
-| `postgres` | postgres:15-alpine | Database with persistent volume | 5432 |
-| `migrate` | postgres:15-alpine | Runs SQL migrations, then exits | — |
-| `frontend` | nginx:1.27-alpine | Serves Vite build (SPA routing) | 3000 |
-| `task-runner` | node:20-alpine | AI task execution polling service | — |
-
-## Configuration
-
-### Required Variables
-
-| Variable | Description |
-|----------|-------------|
-| `POSTGRES_PASSWORD` | Database password (choose a strong one) |
-| `VITE_SUPABASE_URL` | Your Supabase project URL |
-| `VITE_SUPABASE_ANON_KEY` | Supabase anon/public key |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (task-runner) |
-| `API_KEY_ENCRYPTION_KEY` | Shared 32-byte hex/base64 AES-256 key used by Edge Functions and the task runner |
-| `WEBHOOK_SECRET` | Shared random secret authenticating database webhooks sent to the task runner |
-
-### Optional Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `POSTGRES_DB` | crewform | Database name |
-| `POSTGRES_USER` | crewform | Database user |
-| `POSTGRES_PORT` | 5432 | PostgreSQL port |
-| `FRONTEND_PORT` | 3000 | Frontend port |
-| `VITE_APP_URL` | http://localhost:3000 | Public app URL |
-| `OPENAI_API_KEY` | — | Fallback OpenAI key |
-| `ANTHROPIC_API_KEY` | — | Fallback Anthropic key |
-| `GOOGLE_GENERATIVE_AI_API_KEY` | — | Fallback Google AI key |
-| `DISCORD_BOT_TOKEN` | — | Bot token for the managed CrewForm Discord bot (from Discord Developer Portal) |
-| `DISCORD_PUBLIC_KEY` | — | Ed25519 public key for Discord signature verification (required to register an Interactions Endpoint) |
-
-## Database Migrations
-
-Migrations run automatically on startup via the `migrate` container. It:
-
-1. Creates a `_migrations` tracking table
-2. Runs all `supabase/migrations/*.sql` files in sorted order
-3. Skips already-applied migrations
-4. Exits after completion
-
-To run migrations manually:
+Serve Edge Functions in another terminal:
 
 ```bash
-docker compose run --rm migrate
+node scripts/local-services.mjs functions
 ```
 
-## Managing the Stack
+The local function gateway disables its JWT precheck; CrewForm handlers still perform their own authentication. This is a local development setting, not an instruction to remove production authentication.
+
+The bootstrap stages migration copies with unique versions because two historical source migrations use version `002`. A banned system identity with no password provides ownership for the historical marketplace seed; it cannot sign in. The bootstrap leaves `supabase/.temp` and linked production state alone. Configuration and secrets live in the ignored `.crewform-local/` directory with restricted file permissions. Re-running environment generation preserves your encryption and webhook secrets.
+
+To run the application directly on the host instead of Compose:
 
 ```bash
-# View logs
-docker compose logs -f
-
-# View logs for a specific service
-docker compose logs -f task-runner
-
-# Restart a service
-docker compose restart task-runner
-
-# Stop all services
-docker compose down
-
-# Stop and remove volumes (⚠️ deletes database!)
-docker compose down -v
-
-# Rebuild after code changes
-docker compose build --no-cache
-docker compose up -d
+node scripts/local-services.mjs frontend
+node scripts/local-services.mjs runner  # separate terminal
 ```
 
-## Updating
+Do not run the host runner and Compose runner simultaneously when testing a native account. Stop the Compose runner first with `docker compose --env-file .crewform-local/app.env stop task-runner`.
 
-### Using the Update Script (Recommended)
+Stop local services without deleting data:
 
 ```bash
-# Update to the latest version
-./docker/update.sh
-
-# Or update to a specific tag/branch
-./docker/update.sh v1.2.0
+docker compose --env-file .crewform-local/app.env down
+supabase stop --workdir .crewform-local
 ```
 
-The script will:
-1. Pull the latest code
-2. Stop running containers (data is preserved)
-3. Rebuild images
-4. Restart services (migrations run automatically)
+`supabase db reset --workdir .crewform-local` destroys and recreates **local** data. Do not run a reset against a linked or production database.
 
-### Manual Update
+## Production
+
+Use a complete [self-hosted Supabase stack](https://supabase.com/docs/guides/self-hosting/docker) or a managed Supabase project. Apply migrations with your existing migration/deployment process, deploy CrewForm's Edge Functions, and configure the same encryption and webhook secrets on the functions and runner. Review each migration and back up an existing database before applying changes. The local bootstrap above is for evaluation; it is not a production deployment manager.
+
+Copy `.env.example` to an untracked `.env`, then set:
+
+- `VITE_SUPABASE_URL`: browser-accessible HTTPS backend URL.
+- `SUPABASE_INTERNAL_URL`: URL reachable from the runner container. Docker's `localhost` is the container; for a backend on the host use `host.docker.internal`.
+- `VITE_SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY`: public and trusted server keys respectively.
+- `API_KEY_ENCRYPTION_KEY`: the same 32-byte hex AES key used by Edge Functions.
+- `WEBHOOK_SECRET`: the same secret used by inbound database webhooks.
+- `VITE_APP_URL` and `VITE_TASK_RUNNER_URL`: externally reachable application and runner URLs.
 
 ```bash
-# 1. Pull latest code
-git pull origin main
-
-# 2. Check for new environment variables
-diff .env .env.example
-
-# 3. Rebuild and restart
-docker compose down
-docker compose build --no-cache
-docker compose up -d
-
-# 4. Verify migrations ran
-docker compose logs migrate
+docker compose --env-file .env config --quiet
+docker compose --env-file .env up --build -d
 ```
 
-> **💡 Tip:** Always check `.env.example` after updating — new features may require additional environment variables.
+The runner port binds to loopback by default. Expose it through an authenticated HTTPS reverse proxy when using remote MCP, A2A or AG-UI clients. Configure Auth redirects, SMTP, backups, monitoring, storage and TLS in your Supabase installation.
 
-## Troubleshooting
+Community Edition has no hosted agent/task/team resource quotas. Pipeline mode, basic orchestration, marketplace publishing, A2A publishing and the chat widget are community capabilities. Collaboration, memory, RBAC, advanced analytics and audit features keep their existing paid entitlements.
 
-### Migrations fail
-```bash
-# Check migration logs
-docker compose logs migrate
+## Existing agent subscriptions
 
-# Run migrations manually with verbose output
-docker compose run --rm migrate
-```
-
-### Frontend shows blank page
-- Ensure `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are set correctly
-- Check nginx logs: `docker compose logs frontend`
-
-### Task runner not processing tasks
-- Check that `SUPABASE_SERVICE_ROLE_KEY` is set
-- View logs: `docker compose logs -f task-runner`
-- Ensure the task-runner can reach the Supabase URL
-
-### Database connection issues
-- Verify `POSTGRES_PASSWORD` matches across services
-- Check postgres health: `docker compose exec postgres pg_isready`
-
-## Ollama Integration (Local AI)
-
-Run AI models **entirely on your own hardware** — no API keys, no external calls, complete data sovereignty.
-
-### 1. Install Ollama
-
-```bash
-# macOS / Linux
-curl -fsSL https://ollama.com/install.sh | sh
-
-# Or via Docker (recommended for servers)
-docker run -d --name ollama -p 11434:11434 -v ollama:/root/.ollama ollama/ollama
-```
-
-### 2. Pull Models
-
-```bash
-# Pull one or more models
-ollama pull llama3.3
-ollama pull qwen2.5
-ollama pull deepseek-r1:8b
-ollama pull mixtral
-ollama pull phi4
-ollama pull gemma2
-
-# Verify
-ollama list
-```
-
-### 3. Configure in CrewForm
-
-1. Go to **Settings → LLM Setup**
-2. Find **Ollama (Local)** in the provider list
-3. Enter any placeholder value as the API key (e.g. `ollama`) — Ollama doesn't need one
-4. Save and start creating agents with your local models
-
-> **💡** No API key is actually sent to Ollama. The task runner connects to `http://localhost:11434/v1` using the OpenAI-compatible API.
-
-### Docker Networking
-
-If both CrewForm and Ollama run in Docker, the task runner can't reach `localhost:11434`. Use one of these approaches:
-
-**Option A: Host networking (simplest)**
-
-```yaml
-# In docker-compose.yml, add to the task-runner service:
-task-runner:
-  extra_hosts:
-    - "host.docker.internal:host-gateway"
-```
-
-Then Ollama is reachable at `http://host.docker.internal:11434/v1`.
-
-**Option B: Add Ollama to docker-compose**
-
-```yaml
-# Add as a new service in docker-compose.yml:
-ollama:
-  image: ollama/ollama
-  ports:
-    - "11434:11434"
-  volumes:
-    - ollama_data:/root/.ollama
-  deploy:
-    resources:
-      reservations:
-        devices:
-          - driver: nvidia
-            count: all
-            capabilities: [gpu]  # Remove if no GPU
-
-volumes:
-  ollama_data:
-```
-
-Then Ollama is reachable at `http://ollama:11434/v1` from the task runner.
-
-### Air-Gapped Setup
-
-For fully offline / air-gapped deployments:
-
-1. Pull models on a machine with internet: `ollama pull llama3.3`
-2. Copy the model directory (`~/.ollama/models/`) to the target machine
-3. Start Ollama on the target: `ollama serve`
-4. Deploy CrewForm with Docker Compose — no external API keys needed
-5. All AI inference stays on-premises
-
-### Supported Models
-
-CrewForm ships with 11 pre-configured Ollama models:
-
-| Model | Size | Best For |
-|-------|------|----------|
-| Llama 3.3 70B | 40 GB | General reasoning |
-| Qwen 2.5 32B | 18 GB | Code + multilingual |
-| DeepSeek R1 8B | 5 GB | Chain-of-thought reasoning |
-| Mixtral 8x7B | 26 GB | Multi-expert tasks |
-| Phi-4 14B | 8 GB | Compact but capable |
-| Gemma 2 9B | 5 GB | Google's efficient model |
-| Mistral Small 24B | 13 GB | Fast inference |
-| Command R 35B | 20 GB | RAG + retrieval |
-| Llama 3.2 3B | 2 GB | Edge / low-resource |
-| Qwen 2.5 Coder 7B | 4 GB | Code generation |
-| DeepSeek R1 1.5B | 1 GB | Ultralight tasks |
-
-> **RAM Guide:** Plan for ~1.2× the model file size in available RAM. A 5 GB model needs ~6 GB free.
-
-## Production Considerations
-
-- **HTTPS**: Put a reverse proxy (Caddy, Traefik, or nginx) in front with TLS
-- **Backups**: Schedule `pg_dump` via cron
-- **Monitoring**: Add health check endpoints and uptime monitoring
-- **Secrets**: Use Docker secrets or a vault for sensitive values
-- **Memory**: Monitor task-runner memory usage with AI provider calls
-- **GPU**: For Ollama, add GPU passthrough for significantly faster inference
+See [local agent execution](local-agents.md). Native tools are deliberately absent from the stock runner image. Use a trusted host runner with the official tools installed and signed in. Never mount your personal credential directory into an untrusted or shared worker.

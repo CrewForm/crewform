@@ -1,7 +1,7 @@
 {
-  "name": "crewform",
+  "name": "@crewformhq/cli",
   "version": "0.1.0",
-  "description": "Run CrewForm AI agents from the command line — scriptable, CI/CD-friendly, Ollama-first.",
+  "description": "Run portable agent workflows using model APIs, Ollama, and local Codex, Claude or ACP agents.",
   "keywords": [
     "ai",
     "agents",
@@ -11,14 +11,20 @@
     "openai",
     "anthropic",
     "mcp",
-    "crewform"
+    "crewform",
+    "codex",
+    "claude-code",
+    "acp"
   ],
   "license": "AGPL-3.0-or-later",
-  "author": "CrewForm",
+  "author": {
+    "name": "CrewForm",
+    "email": "team@crewform.tech"
+  },
   "homepage": "https://crewform.tech",
   "repository": {
     "type": "git",
-    "url": "https://github.com/vincentgrobler/crewform.git",
+    "url": "https://github.com/CrewForm/crewform.git",
     "directory": "cli"
   },
   "type": "module",
@@ -31,7 +37,9 @@
   "scripts": {
     "dev": "tsx src/cli.ts",
     "build": "tsc",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "prepack": "npm run build",
+    "test": "node --test test/*.test.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
@@ -42,7 +50,8 @@
     "dotenv": "^17.3.1",
     "openai": "^6.25.0",
     "ora": "^8.2.0",
-    "zod": "^4.3.6"
+    "zod": "^4.3.6",
+    "@crewformhq/agent-runtime": "file:../agent-runtime"
   },
   "devDependencies": {
     "@types/node": "^22.15.0",
@@ -50,6 +59,15 @@
     "typescript": "^5.9.3"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
+  },
+  "bundleDependencies": [
+    "@crewformhq/agent-runtime"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "bugs": {
+    "url": "https://github.com/CrewForm/crewform/issues"
   }
 }

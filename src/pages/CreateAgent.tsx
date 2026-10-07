@@ -57,6 +57,7 @@ export function CreateAgent() {
                 workspace_id: workspaceId,
                 name: formData.name,
                 description: formData.description,
+                config: formData.config,
                 model: formData.model,
                 provider: inferProviderFromModel(formData.model),
                 system_prompt: formData.system_prompt,

@@ -33,12 +33,12 @@ interface DemoAgentDef {
 const DEMO_AGENTS: DemoAgentDef[] = [
     {
         name: 'Research Analyst',
-        description: 'Expert researcher that analyzes topics, finds key insights, and provides structured summaries with sources.',
+        description: 'Extracts findings from supplied source material with traceable quotes and explicit gaps.',
         model: 'gpt-4o-mini',
         provider: 'openai',
         system_prompt: `You are an expert research analyst. Your job is to:
 
-1. Thoroughly research the given topic
+1. Analyze only the source material supplied in the task
 2. Identify key findings, trends, and insights
 3. Organize information into clear, structured sections
 4. Clearly separate known facts from assumptions
@@ -50,7 +50,7 @@ Always provide:
 - Detailed analysis (organized by subtopic)
 - Recommendations or next steps
 
-Be thorough, objective, and data-driven in your analysis. If live web search is not available, use your general knowledge and explicitly note where the user should verify current details.`,
+Use only supplied sources. Label claims without evidence as unknown; do not invent sources, statistics, or current market facts. No live web search is configured in this demo.`,
         temperature: 0.3,
         max_tokens: null,
         tags: [DEMO_TAG],
@@ -83,31 +83,6 @@ You can write: blog posts, articles, documentation, newsletters, social media co
         tools: [],
     },
     {
-        name: 'Code Reviewer',
-        description: 'Senior code reviewer that analyzes code for bugs, security issues, performance problems, and adherence to best practices.',
-        model: 'gpt-4o-mini',
-        provider: 'openai',
-        system_prompt: `You are a senior software engineer and code reviewer. Your job is to:
-
-1. Analyze code for bugs, logic errors, and edge cases
-2. Identify security vulnerabilities (injection, XSS, auth issues, etc.)
-3. Spot performance bottlenecks and suggest optimizations
-4. Check adherence to coding best practices and design patterns
-5. Suggest improvements for readability, maintainability, and testability
-
-For each issue found, provide:
-- **Severity**: Critical / High / Medium / Low
-- **Location**: File and line reference
-- **Issue**: Clear description of the problem
-- **Fix**: Suggested code change or approach
-
-Be constructive and educational — explain *why* something is an issue, not just *what* to change.`,
-        temperature: 0.2,
-        max_tokens: null,
-        tags: [DEMO_TAG],
-        tools: [],
-    },
-    {
         name: 'Data Analyst',
         description: 'Data analyst that extracts insights from data, creates summaries, identifies trends, and spots anomalies.',
         model: 'gpt-4o-mini',
@@ -133,50 +108,26 @@ Present data clearly. Use tables, percentages, and comparisons to make numbers m
         tags: [DEMO_TAG],
         tools: [],
     },
-    {
-        name: 'Email Drafter',
-        description: 'Professional email writer that drafts clear, concise emails with appropriate tone for any audience.',
-        model: 'gpt-4o-mini',
-        provider: 'openai',
-        system_prompt: `You are a professional email writer. Your job is to:
-
-1. Draft clear, concise, and well-structured emails
-2. Match the tone to the audience (formal, friendly, urgent, etc.)
-3. Include a clear subject line
-4. Get to the point quickly
-5. End with a clear call-to-action
-
-Email types you handle:
-- Professional outreach and introductions
-- Follow-ups and check-ins
-- Status updates and reports
-- Meeting requests and agendas
-- Thank you notes and feedback
-- Newsletter summaries
-
-Guidelines:
-- Keep paragraphs short (2-3 sentences max)
-- Use bullet points for lists
-- Bold key information
-- Always include a specific next step or ask`,
-        temperature: 0.5,
-        max_tokens: null,
-        tags: [DEMO_TAG],
-        tools: [],
-    },
 ]
 
 // ─── Seeding ────────────────────────────────────────────────────────────────
 
 /**
  * Seed a workspace with demo agents and a pipeline team.
- * Skips quota enforcement since demo agents are temporary.
+ * Uses three agents to fit an empty hosted free workspace; existing agents still count.
  */
 export async function seedDemoWorkspace(workspaceId: string): Promise<{
     agents: Agent[]
     team: Team
 }> {
-    // 1. Insert demo agents (bypass enforceQuota — demo data shouldn't count)
+    const { checkQuota } = await import('@/db/billing')
+    const quota = await checkQuota(workspaceId, 'agents')
+    if (!quota.allowed || (quota.limit !== -1 && quota.current + DEMO_AGENTS.length > quota.limit)) {
+        throw new Error('The demo needs room for three agents. Remove existing agents or use an empty workspace.')
+    }
+    const { enforceQuota } = await import('@/lib/enforceQuota')
+    await enforceQuota(workspaceId, 'teams')
+    // 1. Insert demo agents
     const agentInserts = DEMO_AGENTS.map((def) => ({
         workspace_id: workspaceId,
         ...def,
@@ -209,8 +160,8 @@ export async function seedDemoWorkspace(workspaceId: string): Promise<{
         steps: [
             {
                 agent_id: researcher.id,
-                step_name: 'Research',
-                instructions: 'Research the topic thoroughly. Identify the market, major categories, buyer pains, adoption drivers, risks, and assumptions that should be verified.',
+                step_name: 'Extract Evidence',
+                instructions: 'Read the supplied source notes. Extract buyer pains, evidence, risks and gaps. Quote the source for each finding. Do not invent current research or sources.',
                 expected_output: 'A structured research brief with market context, key findings, trends, assumptions, and verification notes.',
                 on_failure: 'retry',
                 max_retries: 1,
@@ -240,7 +191,7 @@ export async function seedDemoWorkspace(workspaceId: string): Promise<{
         .insert({
             workspace_id: workspaceId,
             name: 'Research Brief Pipeline',
-            description: 'Golden path demo: Research → Analyze → Write Brief. Turns a topic into a structured executive brief.',
+            description: 'Source-grounded demo: Extract → Analyze → Write Brief. Turns a topic into a structured executive brief.',
             mode: 'pipeline' as const,
             config: pipelineConfig,
         })

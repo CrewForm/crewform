@@ -2,6 +2,7 @@
 // Copyright (C) 2026 CrewForm
 //
 // config.ts — Parse and validate agent/team JSON config files.
+import { parseExecution } from '@crewformhq/agent-runtime';
 
 import { z } from 'zod';
 import { readFileSync, existsSync } from 'fs';
@@ -134,21 +135,25 @@ export function parseConfigFile(filePath: string): ParsedConfig {
 
         if (wrapper.type === 'agent') {
             const agent = agentExportSchema.parse(wrapper.data);
+            validateExecution(agent);
             return { type: 'agent', agent };
         } else {
             const team = teamExportSchema.parse(wrapper.data);
-            return { type: 'team', team };
+            team.agents.forEach(entry => validateExecution(entry.agent));
+        return { type: 'team', team };
         }
     }
 
     // Check if it looks like a team config (has 'agents' array and 'mode' or 'config.steps')
     if (Array.isArray(obj.agents) && (obj.mode || (obj.config && typeof obj.config === 'object'))) {
         const team = teamExportSchema.parse(obj);
+        team.agents.forEach(entry => validateExecution(entry.agent));
         return { type: 'team', team };
     }
 
     // Otherwise treat as inline agent config
     const agent = inlineAgentSchema.parse(obj);
+    validateExecution(agent);
     return { type: 'agent', agent };
 }
 
@@ -241,4 +246,11 @@ export function generateTeamConfig(): string {
         ],
     };
     return JSON.stringify(config, null, 2);
+}
+
+function validateExecution(agent: AgentConfig): void {
+    const external = parseExecution(agent.config);
+    if (external && (agent.tools.length || agent.fallback_model)) {
+        throw new Error('External agents use native tools and have no automatic API fallback. Remove tools and fallback_model.');
+    }
 }

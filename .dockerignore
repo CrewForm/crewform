@@ -3,6 +3,11 @@ node_modules
 .github
 .env
 .env.local
+.env.*
+!.env.example
+.crewform-local
+.crewform-ui-check*
+**/*.env
 *.log
 dist
 crewform-docs

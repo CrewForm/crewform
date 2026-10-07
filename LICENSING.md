@@ -26,7 +26,6 @@ All code **outside** the `ee/` directory is licensed under AGPL-3.0. You are fre
 All code **inside** the `ee/` directory is proprietary and requires a valid Enterprise license key. This code is not covered by the AGPL-3.0 license.
 
 **EE adds (Pro and above):**
-- Orchestrator mode (brain agent + worker delegation)
 - Advanced analytics, charts, and CSV export
 - Prompt history with diff viewer
 - Advanced webhooks (Slack, Discord, Zapier, Asana, Trello)
@@ -44,7 +43,6 @@ All code **inside** the `ee/` directory is proprietary and requires a valid Ente
 **EE adds (Enterprise):**
 - Audit log viewer and log streaming (Datadog/Splunk)
 - Swarm (multi-runner concurrency pool)
-- Marketplace publishing
 - Admin panel
 - SSO / SAML (coming soon)
 
@@ -53,9 +51,9 @@ All code **inside** the `ee/` directory is proprietary and requires a valid Ente
 To use Enterprise features, you need a license key:
 
 1. **CrewForm Cloud** — Enterprise features are included with paid subscriptions at [crewform.tech](https://crewform.tech):
-   - **Pro** — $39/month (Orchestrator, channels, custom tools, analytics)
+   - **Pro** — $39/month (Channels, custom tools, advanced analytics)
    - **Team** — $99/month (Collaboration mode, memory, RBAC)
-   - **Enterprise** — Custom pricing (Audit logs, swarm, SSO)
+   - **Enterprise** — Custom pricing (Audit logs and swarm; SSO is planned)
 2. **Self-hosted** — Contact [team@crewform.tech](mailto:team@crewform.tech) for a self-hosted license key
 
 ## Contributing
@@ -67,3 +65,5 @@ To use Enterprise features, you need a license key:
 ## Questions?
 
 If you're unsure about licensing, reach out at [team@crewform.tech](mailto:team@crewform.tech).
+
+Basic orchestration, marketplace publishing, A2A publishing and the chat widget are Community Edition capabilities. Hosted Free plan resource limits are separate from self-hosted Community Edition.
