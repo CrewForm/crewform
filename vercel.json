@@ -1,11 +1,6 @@
 {
     "headers": [
         {
-            "source": "/storage/:path*",
-            "has": [{ "type": "host", "value": "api.crewform.tech" }],
-            "destination": "https://abdyecfppehskxcxgppp.supabase.co/storage/:path*"
-        },
-        {
             "source": "/(.*)",
             "headers": [
                 { "key": "Content-Security-Policy", "value": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' https://cdn.zapier.com; style-src 'self' 'unsafe-inline' https://cdn.zapier.com; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https: wss:; frame-src https://*.zapier.com; upgrade-insecure-requests" },
@@ -18,6 +13,11 @@
         }
     ],
     "rewrites": [
+        {
+            "source": "/storage/:path*",
+            "has": [{ "type": "host", "value": "api.crewform.tech" }],
+            "destination": "https://abdyecfppehskxcxgppp.supabase.co/storage/:path*"
+        },
         {
             "source": "/functions/:path*",
             "has": [{ "type": "host", "value": "api.crewform.tech" }],
