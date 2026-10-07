@@ -31,6 +31,7 @@ const pageTitles: Record<string, string> = {
     '/settings/mcp-servers': 'MCP Servers',
     '/settings/a2a': 'A2A Protocol',
     '/settings/chat-widget': 'Chat Widget',
+    '/settings/personal-devices': 'Personal devices',
     '/settings/license': 'License',
     '/settings/profile': 'Profile',
     '/admin': 'Overview',

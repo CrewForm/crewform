@@ -46,7 +46,7 @@ function commandFor(execution, model) {
       args = [];
     } else args = agent === 'gemini' ? ['--acp'] : ['--acp', '--stdio'];
   } else if (agent === 'codex') {
-    args = ['exec', '--json', '--sandbox', 'read-only', '--color', 'never', '-'];
+    args = ['exec', '--json', '--sandbox', 'read-only', '--skip-git-repo-check', '--color', 'never', '-'];
     if (model && model !== 'default') args.splice(args.length - 1, 0, '--model', model);
   } else {
     // No native tools in noninteractive Claude mode. No permission bypass flags.

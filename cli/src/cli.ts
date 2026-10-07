@@ -8,6 +8,7 @@
 //        npx crewform init
 //        npx crewform validate agent.json
 import { parseExecution, nativeEnvironment } from '@crewformhq/agent-runtime';
+import { connectDevice, startPersonalWorker, disconnectDevice, rotateDeviceCredential } from './personalWorker.js';
 import { spawnSync } from 'node:child_process';
 
 import { Command } from 'commander';
@@ -38,6 +39,18 @@ program
     .name('crewform')
     .description('Run CrewForm AI agents from the command line')
     .version(VERSION);
+
+program.command('connect').description('Pair a personal device with your approved Cloud agents')
+    .requiredOption('--runtime <runtime>', 'codex:cli, claude:cli or a supported agent:acp')
+    .option('--name <name>', 'Device name')
+    .option('--directory <path>', 'Private 0700 directory for supplied job files')
+    .option('--api-url <url>', 'CrewForm API origin', 'https://api.crewform.tech')
+    .option('--app-url <url>', 'CrewForm approval app', 'https://app.crewform.tech')
+    .action(async options => {try {await connectDevice(options);} catch(error) {console.error(error instanceof Error?error.message:'Pairing failed');process.exitCode=1;}});
+const worker=program.command('worker').description('Run jobs using this personal device grant');
+worker.command('start').description('Poll for your approved single-agent jobs').action(async()=>{try {await startPersonalWorker();} catch(error) {console.error(error instanceof Error?error.message:'Worker stopped');process.exitCode=1;}});
+worker.command('rotate').description('Rotate the device credential without extending its grant').action(async()=>{try {await rotateDeviceCredential();} catch {console.error('Rotation failed; check your grant or reconnect.');process.exitCode=1;}});
+program.command('disconnect').description('Revoke this personal device and remove its credential').option('--forget','Remove local credentials only; revoke the grant in the dashboard').action(async(options:{forget?:boolean})=>{try {await disconnectDevice(options.forget);} catch {console.error('Disconnect failed. Revoke the device in Settings → Personal devices.');process.exitCode=1;}});
 
 // ─── run command ─────────────────────────────────────────────────────────────
 

@@ -12,6 +12,7 @@ import { AuditLogPanel } from '@/components/settings/AuditLogPanel'
 import { AuditStreamingSettings } from '@/components/settings/AuditStreamingSettings'
 import { BillingSettings } from '@/components/settings/BillingSettings'
 import { ProfileSettings } from '@/components/settings/ProfileSettings'
+import { PersonalDevicesSettings } from '@/components/settings/PersonalDevicesSettings'
 import { MessagingChannelsSettings } from '@/components/settings/MessagingChannelsSettings'
 import { ZapierAutomations } from '@/components/settings/ZapierAutomations'
 import { McpServersSettings } from '@/components/settings/McpServersSettings'
@@ -22,12 +23,13 @@ import { useWorkspace } from '@/hooks/useWorkspace'
 import { useEELicense } from '@/hooks/useEELicense'
 import { cn } from '@/lib/utils'
 
-type SettingsTab = 'llm-setup' | 'api-keys' | 'webhooks' | 'channels' | 'members' | 'workspace' | 'billing' | 'audit-log' | 'automations' | 'mcp-servers' | 'a2a' | 'chat-widget' | 'profile' | 'license'
+type SettingsTab = 'llm-setup' | 'api-keys' | 'webhooks' | 'channels' | 'members' | 'workspace' | 'billing' | 'audit-log' | 'automations' | 'mcp-servers' | 'a2a' | 'chat-widget' | 'profile' | 'license' | 'personal-devices'
 
 const validTabs = new Set<string>([
   'llm-setup', 'api-keys', 'webhooks', 'channels', 'members', 'workspace',
   'billing', 'audit-log', 'automations', 'mcp-servers', 'a2a', 'chat-widget',
   'profile', 'license',
+  'personal-devices',
 ])
 
 export function Settings() {
@@ -99,6 +101,7 @@ export function Settings() {
         {activeTab === 'chat-widget' && <ChatWidgetSettings />}
 
         {activeTab === 'profile' && <ProfileSettings />}
+        {activeTab === 'personal-devices' && <PersonalDevicesSettings key={workspaceId} />}
       </div>
     </div>
   )
