@@ -1,4 +1,8 @@
 -- SPDX-License-Identifier: AGPL-3.0-or-later
+-- A task SET NULL and trigger CASCADE can fire in either order during workspace
+-- deletion. Check the surviving trigger reference at transaction end, after the
+-- cascade removes its log rows. Ordinary writes still require a valid trigger.
+ALTER TABLE public.trigger_log ALTER CONSTRAINT trigger_log_trigger_id_fkey DEFERRABLE INITIALLY DEFERRED;
 CREATE TABLE public.widget_rate_windows (
     widget_id uuid NOT NULL REFERENCES public.chat_widget_configs(id) ON DELETE CASCADE,
     window_start timestamptz NOT NULL,
@@ -38,7 +42,7 @@ $$;
 CREATE TRIGGER trim_chat_history BEFORE INSERT OR UPDATE OF messages ON public.chat_sessions FOR EACH ROW EXECUTE FUNCTION public.trim_chat_history();
 
 CREATE TABLE public.scheduled_firings (
-    trigger_id uuid NOT NULL REFERENCES public.agent_triggers(id) ON DELETE CASCADE,
+    trigger_id uuid NOT NULL REFERENCES public.agent_triggers(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED,
     slot timestamptz NOT NULL,
     task_id uuid REFERENCES public.tasks(id) ON DELETE SET NULL,
     team_run_id uuid REFERENCES public.team_runs(id) ON DELETE SET NULL,
