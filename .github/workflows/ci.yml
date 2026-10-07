@@ -11,7 +11,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    branches: [main, fix/system-review-hardening]
 
 jobs:
   local-agent-cli:
@@ -211,6 +211,15 @@ jobs:
       - run: supabase start --workdir /tmp/crewform-ci > /tmp/crewform-local-start.log 2>&1
       - name: Policy and replay fixtures
         run: docker exec -i supabase_db_crewform-local psql -U postgres -d postgres -v ON_ERROR_STOP=1 < scripts/tests/system-hardening.sql
+      - name: Personal device authority and leases
+        run: docker exec -i supabase_db_crewform-local psql -U postgres -d postgres -v ON_ERROR_STOP=1 < scripts/tests/personal-worker.sql
+      - run: npm ci
+      - run: npm --prefix cli ci
+      - run: npm --prefix cli run build
+      - name: Personal worker local end-to-end boundary
+        run: |
+          supabase functions serve personal-worker --workdir /tmp/crewform-ci --no-verify-jwt > /tmp/personal-worker-functions.log 2>&1 &
+          node scripts/tests/personal-worker-e2e.mjs /tmp/crewform-ci
       - name: Concurrent hosted reservations
         run: node scripts/tests/concurrent-quota.mjs supabase_db_crewform-local
       - if: always()

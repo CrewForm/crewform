@@ -256,3 +256,21 @@ Sources checked 20 September 2026: [Railway plans](https://docs.railway.com/pric
 [Vercel cron limits](https://vercel.com/docs/cron-jobs/usage-and-pricing),
 [Cloud Run pricing](https://cloud.google.com/run/pricing),
 [Cloud Run runtime](https://docs.cloud.google.com/run/docs/container-contract).
+
+## Deploying personal workers
+
+Ship this feature after the base security migrations and coordinated runner/Edge rollout. Apply migrations 104–105 once against a reconciled baseline; never replay local bootstrap migration IDs into production. Migration 105 removes the historical no-argument `claim_next_task()` overload; supported runners must use `claim_next_task(p_runner_id)`.
+
+Deploy the Edge Function with gateway JWT verification disabled because its narrow device credential is validated by the handler and database RPCs:
+
+```bash
+supabase functions deploy personal-worker --no-verify-jwt
+```
+
+The CLI receives neither user JWTs nor database credentials. Pairing creation and exchange use proof-bound, expiring challenges. Approval and revocation require a signed-in browser session; ordinary workspace API keys cannot grant a laptop login. Device/lease tables remain inaccessible to anonymous callers. Do not enable native execution on the shared Cloud runner to support personal devices.
+
+Verify that `personal-worker-maintenance` is active in pg_cron. It expires leases and unavailable queued work and prunes pairing budgets. Generic runner claims exclude personal tasks. Deploy a compatible runner before publishing the UI and CLI pairing instructions.
+
+Before enabling production UI, run `scripts/tests/personal-worker.sql` on a disposable backend and `node scripts/tests/personal-worker-e2e.mjs <isolated-supabase-workdir>` while serving the local Edge Function with `--no-verify-jwt`. The latter creates and removes only synthetic local data and uses a fixture executor, never a provider login. Validate one explicitly selected real native login separately. Keep the UI hidden if the production function/schema or published CLI version is not ready.
+
+For rollback, disable new pairing and dispatch in the UI, revoke device grants, stop workers, and wait for active leases to become terminal before reverting queue handling. Preserve completed results and audit rows. Do not switch queued personal jobs to API execution or drop the device-assignment column while compatible jobs exist.

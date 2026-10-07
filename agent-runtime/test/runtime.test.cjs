@@ -23,7 +23,7 @@ test('Codex native JSON, bounded sandbox and secrets isolation', async () => {
     const result = await run('codex', 'cli', 'inspect');
     const inspected = JSON.parse(result.result);
     assert.equal(inspected.apiKey, undefined); assert.equal(inspected.databaseKey, undefined);
-    assert.deepEqual(inspected.args.slice(0, 5), ['exec', '--json', '--sandbox', 'read-only', '--color']);
+    assert.deepEqual(inspected.args.slice(0, 6), ['exec', '--json', '--sandbox', 'read-only', '--skip-git-repo-check', '--color']);
     assert.equal(result.execution.sessionId, 'native-session');
     assert.equal(result.usage.usageKnown, false); assert.equal(result.execution.billingModel, 'unknown');
     assert.equal(nativeEnvironment().SUPABASE_SERVICE_ROLE_KEY, undefined);

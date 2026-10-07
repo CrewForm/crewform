@@ -14,6 +14,11 @@
     ],
     "rewrites": [
         {
+            "source": "/storage/:path*",
+            "has": [{ "type": "host", "value": "api.crewform.tech" }],
+            "destination": "https://abdyecfppehskxcxgppp.supabase.co/storage/:path*"
+        },
+        {
             "source": "/functions/:path*",
             "has": [{ "type": "host", "value": "api.crewform.tech" }],
             "destination": "https://abdyecfppehskxcxgppp.supabase.co/functions/:path*"

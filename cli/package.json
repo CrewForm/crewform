@@ -1,6 +1,6 @@
 {
   "name": "@crewformhq/cli",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Run portable agent workflows using model APIs, Ollama, and local Codex, Claude or ACP agents.",
   "keywords": [
     "ai",

@@ -32,6 +32,7 @@ import {
   Activity,
   AlertTriangle,
   PackageOpen,
+  Monitor,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
@@ -66,6 +67,7 @@ const settingsSubNav: {
     items: [
       { to: '/settings', icon: Brain, label: 'LLM Setup' },
       { to: '/settings/api-keys', icon: KeyRound, label: 'API Keys' },
+      { to: '/settings/personal-devices', icon: Monitor, label: 'Personal devices' },
       { to: '/settings/webhooks', icon: Webhook, label: 'Webhooks' },
     ],
   },

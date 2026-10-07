@@ -42,3 +42,6 @@ policy = "per_worker"
 inspector_port = 56383
 [analytics]
 enabled = false
+
+[functions.personal-worker]
+verify_jwt = false
