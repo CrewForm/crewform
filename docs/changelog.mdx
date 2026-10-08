@@ -9,6 +9,36 @@ All notable changes to CrewForm will be documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.10.0] — 2026-10-08
+
+### Added
+
+- Native Codex and Claude CLI execution and ACP adapters alongside API providers and Ollama. Provider logins remain in the installed tools; local executable and working-directory settings remain under the operator's control.
+- Cloud-to-laptop pairing for personal, single-agent jobs, with proof-bound approval, scoped device credentials and agent grants, outbound HTTPS transport, heartbeat/attempt leases, streamed results, cancellation, rotation and revocation.
+- Published CLI `@crewformhq/cli@0.2.0` with `connect`, `worker start` and `disconnect`; the CLI has an independent version from the platform.
+- Community onboarding, runnable quickstarts and workflow exports, and a Linear messaging channel.
+
+### Changed
+
+- Hosted workspace pricing is Pro **$15/month** and Team **$49/month**; Custom is available for on-premises deployments. Provider usage is billed separately. Native usage stays unknown when the installed tool does not report it.
+- Shared, versioned plan data drives UI, server checks and database entitlements. Hosted runs use atomic reservations and durable budget limits; previous configured Stripe prices remain recognized for existing subscriptions.
+- The platform and internal task-runner manifests now both identify this release as 1.10.0.
+
+### Fixed
+
+- Tenant, RPC and Storage authorization; immutable execution actors and native consent; provider-key encryption; outbound credential/redirect checks; request bounds and public-widget budgets. The unrestricted local CLI code interpreter is disabled.
+- Worker heartbeat/recovery and stale-attempt fencing; atomic scheduled firings shared by Node and Edge; durable decision and delivery records with explicit handling of uncertain results.
+- Workspace-scoped billing roles, transactional Stripe event/entitlement reconciliation, renewal dates and seven-day delinquency grace. Checkout and portal return to `/settings/billing`.
+
+### Upgrade notes and limits
+
+- **Coordinated backend upgrade required.** Back up and rehearse a restore, reconcile migration history, apply the missing reviewed migrations through **105**, and deploy matching Edge Functions, runner and frontend. Preserve the encryption key used by existing encrypted records. Do not blindly replay historical migrations or evaluation bootstrap IDs.
+- Migration 105 removes the old no-argument `claim_next_task()` RPC; compatible runners call `claim_next_task(p_runner_id)`. Configure matching encryption and outbound-guard secrets before enabling hosted work.
+- Install or run the separately published CLI with `npx @crewformhq/cli@0.2.0`. Native tools and their logins are installed on the trusted local machine, not provisioned in the shared runner image.
+- Pairing supports personal single-agent jobs. Mixed Cloud/local teams, shared personal accounts, interactive filesystem write approvals and native session resume are deferred. Uncertain interrupted work fails for review without automatic API fallback or replay.
+- General checkpoint/resume and complete executor integration of durable approvals are **not shipped**. Node/Edge cron parsing and template enrichment still need parity validation; keep one primary scheduler.
+- See the [1.10.0 upgrade guide](https://github.com/CrewForm/crewform/blob/v1.10.0/docs/releases/v1.10.0.md) for deployment order, billing configuration and rollback requirements.
+
 ## [1.9.3] — 2026-05-14
 
 ### Added
