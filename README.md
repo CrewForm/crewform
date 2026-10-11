@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/crewform-crewform-badge.png)](https://mseep.ai/app/crewform-crewform)
+
 <div align="center">
 
 <img src=".github/assets/crewform-banner.png" alt="CrewForm" width="400" />
