@@ -57,3 +57,4 @@ zapier-app/build/
 
 # Isolated complete local Supabase stack
 .crewform-local/
+.crewform-preview/
