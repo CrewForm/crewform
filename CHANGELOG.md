@@ -10,7 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- Account-free scripted review-pack walkthrough, runtime diagnostics and a supplied-patch native review workflow. CLI 0.3.0 is prepared separately; npm publication remains pending authentication.
+- Account-free scripted review-pack walkthrough, runtime diagnostics and a supplied-patch native review workflow. CLI 0.3.0 is independently published to npm under MIT.
 - Durable pipeline checkpoints and actor-bound human approvals, authorized run-evidence export and explicit uncertain-effect handling.
 - Versioned bounded output contracts before downstream handoffs, including CLI/ACP interoperability fixtures.
 - Owner-approved personal-device profiles in sequential pipelines, with separate step leases, one parent hosted reservation and no API fallback or shared native accounts.

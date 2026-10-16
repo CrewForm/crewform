@@ -83,14 +83,14 @@ Direct Sign in with ChatGPT token sharing, resumable ACP sessions, interactive p
 
 ## Personal worker
 
-CLI 0.2.0 adds a narrowly scoped laptop worker. Your CrewForm backend must have migrations 104–105 and the `personal-worker` Edge Function before pairing is available. Deployment of the feature is separate from installing the CLI.
+CLI 0.3.0 includes a narrowly scoped laptop worker. Your CrewForm backend must have migrations 104–105 and the `personal-worker` Edge Function before pairing is available. Deployment of the feature is separate from installing the CLI.
 
 1. Install and sign in to your native agent using its own supported login flow.
 2. Create a CrewForm agent with the matching execution runtime.
 3. Start pairing on your laptop:
 
 ```bash
-npx @crewformhq/cli@0.2.0 connect --runtime codex:cli
+npx @crewformhq/cli@0.3.0 connect --runtime codex:cli
 ```
 
 For self-hosting, add `--api-url https://your-supabase-origin` and `--app-url https://your-crewform-app`. `--directory /absolute/private/directory` selects a local job root owned by you, with permissions 0700. Otherwise the worker uses `~/.crewform/worker-jobs`.
@@ -99,7 +99,7 @@ For self-hosting, add `--api-url https://your-supabase-origin` and `--app-url ht
 5. In the approved agent's **Execution → Run on** field, select your personal device. Start the worker:
 
 ```bash
-npx @crewformhq/cli@0.2.0 worker start
+npx @crewformhq/cli@0.3.0 worker start
 ```
 
 Only work you initiate as a signed-in user in that workspace can target your granted device. Workspace API keys, other members, public widgets and model overrides cannot use that personal login. Migrations 107–108 add sequential pipeline steps with saved boundaries and per-step device grants; paired fan-out and other team modes remain unsupported. After migration 108, up to six active device profiles per user are supported; each grant lasts 30 days. Renew by revoking the old grant and pairing again. Credential rotation does not extend consent.
@@ -111,8 +111,8 @@ Every job uses a fresh private directory. Inputs are limited to five files, 10 M
 The UI shows online, busy, offline, expired and revoked devices. Queued work waits up to 15 minutes, with maintenance running once per minute. Active leases last 15 seconds. Cancellation, revocation, membership removal, suspension or heartbeat failure abort local execution within nine seconds while the worker and OS are responsive. A suspended machine cannot promise a wall-clock stop deadline; stale uploads are rejected when it resumes. Interrupted leases fail for review without automatically replaying effects or falling back to an API.
 
 ```bash
-npx @crewformhq/cli@0.2.0 worker rotate
-npx @crewformhq/cli@0.2.0 disconnect
+npx @crewformhq/cli@0.3.0 worker rotate
+npx @crewformhq/cli@0.3.0 disconnect
 ```
 
 An interrupted rotation retains a private recovery file. Run `worker rotate` again before starting to recover the same credential, without changing grant expiry. If the grant was already revoked or expired, revoke it in the dashboard and run `disconnect --forget` to remove local credentials before reconnecting. `--forget` alone does not revoke Cloud access.
@@ -120,4 +120,4 @@ An interrupted rotation retains a private recovery file. Run `worker rotate` aga
 Native account quota/authentication errors fail the task. Native billing stays unknown. Personal execution is recorded separately from managed compute; a hosted workflow run still consumes its workspace's run allowance.
 
 
-For multiple runtimes on one laptop, CLI 0.3.0 adds isolated `--device-profile` configurations. See [personal pipeline workers](personal-pipeline-workers.md) for checkout instructions while npm publication is pending, approved sequential handoffs, private input files and recovery limits.
+For multiple runtimes on one laptop, CLI 0.3.0 adds isolated `--device-profile` configurations. See [personal pipeline workers](personal-pipeline-workers.md) for installation instructions, approved sequential handoffs, private input files and recovery limits.

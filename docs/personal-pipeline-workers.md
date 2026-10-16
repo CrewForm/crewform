@@ -16,8 +16,8 @@ database implementations now also support pipeline jobs.
 4. Start the selected local worker profiles and run the team with supplied context.
    Inspect saved outputs, device state and continuation decisions on the run page.
 
-Each profile is a separate approved device grant. CLI 0.3.0 supports multiple
-profiles on the same laptop:
+Each profile is a separate approved device grant. Install CLI 0.3.0 with
+`npm install -g @crewformhq/cli@0.3.0` for multiple profiles on the same laptop:
 
 ```bash
 crewform --device-profile codex connect --runtime codex:cli
@@ -28,8 +28,8 @@ crewform --device-profile claude connect --runtime claude:cli
 crewform --device-profile claude worker start
 ```
 
-Until CLI 0.3.0 is published to npm, build it from this repository and replace
-`crewform` with `node cli/dist/cli.js`. The default profile preserves the existing
+Alternatively, build it from this repository and replace `crewform` with
+`node cli/dist/cli.js`. The default profile preserves the existing
 `~/.crewform/device.json`; named profiles use private directories under
 `~/.crewform/profiles/`. Profiles do not change the installed agent's login store.
 Never share a profile's credential or mount a personal login into a shared worker.

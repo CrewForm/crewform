@@ -19,7 +19,7 @@ first result must demonstrate the value.
 | Run history | Inputs, outputs, tools, decisions, attempts, delivery and recovery in one inspectable/exportable record | Committed outputs/decisions in run view; versioned authorized evidence export implemented |
 | Personal-worker coordination | Per-step approved device selection; honest offline waiting, revocation and consent; no shared native accounts | Implemented for sequential pipelines; migration 108 required; fan-out and other team modes excluded |
 | Scheduling consistency | Shared validated cron semantics and fixtures in runner and Edge scheduler | Shared UTC evaluator/context builder and Node/Deno fixtures implemented |
-| Published CLI | New immutable MIT package version, packaged offline smoke and accurate public installation docs | Version 0.3.0 prepared; publication requires npm authentication |
+| Published CLI | New immutable MIT package version, packaged offline smoke and accurate public installation docs | Version 0.3.0 published under MIT; registry installation, offline demo and diagnostics verified |
 | Adoption evidence | Useful supplied-patch workflow; first-artifact and repeat-use measures only with explicit opt-in | Review-pack example, manual measurement definitions and optional public feedback form implemented; no automatic telemetry |
 
 Each row needs its own implementation evidence. This checklist does not claim
