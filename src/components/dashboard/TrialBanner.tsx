@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 // Copyright (C) 2026 CrewForm
 
 import { useState } from 'react'
@@ -16,6 +16,7 @@ import {
     Database,
 } from 'lucide-react'
 import { useWorkspace } from '@/hooks/useWorkspace'
+import { useDeploymentPolicy } from '@/hooks/useDeploymentPolicy'
 import { useNavigate } from 'react-router-dom'
 
 /**
@@ -28,13 +29,14 @@ import { useNavigate } from 'react-router-dom'
  */
 export function TrialBanner() {
     const { workspace, trialActive, trialDaysLeft, effectivePlan } = useWorkspace()
+    const {data: deployment} = useDeploymentPolicy()
     const navigate = useNavigate()
     const [dismissed, setDismissed] = useState(false)
     const [showDetails, setShowDetails] = useState(false)
 
     // Don't show if no trial was ever set, or if workspace is on a paid plan
     const trialExpiresAt = workspace?.trial_expires_at
-    if (!trialExpiresAt) return null
+    if (!trialExpiresAt || deployment?.hosted !== true) return null
 
     // Check if trial has expired (within last 30 days — after that, stop showing)
     const expiryDate = new Date(trialExpiresAt)
@@ -95,7 +97,7 @@ export function TrialBanner() {
         { icon: Users, label: 'A2A Protocol', desc: 'Agent-to-agent interoperability' },
         { icon: Database, label: 'Team Memory', desc: 'Shared pgvector semantic search' },
         { icon: Shield, label: 'RBAC & Workspaces', desc: 'Role-based access control' },
-        { icon: Zap, label: 'Unlimited Agents & Tasks', desc: 'No free-tier limits' },
+        { icon: Zap, label: 'Team hosting allowance', desc: '10,000 workflow runs per month' },
     ]
 
     void accentColor // Used for semantic clarity in the code above
@@ -128,10 +130,10 @@ export function TrialBanner() {
                         <div className="flex items-center gap-2">
                             <p className="text-sm font-medium text-gray-200">
                                 {isExpired
-                                    ? 'Your Team trial has ended'
+                                    ? 'Your Team hosting trial has ended'
                                     : isExpiring
-                                      ? `Team trial ending ${trialDaysLeft === 0 ? 'today' : trialDaysLeft === 1 ? 'tomorrow' : `in ${trialDaysLeft} days`}`
-                                      : `Team trial — ${trialDaysLeft} ${trialDaysLeft === 1 ? 'day' : 'days'} remaining`}
+                                      ? `Team hosting trial ending ${trialDaysLeft === 0 ? 'today' : trialDaysLeft === 1 ? 'tomorrow' : `in ${trialDaysLeft} days`}`
+                                      : `Team hosting trial — ${trialDaysLeft} ${trialDaysLeft === 1 ? 'day' : 'days'} remaining`}
                             </p>
 
                             {/* Details toggle */}
@@ -159,8 +161,8 @@ export function TrialBanner() {
 
                         <p className="mt-1 text-xs text-gray-500">
                             {isExpired
-                                ? "You're back on the Free plan. Upgrade to keep Team-tier features."
-                                : 'Full Team-tier access — all features unlocked, no credit card required.'}
+                                ? "Your Cloud hosting allowance is back on Free. All software features remain available."
+                                : 'Team hosting allowance during your trial. All software features are included on every plan.'}
                         </p>
                     </div>
 
@@ -177,7 +179,7 @@ export function TrialBanner() {
                         }`}
                     >
                         <Crown className="h-3 w-3" />
-                        Upgrade
+                        Hosting plans
                     </button>
                 </div>
 

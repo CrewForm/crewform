@@ -1,7 +1,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # CrewForm — CI Pipeline
 # ─────────────────────────────────────────────────────────────────────────────
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: MIT
 # Copyright (C) 2026 CrewForm
 
 name: CI
@@ -170,31 +170,31 @@ jobs:
 
   # ── AGPL Licence Header Check ───────────────────────────────────────────
   licence-check:
-    name: AGPL Licence Headers
+    name: AGPL Licence Headers # Legacy required-check name; verifies MIT notices.
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Check AGPL headers on source files
+      - name: Check MIT headers on source files
         run: |
           MISSING=""
           for f in $(find src -name "*.ts" -o -name "*.tsx" | grep -v node_modules | grep -v ".d.ts"); do
-            if ! head -1 "$f" | grep -q "SPDX-License-Identifier"; then
+            if ! head -1 "$f" | grep -q "SPDX-License-Identifier: MIT"; then
               MISSING="$MISSING\n  $f"
             fi
           done
           if [ -n "$MISSING" ]; then
-            echo "❌ Missing AGPL licence header in:"
+            echo "❌ Missing MIT licence header in:"
             echo -e "$MISSING"
             echo ""
             echo "Add to the top of each file:"
-            echo "// SPDX-License-Identifier: AGPL-3.0-or-later"
+            echo "// SPDX-License-Identifier: MIT"
             echo "// Copyright (C) 2026 CrewForm"
             exit 1
           fi
-          echo "✅ All source files have AGPL headers"
+          echo "✅ All source files have MIT headers"
 
   database-policies:
     name: Database policy and concurrent quota regressions
@@ -211,6 +211,8 @@ jobs:
       - run: supabase start --workdir /tmp/crewform-ci > /tmp/crewform-local-start.log 2>&1
       - name: Policy and replay fixtures
         run: docker exec -i supabase_db_crewform-local psql -U postgres -d postgres -v ON_ERROR_STOP=1 < scripts/tests/system-hardening.sql
+      - name: Hosted-only policy and universal software features
+        run: docker exec -i supabase_db_crewform-local psql -U postgres -d postgres -v ON_ERROR_STOP=1 < scripts/tests/hosted-only.sql
       - name: Personal device authority and leases
         run: docker exec -i supabase_db_crewform-local psql -U postgres -d postgres -v ON_ERROR_STOP=1 < scripts/tests/personal-worker.sql
       - run: npm ci

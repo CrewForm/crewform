@@ -1,4 +1,4 @@
--- SPDX-License-Identifier: AGPL-3.0-or-later
+-- SPDX-License-Identifier: MIT
 CREATE TABLE public.stripe_event_receipts (
     event_id text PRIMARY KEY,
     workspace_id uuid NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,

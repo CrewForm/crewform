@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 import { readJson } from '../_shared/body.ts';
 // Copyright (C) 2026 CrewForm
 //
@@ -11,10 +11,7 @@ import { badRequest, forbidden, unauthorized, serverError, methodNotAllowed } fr
 
 import Stripe from 'https://esm.sh/stripe@14?target=deno';
 
-const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, {
-    apiVersion: '2024-04-10',
-    httpClient: Stripe.createFetchHttpClient(),
-});
+
 
 Deno.serve(async (req: Request) => {
     const corsResponse = handleCors(req);
@@ -56,6 +53,15 @@ Deno.serve(async (req: Request) => {
         }
 
         if (!['owner', 'admin'].includes((membership as { role: string }).role)) return forbidden('Billing requires owner or admin access');
+        const { data: policy, error: policyError } = await userClient.rpc('get_deployment_policy');
+        if (policyError || typeof policy?.hosted !== 'boolean') return serverError('Hosting configuration is unavailable');
+        if (!policy.hosted) return forbidden('Billing applies only to CrewForm Cloud hosting');
+        const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
+        if (!stripeKey) return serverError('Cloud billing is not configured');
+        const stripe = new Stripe(stripeKey, {
+            apiVersion: '2024-04-10', httpClient: Stripe.createFetchHttpClient(),
+        });
+
 
         // ── Get Stripe Customer ID ─────────────────────────────────────
         const serviceClient = createClient(

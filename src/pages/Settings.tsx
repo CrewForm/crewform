@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 // Copyright (C) 2026 CrewForm
 
 import { useMemo } from 'react'
@@ -20,7 +20,6 @@ import { A2ASettings } from '@/components/settings/A2ASettings'
 import { LicenseActivation } from '@/components/settings/LicenseActivation'
 import { ChatWidgetSettings } from '@/components/settings/ChatWidgetSettings'
 import { useWorkspace } from '@/hooks/useWorkspace'
-import { useEELicense } from '@/hooks/useEELicense'
 import { cn } from '@/lib/utils'
 
 type SettingsTab = 'llm-setup' | 'api-keys' | 'webhooks' | 'channels' | 'members' | 'workspace' | 'billing' | 'audit-log' | 'automations' | 'mcp-servers' | 'a2a' | 'chat-widget' | 'profile' | 'license' | 'personal-devices'
@@ -34,7 +33,6 @@ const validTabs = new Set<string>([
 
 export function Settings() {
   const { workspaceId } = useWorkspace()
-  const { hasFeature } = useEELicense(workspaceId ?? undefined)
   const { tab: tabParam } = useParams<{ tab?: string }>()
 
   // Resolve active tab from URL param, defaulting to llm-setup
@@ -43,26 +41,6 @@ export function Settings() {
     return 'llm-setup'
   }, [tabParam])
 
-  // EE feature gate check
-  const isTabGated = useMemo(() => {
-    const eeGates: Partial<Record<SettingsTab, string>> = {
-      channels: 'messaging_channels',
-      members: 'rbac',
-      'chat-widget': 'chat_widget',
-    }
-    const gate = eeGates[activeTab]
-    return gate ? !hasFeature(gate) : false
-  }, [activeTab, hasFeature])
-
-  if (isTabGated) {
-    return (
-      <div className="p-6 lg:p-8">
-        <div className="mx-auto max-w-2xl rounded-xl border border-border bg-surface-card p-8 text-center">
-          <p className="text-gray-400">This feature requires an Enterprise license.</p>
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div className="p-6 lg:p-8">

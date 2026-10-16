@@ -1,4 +1,4 @@
--- SPDX-License-Identifier: AGPL-3.0-or-later
+-- SPDX-License-Identifier: MIT
 -- In-flight provider calls and side effects cannot safely be replayed without checkpoints.
 CREATE OR REPLACE FUNCTION public.recover_stale_tasks() RETURNS integer LANGUAGE plpgsql SET search_path='' AS $$
 DECLARE v_tasks integer;v_runs integer;

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 // AG-UI Protocol Server — SSE endpoint for streaming agent execution events.
 // Mounts at POST /ag-ui/:agentId/sse and POST /ag-ui/:agentId/respond
 

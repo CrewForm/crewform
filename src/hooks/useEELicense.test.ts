@@ -1,21 +1,15 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 import {renderHook} from '@testing-library/react'
 import {describe,it,expect,vi} from 'vitest'
-const fixture=vi.hoisted(()=>({plan:'pro'}))
-vi.mock('@tanstack/react-query',()=>({useQuery:()=>({data:{plan:fixture.plan,features:[]},isLoading:false})}))
-vi.mock('@/db/eeLicense',()=>({fetchEELicense:vi.fn()}))
-vi.mock('@/hooks/useWorkspace',()=>({useWorkspace:()=>({trialActive:false,effectivePlan:'free'})}))
+// Feature access must not fetch or require subscription/activation rows.
+vi.mock('@tanstack/react-query',()=>({useQuery:()=>{throw new Error('Software access must not query licences')}}))
 import {useEELicense} from './useEELicense'
-describe('renamed Custom tier retains its feature boundary',()=>{
-    it.each(['pro','team'])('does not grant Custom audit features to %s',plan=>{
-        fixture.plan=plan
-        const {result}=renderHook(()=>useEELicense('fixture'))
-        expect(result.current.hasFeature('audit_logs')).toBe(false)
-        expect(result.current.hasFeature('orchestrator_mode')).toBe(true)
-    })
-    it.each(['enterprise','custom'])('recognises %s as the on-premises feature level',plan=>{
-        fixture.plan=plan
-        const {result}=renderHook(()=>useEELicense('fixture'))
-        expect(result.current.hasFeature('audit_logs')).toBe(true)
+describe('software features without activation',()=>{
+    it('includes former Enterprise capabilities without a workspace licence',()=>{
+        const {result}=renderHook(()=>useEELicense(undefined))
+        for(const feature of ['audit_logs','rbac','collaboration_mode','team_memory','swarm','custom_tools'])
+            expect(result.current.hasFeature(feature)).toBe(true)
+        expect(result.current.hasFeature('saml_sso')).toBe(false)
+        expect(result.current.hasFeature('made_up_feature')).toBe(false)
     })
 })

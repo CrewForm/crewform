@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 // Copyright (C) 2026 CrewForm
 
 import { useState, useCallback, useEffect, Suspense, lazy } from 'react'
@@ -22,7 +22,6 @@ import {
   ScrollText,
   CreditCard,
   MessageSquareText,
-  ShieldCheck,
   Brain,
   Zap,
   Plug,
@@ -42,6 +41,7 @@ import { TopBar } from '@/components/layout/TopBar'
 import { MobileNav } from '@/components/layout/MobileNav'
 import { useWorkspace } from '@/hooks/useWorkspace'
 import { useEELicense } from '@/hooks/useEELicense'
+import { useDeploymentPolicy } from '@/hooks/useDeploymentPolicy'
 import { PageSkeleton } from '@/components/ui/PageSkeleton'
 
 const FeedbackWidget = lazy(() =>
@@ -88,7 +88,7 @@ const settingsSubNav: {
       { to: '/settings/workspace', icon: Building2, label: 'Workspace' },
       { to: '/settings/billing', icon: CreditCard, label: 'Billing' },
       { to: '/settings/audit-log', icon: ScrollText, label: 'Audit Log' },
-      { to: '/settings/license', icon: ShieldCheck, label: 'License' },
+      { to: '/settings/license', icon: ScrollText, label: 'Software licence' },
       { to: '/settings/profile', icon: User, label: 'Profile' },
     ],
   },
@@ -101,7 +101,6 @@ const adminSubNav: { to: string; icon: typeof BarChart3; label: string }[] = [
   { to: '/admin/abuse', icon: AlertTriangle, label: 'Abuse' },
   { to: '/admin/activity', icon: Activity, label: 'Activity' },
   { to: '/admin/beta-users', icon: Users, label: 'Beta Users' },
-  { to: '/admin/licenses', icon: ShieldCheck, label: 'Licenses' },
   { to: '/admin/marketplace', icon: Store, label: 'Marketplace' },
   { to: '/admin/review-queue', icon: PackageOpen, label: 'Review Queue' },
 ]
@@ -111,6 +110,7 @@ export function RootLayout() {
   const { isSuperAdmin } = useSuperAdmin()
   const { workspace, isSuspended, workspaceId } = useWorkspace()
   const { hasFeature } = useEELicense(workspaceId ?? undefined)
+  const { data: deployment } = useDeploymentPolicy()
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const location = useLocation()
@@ -310,7 +310,7 @@ export function RootLayout() {
                         </div>
                       )}
                       {group.items
-                        .filter(item => !item.eeFeature || hasFeature(item.eeFeature))
+                        .filter(item => (!item.eeFeature || hasFeature(item.eeFeature)) && (item.to !== '/settings/billing' || deployment?.hosted === true))
                         .map(({ to, icon: Icon, label }) => (
                           <NavLink
                             key={to}

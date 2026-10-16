@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 import { safeFetch } from './urlSafety.js';
 // Copyright (C) 2026 CrewForm
 //

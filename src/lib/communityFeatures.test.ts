@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 import { renderHook } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({single: vi.fn(), rpc: vi.fn()}))
@@ -9,14 +9,14 @@ function useConfiguredFeature(feature: string) { return useEEFeature('workspace'
 import { checkQuota } from '@/db/billing'
 afterEach(() => vi.unstubAllEnvs())
 describe('community adoption entitlements', () => {
-    it('permits orchestration and sharing without a paid license while preserving paid gates', () => {
+    it('includes formerly paid capabilities without activation or an edition flag', () => {
         vi.stubEnv('VITE_CREWFORM_EDITION', 'ce')
-        for (const feature of ['orchestrator_mode', 'marketplace_publish', 'a2a_publish', 'chat_widget']) {
+        for (const feature of ['orchestrator_mode', 'marketplace_publish', 'a2a_publish', 'chat_widget', 'collaboration_mode', 'team_memory', 'audit_logs', 'rbac', 'swarm']) {
             const { result, unmount } = renderHook(useConfiguredFeature, { initialProps: feature })
             expect(result.current.enabled).toBe(true)
             unmount()
         }
-        const { result } = renderHook(useConfiguredFeature, { initialProps: 'audit_logs' })
+        const { result } = renderHook(useConfiguredFeature, { initialProps: 'unimplemented_feature' })
         expect(result.current.enabled).toBe(false)
     })
     it('uses server deployment policy even when the browser declares CE', async () => {

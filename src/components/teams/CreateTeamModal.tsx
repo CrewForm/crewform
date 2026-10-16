@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 // Copyright (C) 2026 CrewForm
 
 import { useState, useMemo } from 'react'
@@ -19,7 +19,7 @@ interface ModeOption {
     label: string
     icon: typeof GitBranch
     description: string
-    eeFeature?: string  // if set, requires EE license
+    eeFeature?: string  // implemented capability identifier
 }
 
 const MODES: ModeOption[] = [

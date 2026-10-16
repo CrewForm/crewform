@@ -1,4 +1,4 @@
--- SPDX-License-Identifier: AGPL-3.0-or-later
+-- SPDX-License-Identifier: MIT
 -- Creator identity alone is insufficient when collaborative configuration can change.
 ALTER TABLE public.tasks ADD COLUMN native_consent jsonb;
 ALTER TABLE public.team_runs ADD COLUMN native_consent jsonb;

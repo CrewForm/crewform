@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 // Copyright (C) 2026 CrewForm
 
 import { PLAN_CATALOGUE } from '@/lib/planCatalogue'
@@ -34,21 +34,20 @@ const FEATURES: PlanFeature[] = [
     { label: 'A2A Consume', free: true, pro: true, team: true, enterprise: true },
     { label: 'A2A Publish', free: true, pro: true, team: true, enterprise: true },
     { label: 'Orchestrator Mode', free: true, pro: true, team: true, enterprise: true },
-    { label: 'Custom Tools', free: false, pro: true, team: true, enterprise: true },
-    { label: 'Messaging Channels', free: false, pro: true, team: true, enterprise: true },
-    { label: 'Advanced Analytics', free: false, pro: true, team: true, enterprise: true },
-    { label: 'Collaboration Mode', free: false, pro: false, team: true, enterprise: true },
-    { label: 'Team Memory', free: false, pro: false, team: true, enterprise: true },
-    { label: 'RBAC', free: false, pro: false, team: true, enterprise: true },
-    { label: 'Audit Log', free: false, pro: false, team: false, enterprise: 'Full history' },
-    { label: 'Swarm', free: false, pro: false, team: false, enterprise: true },
-    { label: 'Priority Support', free: false, pro: false, team: true, enterprise: true },
+    { label: 'Custom Tools', free: true, pro: true, team: true, enterprise: true },
+    { label: 'Messaging Channels', free: true, pro: true, team: true, enterprise: true },
+    { label: 'Advanced Analytics', free: true, pro: true, team: true, enterprise: true },
+    { label: 'Collaboration Mode', free: true, pro: true, team: true, enterprise: true },
+    { label: 'Team Memory', free: true, pro: true, team: true, enterprise: true },
+    { label: 'RBAC', free: true, pro: true, team: true, enterprise: true },
+    { label: 'Audit Log', free: true, pro: true, team: true, enterprise: true },
+    { label: 'Swarm', free: true, pro: true, team: true, enterprise: true },
 ]
 
-const PLANS = (['free', 'pro', 'team', 'enterprise'] as const).map(key => {
+const PLANS = (['free', 'pro', 'team'] as const).map(key => {
     const plan = PLAN_CATALOGUE.plans[key]
-    return { key, name: plan.name, price: plan.monthlyUsd === null ? 'Custom' : `$${plan.monthlyUsd}`,
-        period: plan.deployment === 'on-premises' ? ' on-premises' : key === 'free' ? 'forever' : '/month', highlight: key === 'pro' }
+    return { key, name: plan.name, price: `$${plan.monthlyUsd}`,
+        period: key === 'free' ? ' hosted' : '/month', highlight: key === 'pro' }
 })
 
 const PLAN_ORDER: Record<string, number> = { free: 0, pro: 1, team: 2, enterprise: 3 }
@@ -59,19 +58,15 @@ export function PricingTable() {
     const currentPlan = workspace?.plan ?? 'free'
     const currentTier = PLAN_ORDER[currentPlan] ?? 0
 
-    function handleUpgrade(plan: 'pro' | 'team' | 'enterprise') {
+    function handleUpgrade(plan: 'pro' | 'team') {
         if (!workspaceId) return
-        if (plan === 'enterprise') {
-            window.open('mailto:team@crewform.tech?subject=Custom%20On-Premises%20Inquiry', '_blank')
-            return
-        }
         checkoutMutation.mutate({ workspaceId, plan })
     }
 
     return (
         <div className="space-y-4">
-            <p className="text-sm text-gray-400">Cloud prices apply to new subscriptions. Existing subscriptions retain their current pricing until changed. Custom deployments are on-premises.</p>
-            <div className="grid gap-4 lg:grid-cols-4">
+            <p className="text-sm text-gray-400">All software features are included on every plan. Cloud plans pay for hosted resource allowances; self-hosting is free under MIT. Provider costs are separate. Existing subscriptions retain their pricing until changed.</p>
+            <div className="grid gap-4 lg:grid-cols-3">
             {PLANS.map((plan) => {
                 const planTier = PLAN_ORDER[plan.key] ?? 0
                 const isCurrent = plan.key === currentPlan
@@ -115,7 +110,7 @@ export function PricingTable() {
                             <div className="mb-5 rounded-lg border border-border bg-surface-raised px-3 py-2 text-center text-xs text-gray-600">
                                 Included in your plan
                             </div>
-                        ) : isUpgrade && plan.key !== 'enterprise' ? (
+                        ) : isUpgrade ? (
                             <button
                                 type="button"
                                 onClick={() => handleUpgrade(plan.key as 'pro' | 'team')}
@@ -136,10 +131,10 @@ export function PricingTable() {
                         ) : (
                             <button
                                 type="button"
-                                onClick={() => handleUpgrade('enterprise')}
+                                onClick={() => handleUpgrade('team')}
                                 className="mb-5 w-full rounded-lg border border-border bg-surface-raised px-3 py-2 text-xs font-semibold text-gray-200 transition-colors hover:bg-surface-elevated"
                             >
-                                Contact Sales
+                                Choose Cloud hosting
                             </button>
                         )}
 

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 // Copyright (C) 2026 CrewForm
 
 import { Link } from 'react-router-dom'
@@ -33,8 +33,9 @@ export function Terms() {
                         <h2 className="mb-3 text-lg font-semibold text-gray-200">2. Description of Service</h2>
                         <p>
                             CrewForm is an AI agent management platform that allows users to create,
-                            configure, and orchestrate AI agents and workflows. The Service is provided
-                            on a subscription basis with free and paid tiers.
+                            configure, and orchestrate AI agents and workflows. All implemented software features are available under MIT for free self-hosting.
+                            CrewForm Cloud offers hosted resources with free and paid allowances. These
+                            terms govern the hosted Service; the software licence governs source-code use.
                         </p>
                     </section>
 
@@ -50,7 +51,7 @@ export function Terms() {
                     <section>
                         <h2 className="mb-3 text-lg font-semibold text-gray-200">4. Subscriptions &amp; Billing</h2>
                         <p>
-                            Paid features require a subscription. Subscriptions are billed in advance on a
+                            Paid Cloud hosting allowances require a subscription. Subscriptions are billed in advance on a
                             monthly basis. You may cancel your subscription at any time; access continues
                             until the end of the current billing period. Refunds are handled on a
                             case-by-case basis at our discretion.
@@ -64,7 +65,6 @@ export function Terms() {
                             <li>Use the Service for any unlawful purpose</li>
                             <li>Attempt to gain unauthorized access to any part of the Service</li>
                             <li>Interfere with or disrupt the Service&apos;s infrastructure</li>
-                            <li>Reverse engineer, decompile, or disassemble any part of the Service</li>
                             <li>Use the Service to transmit malicious code or harmful content</li>
                         </ul>
                     </section>
@@ -75,7 +75,8 @@ export function Terms() {
                             The Service and its original content, features, and functionality are owned by
                             CrewForm and are protected by international copyright, trademark, and other
                             intellectual property laws. You retain ownership of any data or content you
-                            submit to the Service.
+                            submit to the Service. The published CrewForm source is licensed under MIT;
+                            these terms do not restrict rights granted by that licence.
                         </p>
                     </section>
 

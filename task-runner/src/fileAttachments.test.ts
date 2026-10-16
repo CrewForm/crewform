@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 import {afterEach,it,expect,vi} from 'vitest';
 const fixture=vi.hoisted(()=>({records:[] as unknown[],download:vi.fn()}));
 vi.mock('./supabase',()=>({supabase:{from:()=>{const query={select:()=>query,eq:()=>query,limit:()=>query,then:(resolve:(value:{data:unknown[];error:null})=>unknown)=>Promise.resolve({data:fixture.records,error:null}).then(resolve)};return query;},storage:{from:()=>({download:fixture.download})}}}));

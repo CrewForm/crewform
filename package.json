@@ -1,6 +1,7 @@
 {
   "name": "crewform",
   "private": true,
+  "license": "MIT",
   "version": "1.10.0",
   "type": "module",
   "scripts": {

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 // Chat Widget Server — embeddable chat endpoint for CrewForm agents.
 // External websites embed a <script> tag that talks to these endpoints.
 // Mounts at /chat/* on the task runner HTTP server.

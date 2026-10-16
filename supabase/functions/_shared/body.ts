@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 /** Bounds Edge Function JSON before schema validation. */
 export async function readText(req: Request, maxBytes = 1_048_576): Promise<string> {
     if (Number(req.headers.get('content-length') ?? 0) > maxBytes) throw new Error('Request body too large');

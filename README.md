@@ -8,7 +8,7 @@
 
 CrewForm lets developers chain agents into inspectable workflows, keep credentials on their own infrastructure, and export configurations to Git. Use model APIs or Ollama, or connect an installed Codex, Claude Code, Gemini or Copilot agent through local CLI/ACP execution.
 
-[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![CI](https://github.com/CrewForm/crewform/actions/workflows/ci.yml/badge.svg)](https://github.com/CrewForm/crewform/actions/workflows/ci.yml)
 [![GitHub Stars](https://img.shields.io/github/stars/CrewForm/crewform?style=social)](https://github.com/CrewForm/crewform/stargazers)
 [![Discord](https://img.shields.io/discord/1476188192100323488?color=5865F2&label=Discord&logo=discord&logoColor=white)](https://discord.gg/TAFasJCTWs)
@@ -351,7 +351,7 @@ Move from scripts and prototypes to managed agent systems with visual operations
 
 ## Key Features
 
-### Community Edition (Free & Open Source)
+### Core software capabilities
 
 - 🔗 **Basic Orchestrator Mode** — A coordinator delegates work to other agents
 - 🔌 **Native agent execution** — CLI/ACP support on your own machine or trusted runner
@@ -378,47 +378,43 @@ Move from scripts and prototypes to managed agent systems with visual operations
 - 📡 **Observability** — Opt-in OpenTelemetry + Langfuse integration for tracing LLM calls, tool use, and team runs
 - 🤝 **AG-UI Rich Interactions** — Agents can pause and request approval, data confirmation, or choices from the user mid-execution. These interactions time out after five minutes and do not survive a worker restart
 
-### Enterprise Edition (Paid Plans)
+### Included software capabilities
 
-- 🛠️ **Custom Tools** — Extend agents with custom tool integrations *(Pro)*
-- 💬 **Collaboration Mode** — Agents discuss and debate tasks in real-time threads *(Team)*
-- 🧠 **Team Memory** — Shared pgvector semantic search across agents *(Team)*
-- 👤 **RBAC** — Role-based access control and workspace member invitations *(Team)*
+- 🛠️ **Custom Tools** — Extend agents with custom tool integrations
+- 💬 **Collaboration Mode** — Agents discuss and debate tasks in real-time threads
+- 🧠 **Team Memory** — Shared pgvector semantic search across agents
+- 👤 **RBAC** — Role-based access control and workspace member invitations
 
 ### Integrations
 
 - ⚡ **Zapier** — Connect CrewForm to 7,000+ apps. Trigger agents from Gmail, Slack, forms, or schedules
 - 📡 **Messaging Channels** — Trigger agents from Discord, Slack, Telegram, and Email
 - 📤 **Output Routes** — 16 destinations: Slack, Discord, Telegram, Teams, Asana, Trello, Notion, GitHub, Email, SMTP, Linear, Google Sheets, Gmail, Google Docs, Google Calendar, and HTTP webhooks
-- 📈 **Advanced Analytics** — Charts, CSV export, prompt history with diffs *(Pro)*
-- 💬 **Chat Widget** — Embed agents on any website *(Pro)*
-- 📋 **Audit Logs** — Full audit trail with Datadog/Splunk streaming *(Enterprise)*
-- 🐝 **Swarm** — Multi-runner concurrency pool *(Enterprise)*
+- 📈 **Advanced Analytics** — Charts, CSV export, prompt history with diffs
+- 💬 **Chat Widget** — Embed agents on any website
+- 📋 **Audit Logs** — Full audit trail with Datadog/Splunk streaming
+- 🐝 **Swarm** — Multi-runner concurrency pool
 
 ## Editions & Pricing
 
-CrewForm uses an **open-core** model: a free Community Edition under AGPL-3.0 and a proprietary Enterprise Edition.
+All CrewForm software features are free to use and self-host under [MIT](LICENSE).
+No activation key is required. Payment applies only to **CrewForm Cloud hosting**;
+provider/API usage and native provider subscriptions remain separate.
 
-| | Free | Pro | Team | Custom on-premises |
-|---|---|---|---|---|
-| Agents | 3 | 25 | Unlimited | Unlimited |
-| Workflow runs/month | 50 | 1,000 | 10,000 | Contracted |
-| Teams | 1 | 10 | Unlimited | Unlimited |
-| Members | 1 | 3 | 25 | Unlimited |
-| MCP Protocol | ✅ | ✅ | ✅ | ✅ |
-| AG-UI Protocol | ✅ | ✅ | ✅ | ✅ |
-| Knowledge Base | 3 docs | 25 docs | Unlimited | Unlimited |
-| A2A Consume | ✅ | ✅ | ✅ | ✅ |
-| A2A Publish | ✅ | ✅ | ✅ | ✅ |
-| Chat Widget | ✅ | ✅ | ✅ | ✅ |
-| Pipeline Mode | ✅ | ✅ | ✅ | ✅ |
-| Orchestrator Mode | ✅ | ✅ | ✅ | ✅ |
-| Collaboration Mode | — | — | ✅ | ✅ |
-| Team Memory | — | — | ✅ | ✅ |
-| Audit Logs | — | — | — | ✅ |
-| Self-Hosting | ✅ (CE) | ✅ | ✅ | ✅ |
+| Hosted resource | Cloud Free | Cloud Pro | Cloud Team |
+|---|---|---|---|
+| Price / workspace / month | $0 | $15 | $49 |
+| Agents | 3 | 25 | Unlimited |
+| Workflow runs / month | 50 | 1,000 | 10,000 |
+| Teams | 1 | 10 | Unlimited |
+| Members | 1 | 3 | 25 |
+| Knowledge documents | 3 | 25 | Unlimited |
+| Software features | All | All | All |
 
-> See [LICENSING.md](LICENSING.md) for full details on the dual-license model.
+Self-hosting has no CrewForm subscription or hosted plan quotas. Authorization,
+native-agent consent and operational safety limits still apply. Existing Cloud
+subscriptions retain their configured pricing and purchased allowances.
+See [LICENSING.md](LICENSING.md) for the hosting/licensing boundary.
 
 ## Documentation
 
@@ -527,13 +523,13 @@ CrewForm is an open-source AI orchestration platform that lets you deploy, manag
 <details>
 <summary><strong>Is CrewForm free to use?</strong></summary>
 
-Yes. CrewForm's Community Edition is open-source under the AGPL v3 license. You can self-host it for free. We also offer a hosted version with a free tier at [crewform.tech](https://crewform.tech). Paid plans (Pro $15/mo, Team $49/mo, Custom on-premises) unlock additional features.
+Yes. All implemented CrewForm features are available under MIT and free to self-host. [CrewForm Cloud](https://crewform.tech) offers hosted resource allowances with Free, Pro $15/month and Team $49/month plans. Paid hosting does not unlock additional software features.
 </details>
 
 <details>
 <summary><strong>What is the CE/EE split?</strong></summary>
 
-CrewForm uses an open-core model. All code outside `ee/` is Community Edition (AGPL-3.0, free). Code inside `ee/` is Enterprise Edition (proprietary, requires a license key). CE includes agents, pipeline teams, marketplace, and self-hosting. CE also includes basic orchestration, A2A publishing and template sharing. EE adds collaboration, memory, audit logs and organizational controls.
+The former CE/EE split has been retired. All CrewForm-owned code, including the legacy `ee/` directory, is MIT licensed. Collaboration, memory, audit logs and organizational controls are included without activation keys. Workspace permissions remain enforced.
 </details>
 
 <details>
@@ -587,12 +583,10 @@ These links describe each project's own capabilities; they are not a benchmark o
 
 ## License
 
-CrewForm uses a **dual-license** model:
-
-- **Community Edition** (everything outside `ee/`) — [GNU Affero General Public License v3.0](LICENSE)
-- **Enterprise Edition** (inside `ee/`) — [CrewForm Enterprise License](ee/LICENSE)
-
-You can use, modify, and distribute the Community Edition freely. Enterprise features require a valid license key. See [LICENSING.md](LICENSING.md) for full details.
+CrewForm-owned source is licensed under [MIT](LICENSE), including the legacy
+`ee/` directory. All implemented features are free to self-host. Payment applies
+only to CrewForm Cloud hosting. Third-party dependencies retain their own terms.
+See [LICENSING.md](LICENSING.md) for details.
 
 ## ⭐ Star History
 

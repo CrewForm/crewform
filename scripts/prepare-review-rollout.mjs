@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 // Prepares a reviewable SQL bundle; never connects to or changes a database.
 import {mkdir,readdir,readFile,writeFile} from 'node:fs/promises';
 import {resolve,dirname} from 'node:path';

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 // Copyright (C) 2026 CrewForm
 
 import { Sparkles } from 'lucide-react'
@@ -13,7 +13,7 @@ export function UpgradeBadge({ label }: { label?: string }) {
     return (
         <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-violet-500/20 to-indigo-500/20 border border-violet-500/30 px-2.5 py-0.5 text-xs font-medium text-violet-300">
             <Sparkles className="h-3 w-3" />
-            {label ?? 'Pro'}
+            {label ?? 'Included'}
         </span>
     )
 }
@@ -25,7 +25,6 @@ export function UpgradeBadge({ label }: { label?: string }) {
 export function UpgradeCard({
     title,
     description,
-    planLabel = 'Pro',
 }: {
     title: string
     description: string
@@ -38,15 +37,7 @@ export function UpgradeCard({
             </div>
             <h3 className="text-sm font-semibold text-gray-200">{title}</h3>
             <p className="mt-1 text-xs text-gray-400">{description}</p>
-            <a
-                href="https://crewform.tech/pricing"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-4 inline-flex items-center gap-1 rounded-lg bg-violet-600 px-4 py-2 text-xs font-medium text-white transition hover:bg-violet-500"
-            >
-                <Sparkles className="h-3.5 w-3.5" />
-                Upgrade to {planLabel}
-            </a>
+            <p className="mt-4 text-xs text-gray-300">All implemented features are included without a software subscription.</p>
         </div>
     )
 }

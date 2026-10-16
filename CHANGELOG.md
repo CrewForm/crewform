@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- CrewForm-owned source, CLI, local runtime and the former Enterprise directory
+  use MIT. All implemented software features are free without activation keys.
+- Payment applies only to CrewForm Cloud resources. Cloud Free, Pro and Team have
+  the same software capabilities and retain their hosted resource allowances.
+  The paid self-hosted Custom offer is retired; existing billing records remain.
+- Added migration 106 and server-owned deployment policy for hosted-only billing;
+  legacy activation endpoints return HTTP 410. See the
+  [transition guide](docs/mit-hosting-transition.md) before a coordinated upgrade.
+
+
 ## [1.10.0] - 2026-10-08
 
 ### Added

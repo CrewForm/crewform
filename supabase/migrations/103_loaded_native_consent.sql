@@ -1,4 +1,4 @@
--- SPDX-License-Identifier: AGPL-3.0-or-later
+-- SPDX-License-Identifier: MIT
 -- Bind the executed snapshot as well as current database configuration.
 DROP FUNCTION public.verify_native_consent(uuid,uuid,uuid,uuid,uuid);
 CREATE FUNCTION public.verify_native_consent(p_workspace_id uuid,p_user_id uuid,p_task_id uuid,p_team_run_id uuid,p_agent_id uuid,p_agent_snapshot jsonb) RETURNS boolean

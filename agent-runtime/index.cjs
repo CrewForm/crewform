@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 const { spawn } = require('node:child_process');
 const { realpathSync } = require('node:fs');
 const { isAbsolute } = require('node:path');

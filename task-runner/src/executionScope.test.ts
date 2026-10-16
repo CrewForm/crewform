@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 import {afterEach,describe,it,expect,vi} from 'vitest';
 const fixture=vi.hoisted(()=>({status:'running',runner:'owner',attempt:'attempt-one'}));
 vi.mock('./supabase',()=>({getRunnerIdentity:()=> 'owner',supabase:{from:()=>({select:()=>({eq:()=>({eq:()=>({single:async()=>({data:{status:fixture.status,claimed_by_runner:fixture.runner,execution_attempt_id:fixture.attempt},error:null})})})})})}}));

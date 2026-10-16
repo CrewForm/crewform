@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Monitor, RefreshCw } from 'lucide-react'

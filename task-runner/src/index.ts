@@ -8,7 +8,7 @@ import { processPipelineRun } from './pipelineExecutor';
 import { processOrchestratorRun } from './orchestratorExecutor';
 import { processCollaborationRun } from './collaborationExecutor';
 import { writeTeamRunAudit } from './auditWriter';
-import { isFeatureEnabled, validateLicensesOnStartup } from './license';
+import { isFeatureEnabled } from './license';
 import { handleA2ARequest } from './a2aServer';
 import { handleAgUiRequest } from './agUiServer';
 import { handleMcpServerRequest } from './mcpServer';
@@ -348,9 +348,6 @@ async function start() {
 
         // Initialize OpenTelemetry tracing (no-op if no env vars set)
         await initTracing();
-
-        // Validate EE licenses (HMAC signature check if CREWFORM_LICENSE_SECRET is set)
-        await validateLicensesOnStartup();
 
         log(`MAX_CONCURRENT=${MAX_CONCURRENT}`);
         log(`Webhook server on port ${PORT}`);

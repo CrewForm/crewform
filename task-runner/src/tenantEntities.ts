@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 import {supabase} from './supabase';
 /** Configuration UUIDs do not confer authority to read privileged tenant records. */
 export async function loadTenantEntities<T>(table: 'agents'|'custom_tools',workspaceId:string,ids:string[]):Promise<T[]> {

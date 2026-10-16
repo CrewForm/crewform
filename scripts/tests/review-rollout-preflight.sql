@@ -1,4 +1,4 @@
--- SPDX-License-Identifier: AGPL-3.0-or-later
+-- SPDX-License-Identifier: MIT
 -- Read-only structural prerequisite checks. A schema backup/diff is still required.
 SELECT name,present FROM (VALUES
  ('tenant_reference_guard',to_regprocedure('public.validate_tenant_references()') IS NOT NULL),

@@ -1,4 +1,4 @@
--- SPDX-License-Identifier: AGPL-3.0-or-later
+-- SPDX-License-Identifier: MIT
 -- Comprehensive security hardening following the August 2026 audit.
 
 BEGIN;

@@ -16,7 +16,7 @@
     "claude-code",
     "acp"
   ],
-  "license": "AGPL-3.0-or-later",
+  "license": "MIT",
   "author": {
     "name": "CrewForm",
     "email": "team@crewform.tech"

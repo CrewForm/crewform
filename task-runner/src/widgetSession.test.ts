@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 import {afterEach,it,expect,vi} from 'vitest';
 import {issueVisitorToken,verifyVisitorToken} from './widgetSession';
 afterEach(()=>{vi.unstubAllEnvs();vi.useRealTimers();});

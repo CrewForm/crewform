@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 import {supabase} from './supabase';
 import type {InteractionResponse} from './types';
 /** Persisted responses can be received by any runner; the event bus is only UI transport. */

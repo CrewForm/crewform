@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 import { PLAN_CATALOGUE } from '@/lib/planCatalogue'
 // Copyright (C) 2026 CrewForm
 
@@ -7,6 +7,7 @@ import { useWorkspace } from '@/hooks/useWorkspace'
 import { useSubscription, useUsage, useQuotaCheck, useCreatePortal } from '@/hooks/useBilling'
 import { PricingTable } from '@/components/billing/PricingTable'
 import { cn } from '@/lib/utils'
+import { useDeploymentPolicy } from '@/hooks/useDeploymentPolicy'
 
 const PLAN_COLORS: Record<string, string> = {
     free: 'text-gray-400 bg-gray-500/10',
@@ -56,6 +57,21 @@ function UsageMeter({ label, current, limit }: MeterProps) {
  * Reads plan from workspace.plan (single source of truth).
  */
 export function BillingSettings() {
+    const {data: policy, isLoading, error, refetch} = useDeploymentPolicy()
+    if (isLoading) return <p className="text-sm text-gray-300">Loading hosting configuration…</p>
+    if (error || !policy) return <div role="alert" className="space-y-3 text-sm text-gray-300">
+        <p>Could not load hosting configuration.</p>
+        <button type="button" className="text-brand-primary underline" onClick={() => { void refetch() }}>Try again</button>
+    </div>
+    if (!policy.hosted) return <div className="space-y-3">
+        <h2 className="text-lg font-semibold text-gray-100">Free self-hosting</h2>
+        <p className="text-sm text-gray-300">All CrewForm features are included under MIT. No subscription or activation key is required on your infrastructure.</p>
+        <p className="text-sm text-gray-300">You manage infrastructure and provider costs. Paid plans apply only to CrewForm Cloud hosting.</p>
+    </div>
+    return <CloudBillingSettings />
+}
+
+function CloudBillingSettings() {
     const { workspace, workspaceId } = useWorkspace()
     const { data: subscription, isLoading: isLoadingSub } = useSubscription(workspaceId)
     const { data: usage, isLoading: isLoadingUsage } = useUsage(workspaceId)
@@ -92,7 +108,7 @@ export function BillingSettings() {
                 <div className="mb-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <CreditCard className="h-5 w-5 text-brand-primary" />
-                        <h3 className="text-sm font-medium text-gray-200">Current Plan</h3>
+                        <h3 className="text-sm font-medium text-gray-200">Cloud hosting plan</h3>
                     </div>
                     <div className="flex items-center gap-2">
                         <span className={cn(
@@ -112,7 +128,7 @@ export function BillingSettings() {
 
                 {isBeta && (
                     <p className="mb-3 text-xs text-emerald-400/70">
-                        Beta access — all features unlocked with unlimited usage.
+                        Beta hosting allowance — all software features are included on every plan.
                     </p>
                 )}
 

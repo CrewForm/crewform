@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 import { withExecutionScope, executionFetch, executionSignal } from './executionScope';
 import { loadTenantEntities } from './tenantEntities';
 // Copyright (C) 2026 CrewForm

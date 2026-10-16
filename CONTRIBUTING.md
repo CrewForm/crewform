@@ -65,7 +65,7 @@ To set up the project locally for development:
 ## Project Structure
 
 *   `src/`: Frontend React application built with Vite, Tailwind CSS, and ShadCN UI.
-*   `ee/`: Enterprise Edition proprietary code (license validation, feature flags). **Requires CLA.**
+*   `ee/`: Legacy compatibility feature definitions, licensed under MIT.
 *   `task-runner/`: Node.js backend execution engine.
 *   `supabase/`: Database schema, migrations, and edge functions.
 *   `crewform-docs/`: Private project documentation (not required to contribute).
@@ -166,23 +166,8 @@ When a user creates a task:
 
 ## Community Edition vs Enterprise Edition
 
-CrewForm uses a dual-license (open-core) model:
-
-*   **Community Edition** (everything outside `ee/`)  — Licensed under AGPL-3.0. Contributions welcome!
-*   **Enterprise Edition** (inside `ee/`)  — Proprietary. Contributions require a signed **Contributor License Agreement (CLA)**.
-
-If you're unsure whether your change touches EE code, just open an issue or PR and we'll guide you.
-
-## License
-
-By contributing to Community Edition code (outside `ee/`), you agree that your contributions will be licensed under the project's [GNU Affero General Public License v3.0 (AGPL v3)](LICENSE).
-
-Contributions to Enterprise Edition code (inside `ee/`) require a signed Contributor License Agreement. Contact team@crewform.tech for details.
-
-## Small first contributions
-
-- Add a source-grounded workflow example under `examples/` with fixture input and a documented expected output shape.
-- Extend the fake ACP peer tests for fragmented events, unknown client requests or failed turns.
-- Improve native installation diagnostics without inspecting credentials or making paid model requests.
-
-Runtime tests: `npm --prefix agent-runtime test`. CLI checks: `npm --prefix cli run build` and `npm --prefix cli test`. Keep external-agent adapters allowlisted and avoid automatic subscription-to-API fallback.
+CrewForm source is licensed under [MIT](LICENSE), including the legacy `ee/`
+directory. All software features are free to self-host; payment applies only to
+CrewForm Cloud hosting. Contributions are accepted under MIT. Submit only work
+you have the right to contribute and preserve third-party notices. No proprietary
+Enterprise CLA is required for new contributions.

@@ -1,8 +1,8 @@
-// CrewForm Enterprise License
+// SPDX-License-Identifier: MIT
 // Copyright (C) 2026 CrewForm (AntiGravity Pty Ltd)
-// Licensed under the CrewForm Enterprise License (see ee/LICENSE)
+// Legacy import path; all listed software features are available under MIT.
 //
-// features.ts — Single source of truth for all EE feature names.
+// features.ts — Compatibility names for implemented software features.
 
 export const EE_FEATURES = {
     COLLABORATION_MODE: 'collaboration_mode',
@@ -24,8 +24,7 @@ export const EE_FEATURES = {
 export type EEFeature = (typeof EE_FEATURES)[keyof typeof EE_FEATURES];
 
 /**
- * All features included in each plan tier.
- * Higher tiers include all features from lower tiers.
+ * Legacy plan lookup: every hosting plan includes all implemented features.
  */
 import { PLAN_CATALOGUE } from './planCatalogue';
-export const PLAN_FEATURES: Record<string, EEFeature[]> = Object.fromEntries(Object.entries(PLAN_CATALOGUE.plans).map(([key, plan]) => [key, [...plan.features] as EEFeature[]]));
+export const PLAN_FEATURES: Record<string, EEFeature[]> = Object.fromEntries(Object.keys(PLAN_CATALOGUE.plans).map(key => [key, Object.values(EE_FEATURES)]));
