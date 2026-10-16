@@ -24,8 +24,7 @@ export const EE_FEATURES = {
 export type EEFeature = (typeof EE_FEATURES)[keyof typeof EE_FEATURES];
 
 /**
- * All features included in each plan tier.
- * Higher tiers include all features from lower tiers.
+ * Legacy plan lookup: every hosting plan includes all implemented features.
  */
 import { PLAN_CATALOGUE } from './planCatalogue';
-export const PLAN_FEATURES: Record<string, EEFeature[]> = Object.fromEntries(Object.entries(PLAN_CATALOGUE.plans).map(([key, plan]) => [key, [...plan.features] as EEFeature[]]));
+export const PLAN_FEATURES: Record<string, EEFeature[]> = Object.fromEntries(Object.keys(PLAN_CATALOGUE.plans).map(key => [key, Object.values(EE_FEATURES)]));

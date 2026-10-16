@@ -300,7 +300,7 @@ function WorkspacesTab() {
                                                 <option value="free">Free</option>
                                                 <option value="pro">Pro</option>
                                                 <option value="team">Team</option>
-                                                <option value="enterprise">Enterprise</option>
+                                                <option value="enterprise">Legacy hosted allowance</option>
                                             </select>
                                         </td>
                                         <td className="px-4 py-3">

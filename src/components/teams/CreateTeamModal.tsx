@@ -19,7 +19,7 @@ interface ModeOption {
     label: string
     icon: typeof GitBranch
     description: string
-    eeFeature?: string  // if set, requires EE license
+    eeFeature?: string  // implemented capability identifier
 }
 
 const MODES: ModeOption[] = [
