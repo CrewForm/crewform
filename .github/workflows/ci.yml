@@ -35,6 +35,8 @@ jobs:
           npm pack --pack-destination /tmp/crewform-package
           npm install --prefix /tmp/crewform-install /tmp/crewform-package/*.tgz --ignore-scripts
           /tmp/crewform-install/node_modules/.bin/crewform --version
+          /tmp/crewform-install/node_modules/.bin/crewform demo --json --output /tmp/crewform-package/review-pack.json > /tmp/crewform-package/demo.json
+          node -e "const p=JSON.parse(require('fs').readFileSync('/tmp/crewform-package/review-pack.json')); if(p.simulated!==true || p.humanReview!=='required') process.exit(1)"
 
   # ── Frontend: Build, Lint, Test ─────────────────────────────────────────
   build-and-test:

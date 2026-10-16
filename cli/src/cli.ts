@@ -7,9 +7,10 @@
 //        npx crewform chat agent.json
 //        npx crewform init
 //        npx crewform validate agent.json
-import { parseExecution, nativeEnvironment } from '@crewformhq/agent-runtime';
+import { parseExecution } from '@crewformhq/agent-runtime';
 import { connectDevice, startPersonalWorker, disconnectDevice, rotateDeviceCredential } from './personalWorker.js';
-import { spawnSync } from 'node:child_process';
+import { runOfflineDemo } from './demo.js';
+import { diagnose } from './doctor.js';
 
 import { Command } from 'commander';
 import chalk from 'chalk';
@@ -816,13 +817,27 @@ function formatUsage(usage: {totalTokens: number; costEstimateUSD: number; usage
     return usage.usageKnown === false ? 'Native account · token usage and cost unknown' : `${usage.totalTokens} tokens · $${usage.costEstimateUSD.toFixed(4)}`;
 }
 
-program.command('doctor').description('Check installed local agents without starting a model request').action(() => {
-    for (const command of ['codex', 'claude', 'gemini', 'copilot', 'codex-acp', 'claude-agent-acp']) {
-        const check = spawnSync(command, ['--version'], {encoding: 'utf8', timeout: 10000, env: nativeEnvironment(), shell: false});
-        console.log(`${command}: ${check.status === 0 ? (check.stdout.trim() || 'installed') : 'not available'}`);
-    }
-    console.log('Native login and subscription eligibility must be checked in each agent. No credentials were read or requests made.');
-});
+program.command('demo').description('Run the simulated review-pack pipeline offline; no account, provider or native agent needed')
+    .option('--json', 'Print machine-readable results')
+    .option('-o, --output <file>', 'Save the simulated review pack as JSON')
+    .action(async (options: {json?: boolean; output?: string}) => {
+        try {
+            const result = await runOfflineDemo();
+            if (options.output) writeFileSync(resolve(options.output), JSON.stringify(result.pack, null, 2) + '\n', {mode: 0o600});
+            console.log(options.json ? JSON.stringify(result) : `SIMULATED OFFLINE WALKTHROUGH\n${result.steps.map(s => `✓ ${s.stepName}: ${s.status}`).join('\n')}\n\n${JSON.stringify(result.pack, null, 2)}\n\nHuman review required. No model was called; these findings are scripted.`);
+        } catch (error) {console.error(error instanceof Error ? error.message : 'Demo failed'); process.exitCode = 1;}
+    });
+
+program.command('doctor').description('Check Node and installed local agents without a model request')
+    .option('--json', 'Print machine-readable diagnostics')
+    .option('--runtime <runtime>', 'Check one runtime, e.g. codex:cli; exit nonzero if unavailable')
+    .action((options: {json?: boolean; runtime?: string}) => {
+        try {
+            const report = diagnose(VERSION, options.runtime);
+            console.log(options.json ? JSON.stringify(report) : `CrewForm ${report.cliVersion} · Node ${report.node} · ${report.platform}\n${report.runtimes.map(r => `${r.runtime}: ${r.installed ? 'installed' : 'unavailable'} — ${r.nextAction}`).join('\n')}\n\n${report.scope}\nTry the offline walkthrough: ${report.offlineDemo}`);
+            if (!report.nodeSupported || (options.runtime && !report.runtimes[0]?.installed)) process.exitCode = 1;
+        } catch (error) {console.error(error instanceof Error ? error.message : 'Diagnostics failed'); process.exitCode = 1;}
+    });
 
 // ─── Parse & Run ─────────────────────────────────────────────────────────────
 

@@ -6,6 +6,21 @@ Run and export developer workflows across model APIs, Ollama and local agents. P
 npx @crewformhq/cli run agent.json "Summarise the latest AI news"
 ```
 
+## Offline walkthrough (0.3.0)
+
+```bash
+crewform demo --output review-pack.json
+crewform doctor --runtime codex:cli --json
+```
+
+The walkthrough runs the real pipeline with scripted simulated outputs and
+versioned JSON handoffs. It makes no model requests and needs no account or key.
+The exported pack is marked simulated and requires human review. `doctor` checks
+executable availability, not login or subscription eligibility.
+
+From a checkout before installing the package, use `npm --prefix cli ci`,
+`npm --prefix cli run build`, then `node cli/dist/cli.js demo`.
+
 ## Quick Start
 
 ```bash
