@@ -16,6 +16,13 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
+    fs: {
+      strict: true,
+      // Preserve Vite's default private-file exclusions and also protect the
+      // generated local backend configuration, CLI state and database archives.
+      deny: ['.env', '.env.*', '*.{crt,pem,key,p12,pfx,cer,der}', '.npmrc', '.yarnrc.yml', '**/.git/**',
+        '**/*.env', '**/.crewform-local/**', '**/supabase/.temp/**', '**/*.dump'],
+    },
   },
   build: {
     sourcemap: true,

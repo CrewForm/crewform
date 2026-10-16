@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: MIT
+name: Development server file boundary
+on:
+  pull_request:
+    paths: ['vite.config.ts', 'scripts/tests/dev-files.mjs', '.github/workflows/dev-server-security.yml', 'package.json', 'package-lock.json']
+  push:
+    branches: [main]
+    paths: ['vite.config.ts', 'scripts/tests/dev-files.mjs', '.github/workflows/dev-server-security.yml', 'package.json', 'package-lock.json']
+jobs:
+  private-files:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: node scripts/tests/dev-files.mjs
