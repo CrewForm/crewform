@@ -10,6 +10,7 @@ first result must demonstrate the value.
 | Work | Acceptance criteria | Status |
 |---|---|---|
 | First result | Account-free scripted walkthrough exercises actual pipeline handoffs; outputs clearly marked simulated; current full-stack setup instructions | Implemented in this branch |
+| Demo lifecycle | Quota failures leave no partial setup; cleanup uses immutable resource identity and preserves edited/reused agents; legacy markers never authorize deletion | Implemented; migration 109 required |
 | Setup diagnostics | Machine-readable runtime availability; no inference requests or credential output; installation does not imply authentication | Implemented in this branch |
 | Stream interruptions | Preserve partial output; distinguish transport interruption from execution failure; no implicit retry; stale connection fencing and bounded parsing tests | Implemented in this branch |
 | Pipeline recovery | Durable completed step outputs and configuration/input identity; continuation at committed boundaries; stale worker, cancellation and uncertain-effect tests | Implemented; migration 107 and matching runner required |
