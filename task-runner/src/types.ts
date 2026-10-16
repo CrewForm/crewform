@@ -180,6 +180,7 @@ export interface TeamRun {
 }
 
 export interface PipelineStep {
+    output_contract?: import('./handoffContract').HandoffContract;
     agent_id: string;
     step_name: string;
     instructions: string;

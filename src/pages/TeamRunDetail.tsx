@@ -187,6 +187,7 @@ export function TeamRunDetail() {
                                     ${run.cost_estimate_usd.toFixed(4)}
                                 </span>
                             )}
+                            {checkpointQuery.data?.results.some(result => result?.usage.usageKnown === false) && <span>Native usage/cost partly or fully unknown</span>}
                         </div>
                     </div>
 

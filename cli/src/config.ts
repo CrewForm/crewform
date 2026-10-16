@@ -5,6 +5,7 @@
 import { parseExecution } from '@crewformhq/agent-runtime';
 
 import { z } from 'zod';
+import {validateHandoffContract} from './handoffContract.js';
 import { readFileSync, existsSync } from 'fs';
 
 // ─── Schemas ─────────────────────────────────────────────────────────────────
@@ -55,6 +56,7 @@ const pipelineStepSchema = z.object({
     step_name: z.string(),
     instructions: z.string().default(''),
     expected_output: z.string().default(''),
+    output_contract: z.unknown().optional(),
     on_failure: z.enum(['retry', 'stop', 'skip']).default('stop'),
     max_retries: z.number().default(1),
     type: z.enum(['sequential', 'fan_out']).default('sequential'),
@@ -140,6 +142,7 @@ export function parseConfigFile(filePath: string): ParsedConfig {
         } else {
             const team = teamExportSchema.parse(wrapper.data);
             team.agents.forEach(entry => validateExecution(entry.agent));
+            team.config.steps?.forEach(step => validateHandoffContract(step.output_contract));
         return { type: 'team', team };
         }
     }
@@ -148,6 +151,7 @@ export function parseConfigFile(filePath: string): ParsedConfig {
     if (Array.isArray(obj.agents) && (obj.mode || (obj.config && typeof obj.config === 'object'))) {
         const team = teamExportSchema.parse(obj);
         team.agents.forEach(entry => validateExecution(entry.agent));
+            team.config.steps?.forEach(step => validateHandoffContract(step.output_contract));
         return { type: 'team', team };
     }
 

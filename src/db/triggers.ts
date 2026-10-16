@@ -3,6 +3,7 @@
 
 import { supabase } from '@/lib/supabase'
 import { enforceQuota } from '@/lib/enforceQuota'
+import {isValidCronExpression} from '@/lib/cron'
 
 export type TriggerType = 'cron' | 'webhook' | 'manual'
 export type TriggerLogStatus = 'fired' | 'failed'
@@ -70,6 +71,7 @@ export async function fetchTeamTriggers(teamId: string): Promise<AgentTrigger[]>
 
 /** Create a new trigger for an agent */
 export async function createTrigger(input: CreateTriggerInput): Promise<AgentTrigger> {
+    if (input.trigger_type === 'cron' && !isValidCronExpression(input.cron_expression ?? '')) throw new Error('Use a valid five-field numeric UTC cron expression. Sunday is 0 or 7.')
     await enforceQuota(input.workspace_id, 'triggers')
 
     // Generate a webhook token if webhook type
@@ -104,6 +106,7 @@ export interface CreateTeamTriggerInput {
 
 /** Create a new trigger for a team */
 export async function createTeamTrigger(input: CreateTeamTriggerInput): Promise<AgentTrigger> {
+    if (input.trigger_type === 'cron' && !isValidCronExpression(input.cron_expression ?? '')) throw new Error('Use a valid five-field numeric UTC cron expression. Sunday is 0 or 7.')
     await enforceQuota(input.workspace_id, 'triggers')
 
     const data = {

@@ -37,6 +37,8 @@ jobs:
           deno-version: v2.x
       - name: Check Edge Function dependencies and types
         run: deno check supabase/functions/*/index.ts
+      - name: Shared scheduling fixtures in the Edge runtime
+        run: deno test --allow-read=supabase/functions/_shared supabase/functions/_shared/cron_test.ts
   container-audit:
     runs-on: ubuntu-latest
     steps:

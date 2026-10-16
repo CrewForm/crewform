@@ -16,7 +16,8 @@ export function pipelineTotals(results: BoundaryCheckpoint['results']) {
     const completed = results.filter((result): result is PipelineStepResult => result !== null);
     return {outputs: completed.map(result => result.output),
         tokens: completed.reduce((sum, result) => sum + result.usage.totalTokens, 0),
-        cost: completed.reduce((sum, result) => sum + result.usage.costEstimateUSD, 0)};
+        cost: completed.reduce((sum, result) => sum + result.usage.costEstimateUSD, 0),
+        usageKnown: completed.every(result => result.usage.usageKnown !== false)};
 }
 
 /** The production loop. Persistence/authority checks must finish before dispatch. */

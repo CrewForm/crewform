@@ -84,6 +84,7 @@ interface TeamRunUsageInput {
     promptTokens?: number;
     completionTokens?: number;
     costEstimateUsd: number;
+    usageKnown?: boolean;
 }
 
 /**
@@ -91,6 +92,7 @@ interface TeamRunUsageInput {
  */
 export async function writeTeamRunUsageRecord(input: TeamRunUsageInput): Promise<void> {
     const billingModel = detectBillingModel(input.provider);
+    const known = input.usageKnown !== false && !input.provider.startsWith('native-');
 
     const { error } = await supabase.from('usage_records').insert({
         workspace_id: input.workspaceId,
@@ -98,15 +100,16 @@ export async function writeTeamRunUsageRecord(input: TeamRunUsageInput): Promise
         tokens_used: input.tokensUsed,
         prompt_tokens: input.promptTokens ?? 0,
         completion_tokens: input.completionTokens ?? 0,
-        cost_usd: input.provider.startsWith('native-') ? null : (billingModel === 'per-token' ? input.costEstimateUsd : 0),
+        cost_usd: !known ? null : (billingModel === 'per-token' ? input.costEstimateUsd : 0),
         agent_id: input.agentId,
         team_run_id: input.teamRunId,
         metadata: {
             provider: input.provider,
             model: input.model,
             billing_model: billingModel,
-            usage_known: !input.provider.startsWith('native-'),
-            cost_known: billingModel === 'per-token',
+            usage_known: known,
+            reported_cost_usd: input.costEstimateUsd,
+            cost_known: known && billingModel === 'per-token',
             step_index: input.stepIndex,
             step_name: input.stepName,
         },
@@ -115,6 +118,6 @@ export async function writeTeamRunUsageRecord(input: TeamRunUsageInput): Promise
     if (error) {
         console.error(`[UsageWriter] Failed to write team run usage record for run ${input.teamRunId} step ${input.stepIndex}:`, error.message);
     } else {
-        console.log(`[UsageWriter] Recorded team run step ${input.stepIndex} usage: ${input.provider.startsWith('native-') ? 'native usage and cost unknown' : `${input.tokensUsed} tokens, $${input.costEstimateUsd.toFixed(4)}`} (${billingModel})`);
+        console.log(`[UsageWriter] Recorded team run step ${input.stepIndex} usage: ${!known ? 'native usage and cost partly or fully unknown' : `${input.tokensUsed} tokens, $${input.costEstimateUsd.toFixed(4)}`} (${billingModel})`);
     }
 }

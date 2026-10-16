@@ -155,6 +155,7 @@ export interface PipelineConfig {
 }
 
 export interface PipelineStep {
+  output_contract?: import('@/lib/handoffContract').HandoffContract
   agent_id: string
   step_name: string
   instructions: string

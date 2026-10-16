@@ -14,12 +14,12 @@ first result must demonstrate the value.
 | Stream interruptions | Preserve partial output; distinguish transport interruption from execution failure; no implicit retry; stale connection fencing and bounded parsing tests | Implemented in this branch |
 | Pipeline recovery | Durable completed step outputs and configuration/input identity; continuation at committed boundaries; stale worker, cancellation and uncertain-effect tests | Implemented; migration 107 and matching runner required |
 | Human decisions | Durable actor-bound approvals, expiry and cancellation; decisions visible with the run | Implemented for pipeline boundaries; approvals expire after 24 hours |
-| Handoff contracts | Versioned schemas validated before downstream consumption across supported runtimes | Pending; offline demo validates its own fixed contracts only |
+| Handoff contracts | Versioned schemas validated before downstream consumption across supported runtimes | Implemented bounded v1 schema subset; CLI→ACP protocol fixtures included |
 | Run history | Inputs, outputs, tools, decisions, attempts, delivery and recovery in one inspectable/exportable record | Committed outputs/decisions in run view; versioned authorized evidence export implemented |
 | Personal-worker coordination | Per-step approved device selection; honest offline waiting, revocation and consent; no shared native accounts | After recovery and decisions |
-| Scheduling consistency | Shared validated cron semantics and fixtures in runner and Edge scheduler | Pending |
+| Scheduling consistency | Shared validated cron semantics and fixtures in runner and Edge scheduler | Shared UTC evaluator/context builder and Node/Deno fixtures implemented |
 | Published CLI | New immutable MIT package version, packaged offline smoke and accurate public installation docs | Version 0.3.0 prepared; publication requires npm authentication |
-| Adoption evidence | Useful supplied-patch workflow; first-artifact and repeat-use measures only with explicit opt-in | Pending |
+| Adoption evidence | Useful supplied-patch workflow; first-artifact and repeat-use measures only with explicit opt-in | Supplied-patch review-pack example implemented; opt-in measurement still pending |
 
 Each row needs its own implementation evidence. This checklist does not claim
 the remaining capabilities have shipped. The scripted review pack demonstrates
