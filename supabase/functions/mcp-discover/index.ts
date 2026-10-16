@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 import { readJson } from '../_shared/body.ts';
 // Copyright (C) 2026 CrewForm
 //

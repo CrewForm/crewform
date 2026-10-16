@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {getAvailableTools,executeWithToolLoop} from '../dist/tools.js';

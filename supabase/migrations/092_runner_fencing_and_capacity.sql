@@ -1,4 +1,4 @@
--- SPDX-License-Identifier: AGPL-3.0-or-later
+-- SPDX-License-Identifier: MIT
 CREATE FUNCTION public.fence_runner_write() RETURNS trigger LANGUAGE plpgsql SET search_path='' AS $$
 DECLARE v_runner text:=current_setting('request.headers',true)::jsonb->>'x-crewform-runner-id';
 BEGIN

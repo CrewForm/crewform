@@ -1,4 +1,4 @@
--- SPDX-License-Identifier: AGPL-3.0-or-later
+-- SPDX-License-Identifier: MIT
 -- Personal devices have narrow grants, never a user JWT or service-role key.
 CREATE TABLE public.personal_devices (
  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,

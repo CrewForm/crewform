@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 import type {IncomingMessage,ServerResponse} from 'node:http';
 import {readBody,boundedJson,HttpInputError} from './httpInput';
 import {safeFetch,readTextLimited,validateProviderBaseUrl} from './urlSafety';

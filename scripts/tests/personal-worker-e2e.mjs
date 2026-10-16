@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 // Local-only Cloud API → CLI fixture; --live-codex explicitly opts into a native login.
 import assert from 'node:assert/strict';
 import {execFileSync} from 'node:child_process';

@@ -1,4 +1,4 @@
--- SPDX-License-Identifier: AGPL-3.0-or-later
+-- SPDX-License-Identifier: MIT
 -- Server-owned deployment policy, actor integrity and atomic usage reservations.
 CREATE TABLE public.deployment_policy (
     singleton boolean PRIMARY KEY DEFAULT true CHECK (singleton),

@@ -1,4 +1,4 @@
--- SPDX-License-Identifier: AGPL-3.0-or-later
+-- SPDX-License-Identifier: MIT
 -- Copyright (C) 2026 CrewForm
 --
 -- 048_api_rate_limits.sql — Per-workspace API rate limiting with sliding window.

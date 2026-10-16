@@ -205,7 +205,7 @@ Credentials are saved to `~/.crewform/config.json`. Self-hosted users can set `-
 
 ## License
 
-AGPL-3.0-or-later · [CrewForm](https://crewform.tech)
+MIT · [CrewForm](https://crewform.tech)
 
 ## Local agent logins
 

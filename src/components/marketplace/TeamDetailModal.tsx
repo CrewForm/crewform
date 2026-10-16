@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 // Copyright (C) 2026 CrewForm
 
 import { X, Download, Star, GitBranch, Users, Zap, Loader2 } from 'lucide-react'

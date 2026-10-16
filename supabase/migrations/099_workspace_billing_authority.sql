@@ -1,4 +1,4 @@
--- SPDX-License-Identifier: AGPL-3.0-or-later
+-- SPDX-License-Identifier: MIT
 -- Workspace edit rights never confer billing or quota-exemption authority.
 CREATE FUNCTION public.protect_workspace_entitlements() RETURNS trigger LANGUAGE plpgsql SET search_path='' AS $$
 BEGIN

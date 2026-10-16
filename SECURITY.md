@@ -59,7 +59,7 @@ CrewForm takes security seriously. Current measures include:
 
 - **AES-256-GCM encryption** for all stored API keys
 - **Row-Level Security (RLS)** in Supabase for multi-tenant data isolation
-- **AGPL licence headers** enforced via CI
+- **MIT licence headers** enforced via CI
 - **Sensitive document guards** in CI to prevent internal docs from leaking to the public repo
 
 ## Recognition

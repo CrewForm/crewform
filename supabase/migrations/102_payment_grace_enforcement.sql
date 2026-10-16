@@ -1,4 +1,4 @@
--- SPDX-License-Identifier: AGPL-3.0-or-later
+-- SPDX-License-Identifier: MIT
 -- Grace is measured from first observed delinquency, not next month's period end.
 ALTER TABLE public.subscriptions ADD COLUMN past_due_since timestamptz;
 CREATE FUNCTION public.track_payment_grace() RETURNS trigger LANGUAGE plpgsql SET search_path='' AS $$

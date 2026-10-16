@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 // MCP Server — exposes CrewForm agents as MCP tools via Streamable HTTP.
 // External clients (Claude Desktop, Cursor, other agents) connect here
 // and can call CrewForm agents as if they were MCP tools.

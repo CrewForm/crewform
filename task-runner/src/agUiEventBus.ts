@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 // AG-UI Event Bus — in-process pub/sub for AG-UI protocol events.
 // The executor publishes events; the SSE endpoint subscribes per task.
 // Rich interactions: executor can request user input and wait for a response.

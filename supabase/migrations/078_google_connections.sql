@@ -1,4 +1,4 @@
--- SPDX-License-Identifier: AGPL-3.0-or-later
+-- SPDX-License-Identifier: MIT
 -- Copyright (C) 2026 CrewForm
 --
 -- 078_google_connections.sql — Google Workspace OAuth token storage + new output route types

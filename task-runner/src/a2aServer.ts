@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 // A2A Protocol Server — exposes CrewForm agents as A2A-compatible endpoints.
 // Handles Agent Card discovery and task execution via JSON-RPC.
 

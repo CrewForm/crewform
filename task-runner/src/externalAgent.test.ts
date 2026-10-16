@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 import { beforeEach, afterEach, describe, it, expect, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
     consent: vi.fn(), single: vi.fn(), execute: vi.fn(), eq: vi.fn(),

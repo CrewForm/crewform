@@ -1,4 +1,4 @@
--- SPDX-License-Identifier: AGPL-3.0-or-later
+-- SPDX-License-Identifier: MIT
 -- Copyright (C) 2026 CrewForm
 --
 -- 005_team_execution.sql — Team run execution tables

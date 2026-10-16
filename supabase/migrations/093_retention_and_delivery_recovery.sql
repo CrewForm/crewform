@@ -1,4 +1,4 @@
--- SPDX-License-Identifier: AGPL-3.0-or-later
+-- SPDX-License-Identifier: MIT
 CREATE FUNCTION public.retry_output_delivery(p_delivery_id uuid,p_acknowledge_duplicate boolean DEFAULT false) RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 DECLARE v_delivery public.output_delivery_queue%ROWTYPE;

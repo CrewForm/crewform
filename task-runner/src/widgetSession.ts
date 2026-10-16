@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 import {createHmac,randomBytes,timingSafeEqual} from 'node:crypto';
 const TTL=30*24*60*60*1000;
 function secret() {const value=process.env.WIDGET_SESSION_SECRET??process.env.WEBHOOK_SECRET;if(!value) throw new Error('Widget session signing is not configured');return value;}

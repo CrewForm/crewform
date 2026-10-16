@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 // Knowledge Base Search Endpoint — direct retrieval testing without task execution.
 // Mounts at /kb/* on the task runner HTTP server.
 

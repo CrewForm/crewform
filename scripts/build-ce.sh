@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: MIT
 # Copyright (C) 2026 CrewForm
 #
 # build-ce.sh — Build the CrewForm Community Edition distribution.

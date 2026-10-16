@@ -1,4 +1,4 @@
--- SPDX-License-Identifier: AGPL-3.0-or-later
+-- SPDX-License-Identifier: MIT
 -- A task SET NULL and trigger CASCADE can fire in either order during workspace
 -- deletion. Check the surviving trigger reference at transaction end, after the
 -- cascade removes its log rows. Ordinary writes still require a valid trigger.

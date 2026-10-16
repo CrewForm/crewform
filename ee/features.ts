@@ -1,8 +1,8 @@
-// CrewForm Enterprise License
+// SPDX-License-Identifier: MIT
 // Copyright (C) 2026 CrewForm (AntiGravity Pty Ltd)
-// Licensed under the CrewForm Enterprise License (see ee/LICENSE)
+// Legacy import path; all listed software features are available under MIT.
 //
-// features.ts — Single source of truth for all EE feature names.
+// features.ts — Compatibility names for implemented software features.
 
 export const EE_FEATURES = {
     COLLABORATION_MODE: 'collaboration_mode',

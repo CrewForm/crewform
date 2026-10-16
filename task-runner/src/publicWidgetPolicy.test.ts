@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 import {describe,it,expect} from 'vitest';
 import type {Agent} from './types';
 import {publicWidgetAgent} from './publicWidgetPolicy';

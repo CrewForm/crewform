@@ -1,4 +1,4 @@
--- SPDX-License-Identifier: AGPL-3.0-or-later
+-- SPDX-License-Identifier: MIT
 ALTER TABLE public.team_runs DROP CONSTRAINT team_runs_status_check;
 ALTER TABLE public.team_runs ADD CONSTRAINT team_runs_status_check CHECK(status IN('draft','pending','running','paused','completed','failed','cancelled'));
 CREATE FUNCTION public.require_new_manual_run() RETURNS trigger LANGUAGE plpgsql SET search_path='' AS $$

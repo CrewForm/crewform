@@ -1,4 +1,4 @@
--- SPDX-License-Identifier: AGPL-3.0-or-later
+-- SPDX-License-Identifier: MIT
 -- Reclaiming on the same runner must not authorize writes from an older attempt.
 ALTER TABLE public.tasks ADD COLUMN execution_attempt_id uuid;
 ALTER TABLE public.team_runs ADD COLUMN execution_attempt_id uuid;

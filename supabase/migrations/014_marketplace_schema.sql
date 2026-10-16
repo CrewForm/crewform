@@ -1,4 +1,4 @@
--- SPDX-License-Identifier: AGPL-3.0-or-later
+-- SPDX-License-Identifier: MIT
 -- Copyright (C) 2026 CrewForm
 --
 -- 014_marketplace_schema.sql — Marketplace columns on agents + installs & reviews

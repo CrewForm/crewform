@@ -1,69 +1,41 @@
-# CrewForm Licensing
+# CrewForm licensing and hosting
 
-CrewForm uses a **dual-license** model: an open-source Community Edition and a proprietary Enterprise Edition.
+All CrewForm-owned source code in this repository, including the CLI, local
+agent runtime and the legacy `ee/` directory, is licensed under the [MIT License](LICENSE).
+All implemented features are free to use, modify and self-host. No activation
+key or paid software licence is required. Third-party dependencies retain their
+own licences and notices.
 
-## Community Edition (CE)
+## CrewForm Cloud
 
-**License:** [GNU Affero General Public License v3.0 (AGPL-3.0)](LICENSE)
+Payment is only for using CrewForm's hosted environment. Cloud Free, Pro
+($15/workspace/month) and Team ($49/workspace/month) include the same software
+capabilities, with different hosted resource allowances. Provider/API usage and
+native provider subscription costs are separate. Existing subscriptions retain
+their configured prices and purchased allowances until deliberately changed.
 
-All code **outside** the `ee/` directory is licensed under AGPL-3.0. You are free to use, modify, and distribute this code under the terms of the AGPL-3.0 license. If you deploy a modified version as a network service, you must make your source code available to users of that service.
+There is no paid self-hosted or Enterprise software edition. The legacy
+`enterprise` database plan and `ee_licenses` records remain for compatibility
+with existing hosted billing data; they do not control software feature access.
+Legacy activation/generation/validation/revocation endpoints return HTTP 410.
 
-**CE includes:**
-- Agent creation, templates, and configuration
-- Single-agent task execution
-- Pipeline mode for teams
-- BYOK API key management
-- Dashboard with basic statistics
-- Marketplace browsing and agent installation
-- HTTP webhook destinations
-- Self-hosting via Docker Compose
-- REST API (basic CRUD)
+## Self-hosting
 
-## Enterprise Edition (EE)
+Use all implemented features on infrastructure you manage, including collaboration,
+team memory, RBAC, analytics, audit logs and multiple runners. Deployment and
+provider costs are yours. Set the server-owned `deployment_policy.hosted=false`
+when configuring your own deployment; the local evaluation bootstrap does this.
+Do not change this policy on CrewForm Cloud. Browser flags cannot bypass hosted
+quotas. Authorization, native consent and operational safety limits apply in
+both environments.
 
-**License:** [CrewForm Enterprise License](ee/LICENSE)
+## Contributions and earlier versions
 
-All code **inside** the `ee/` directory is proprietary and requires a valid Enterprise license key. This code is not covered by the AGPL-3.0 license.
+New contributions are accepted under MIT. Contributors must have the right to
+submit their work and preserve applicable third-party notices. No proprietary
+Enterprise contributor agreement is required for the current source.
 
-**EE adds (Pro and above):**
-- Advanced analytics, charts, and CSV export
-- Prompt history with diff viewer
-- Advanced webhooks (Slack, Discord, Zapier, Asana, Trello)
-- Messaging channels (Telegram, Discord bots)
-- Team triggers (scheduled + webhook)
-- File attachments
-- Custom tools
-- Billing and Stripe integration
-
-**EE adds (Team and above):**
-- Collaboration mode (multi-agent discussion)
-- Team Memory (pgvector semantic search)
-- Workspace members, RBAC, and invitations
-
-**EE adds (Enterprise):**
-- Audit log viewer and log streaming (Datadog/Splunk)
-- Swarm (multi-runner concurrency pool)
-- Admin panel
-- SSO / SAML (coming soon)
-
-## Obtaining a License
-
-To use Enterprise features, you need a license key:
-
-1. **CrewForm Cloud** — Enterprise features are included with paid subscriptions at [crewform.tech](https://crewform.tech):
-   - **Pro** — $15/month (Channels, custom tools, advanced analytics)
-   - **Team** — $49/month (Collaboration mode, memory, RBAC)
-   - **Custom on-premises** — Custom pricing (Audit logs and swarm; SSO is planned)
-2. **Self-hosted** — Contact [team@crewform.tech](mailto:team@crewform.tech) for a self-hosted license key
-
-## Contributing
-
-- Contributions to **Community Edition** (outside `ee/`) are welcome under AGPL-3.0
-- Contributions to **Enterprise Edition** (inside `ee/`) require a signed Contributor License Agreement (CLA)
-- Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines
-
-## Questions?
-
-If you're unsure about licensing, reach out at [team@crewform.tech](mailto:team@crewform.tech).
-
-Basic orchestration, marketplace publishing, A2A publishing and the chat widget are Community Edition capabilities. Hosted Free plan resource limits are separate from self-hosted Community Edition.
+Previously released versions retain the licences distributed with them. This
+transition does not rewrite old tags, remove third-party obligations or revoke
+rights already granted. New npm publications must include the MIT licence and
+accurate package metadata; existing npm versions are unchanged.

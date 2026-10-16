@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 // Copyright (C) 2026 CrewForm
 
 import { Globe, MessageSquare, Hash, Send, Users, CheckSquare, Radio, Columns3, BookOpen, Mail, Server, Layers, Table2, FileText, CalendarDays } from 'lucide-react'

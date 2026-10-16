@@ -1,4 +1,4 @@
--- SPDX-License-Identifier: AGPL-3.0-or-later
+-- SPDX-License-Identifier: MIT
 -- Copyright (C) 2026 CrewForm
 --
 -- 065_feature_tier_limits.sql — Add plan limits for Knowledge Base and A2A publishing

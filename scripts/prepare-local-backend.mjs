@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 // Stage a complete Supabase CLI project without touching linked project state.
 import { mkdir, readdir, readFile, writeFile, cp, rm } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';

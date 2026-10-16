@@ -1,7 +1,6 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 // Copyright (C) 2026 CrewForm
 
-import { isCommunityEdition } from '@/lib/featureFlags'
 
 import { supabase } from '@/lib/supabase'
 
@@ -72,11 +71,15 @@ export async function fetchPlanLimits(plan: string): Promise<PlanLimit[]> {
         .eq('plan', plan)
 
     if (result.error) throw result.error
+    // Use server-owned policy for displayed limits, not a browser edition flag.
+    const policyResult: {data: unknown; error: {message: string} | null} = await supabase.rpc('get_deployment_policy')
+    if (policyResult.error) throw new Error(policyResult.error.message)
+    const policy = policyResult.data
+    if (typeof (policy as {hosted?: unknown} | null)?.hosted !== 'boolean') throw new Error('Hosting configuration is unavailable')
     const limits = result.data as PlanLimit[]
-    return isCommunityEdition() ? limits.map(limit => ({
-        ...limit,
-        max_value: limit.resource === 'csv_export' ? 0 : ['orchestrator', 'a2a_publish'].includes(limit.resource) ? 1 : -1,
-    })) : limits
+    return (policy as {hosted: boolean}).hosted ? limits : limits.map(limit => ({
+        ...limit, max_value: ['csv_export', 'orchestrator', 'a2a_publish'].includes(limit.resource) ? 1 : -1,
+    }))
 }
 
 /** Get the limit for a specific resource on a plan */

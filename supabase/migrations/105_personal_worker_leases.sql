@@ -1,4 +1,4 @@
--- SPDX-License-Identifier: AGPL-3.0-or-later
+-- SPDX-License-Identifier: MIT
 ALTER TABLE public.tasks ADD COLUMN execution_device_id uuid REFERENCES public.personal_devices(id) ON DELETE SET NULL;
 ALTER TABLE public.personal_devices ADD COLUMN active_task_id uuid REFERENCES public.tasks(id) ON DELETE SET NULL;
 GRANT SELECT(active_task_id) ON public.personal_devices TO authenticated;

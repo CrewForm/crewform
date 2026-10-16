@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 import type {Agent} from './types';
 /** Public visitors receive explicitly granted read-only capabilities, not workspace tools. */
 export function publicWidgetAgent(agent:Agent):Agent {

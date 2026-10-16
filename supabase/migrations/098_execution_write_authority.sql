@@ -1,4 +1,4 @@
--- SPDX-License-Identifier: AGPL-3.0-or-later
+-- SPDX-License-Identifier: MIT
 CREATE FUNCTION public.protect_execution_state() RETURNS trigger LANGUAGE plpgsql SET search_path='' AS $$
 BEGIN
  IF auth.role()='authenticated' AND NOT public.is_super_admin() AND TG_OP='UPDATE' THEN

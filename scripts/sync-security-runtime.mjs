@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 import {readFile,writeFile} from 'node:fs/promises';
 const root=new URL('../',import.meta.url);
 const source=await readFile(new URL('shared/urlSafety.ts',root),'utf8');

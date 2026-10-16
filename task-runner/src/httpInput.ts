@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 import type { IncomingMessage } from 'http';
 export class HttpInputError extends Error {
     constructor(message: string, readonly status = 400) { super(message); }

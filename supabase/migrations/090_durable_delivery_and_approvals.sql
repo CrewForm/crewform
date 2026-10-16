@@ -1,4 +1,4 @@
--- SPDX-License-Identifier: AGPL-3.0-or-later
+-- SPDX-License-Identifier: MIT
 CREATE TABLE public.output_delivery_queue (
  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), workspace_id uuid NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
  route_id uuid NOT NULL, route_kind text NOT NULL CHECK(route_kind IN('route','zapier')),

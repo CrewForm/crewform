@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 import { beforeEach, afterEach, describe, it, expect, vi } from 'vitest';
 vi.mock('node:dns/promises', () => ({lookup: vi.fn(async () => [{address:'93.184.216.34',family:4}])}));
 import { lookup } from 'node:dns/promises';

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 // A2A Protocol Client — sends tasks to external A2A agents.
 // Used by the a2a_delegate built-in tool.
 

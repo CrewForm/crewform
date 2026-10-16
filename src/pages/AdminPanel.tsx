@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 // Copyright (C) 2026 CrewForm
 
 import { useState, useEffect, useMemo } from 'react'
@@ -17,14 +17,13 @@ import {
     useWorkspaceUsageStats, useUsageSpikes, useKeyRotationAlerts,
 } from '@/hooks/useAdmin'
 import { ReviewQueue } from '@/components/marketplace/ReviewQueue'
-import { LicenseAdminPanel } from '@/components/settings/LicenseAdminPanel'
 import { fetchPublishedAgents, unpublishAgent } from '@/db/marketplace'
 import { cn } from '@/lib/utils'
 
-type AdminTab = 'overview' | 'workspaces' | 'abuse' | 'beta-users' | 'activity' | 'review-queue' | 'marketplace' | 'licenses'
+type AdminTab = 'overview' | 'workspaces' | 'abuse' | 'beta-users' | 'activity' | 'review-queue' | 'marketplace'
 
 const validTabs = new Set<string>([
-  'overview', 'workspaces', 'abuse', 'beta-users', 'activity', 'review-queue', 'marketplace', 'licenses',
+  'overview', 'workspaces', 'abuse', 'beta-users', 'activity', 'review-queue', 'marketplace',
 ])
 
 const PLAN_COLORS: Record<string, string> = {
@@ -53,7 +52,6 @@ export function AdminPanel() {
             {activeTab === 'abuse' && <AbuseTab />}
             {activeTab === 'activity' && <ActivityTab />}
             {activeTab === 'beta-users' && <BetaUsersTab />}
-            {activeTab === 'licenses' && <LicenseAdminPanel />}
             {activeTab === 'marketplace' && <MarketplaceTab />}
             {activeTab === 'review-queue' && (
                 <div className="space-y-6">

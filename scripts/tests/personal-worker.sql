@@ -1,4 +1,4 @@
--- SPDX-License-Identifier: AGPL-3.0-or-later
+-- SPDX-License-Identifier: MIT
 -- Personal-device regression fixtures. All rows/config changes are rolled back.
 \set ON_ERROR_STOP on
 BEGIN;

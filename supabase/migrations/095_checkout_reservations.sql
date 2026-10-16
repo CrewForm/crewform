@@ -1,4 +1,4 @@
--- SPDX-License-Identifier: AGPL-3.0-or-later
+-- SPDX-License-Identifier: MIT
 CREATE TABLE public.billing_checkout_requests (
  workspace_id uuid PRIMARY KEY REFERENCES public.workspaces(id) ON DELETE CASCADE,
  plan text NOT NULL CHECK(plan IN('pro','team')), token uuid NOT NULL DEFAULT gen_random_uuid(),

@@ -66,7 +66,7 @@ docker compose --env-file .env up --build -d
 
 The runner port binds to loopback by default. Expose it through an authenticated HTTPS reverse proxy when using remote MCP, A2A or AG-UI clients. Configure Auth redirects, SMTP, backups, monitoring, storage and TLS in your Supabase installation.
 
-Community Edition has no hosted agent/task/team resource quotas. Pipeline mode, basic orchestration, marketplace publishing, A2A publishing and the chat widget are community capabilities. Collaboration, memory, RBAC, advanced analytics and audit features keep their existing paid entitlements.
+All implemented software features are included under MIT, without activation keys or paid self-hosted entitlements. Your infrastructure has no CrewForm Cloud plan quotas. Collaboration, memory, RBAC, analytics and audit features remain subject to ordinary workspace authorization and operational safety limits. For an existing installation, apply migration 106 and set `public.deployment_policy.hosted=false` using an administrator database connection; browser edition flags do not change this server policy.
 
 ## Existing agent subscriptions
 

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 import { isDeepStrictEqual } from 'node:util';
 import { waitForDurableResponse } from './durableInteraction';
 // AG-UI Interaction Helper — allows executors to request user input and pause execution.

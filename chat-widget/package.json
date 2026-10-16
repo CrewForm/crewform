@@ -1,6 +1,7 @@
 {
   "name": "@crewform/chat-widget",
   "version": "1.0.0",
+  "license": "MIT",
   "description": "Embeddable chat widget for CrewForm agents",
   "type": "module",
   "scripts": {

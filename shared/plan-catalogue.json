@@ -1,11 +1,25 @@
 {
-  "version": "2026-10-07",
+  "version": "2026-10-16",
   "currency": "USD",
   "communityFeatures": [
     "orchestrator_mode",
     "marketplace_publish",
     "a2a_publish",
-    "chat_widget"
+    "chat_widget",
+    "prompt_history",
+    "advanced_analytics",
+    "file_attachments",
+    "advanced_webhooks",
+    "team_triggers",
+    "billing",
+    "messaging_channels",
+    "custom_tools",
+    "collaboration_mode",
+    "team_memory",
+    "rbac",
+    "audit_logs",
+    "swarm",
+    "admin_panel"
   ],
   "plans": {
     "free": {
@@ -36,16 +50,7 @@
         "knowledge_documents": 25,
         "marketplace_installs": -1
       },
-      "features": [
-        "prompt_history",
-        "advanced_analytics",
-        "file_attachments",
-        "advanced_webhooks",
-        "team_triggers",
-        "billing",
-        "messaging_channels",
-        "custom_tools"
-      ]
+      "features": []
     },
     "team": {
       "name": "Team",
@@ -60,24 +65,12 @@
         "knowledge_documents": -1,
         "marketplace_installs": -1
       },
-      "features": [
-        "prompt_history",
-        "advanced_analytics",
-        "file_attachments",
-        "advanced_webhooks",
-        "team_triggers",
-        "billing",
-        "messaging_channels",
-        "custom_tools",
-        "collaboration_mode",
-        "team_memory",
-        "rbac"
-      ]
+      "features": []
     },
     "enterprise": {
-      "name": "Custom",
+      "name": "Legacy hosted",
       "monthlyUsd": null,
-      "deployment": "on-premises",
+      "deployment": "cloud",
       "limits": {
         "agents": -1,
         "tasks_per_month": -1,
@@ -87,22 +80,7 @@
         "knowledge_documents": -1,
         "marketplace_installs": -1
       },
-      "features": [
-        "prompt_history",
-        "advanced_analytics",
-        "file_attachments",
-        "advanced_webhooks",
-        "team_triggers",
-        "billing",
-        "messaging_channels",
-        "custom_tools",
-        "collaboration_mode",
-        "team_memory",
-        "rbac",
-        "audit_logs",
-        "swarm",
-        "admin_panel"
-      ]
+      "features": []
     }
   }
 }

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 import {describe,it,expect,vi} from 'vitest';
 const fixture=vi.hoisted(()=>({rows:[{id:'private',workspace_id:'other',webhook_headers:{Authorization:'fixture-secret'}}],workspace:''}));
 vi.mock('./supabase',()=>({supabase:{from:()=>({select:()=>({eq:(_field:string,workspace:string)=>{fixture.workspace=workspace;return {in:async()=>({data:fixture.rows.filter(row=>row.workspace_id===workspace),error:null})};}})})}}));

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 import {executionIdentity} from './executionIdentity';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {safeFetch,validateProviderBaseUrl} from './urlSafety';
