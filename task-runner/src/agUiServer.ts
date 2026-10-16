@@ -149,6 +149,11 @@ export async function handleAgUiRequest(
             return true;
         }
 
+        // The client can disconnect while the asynchronous lookups above are in flight.
+        // In that case the close event is already gone by the time SSE setup would attach
+        // its listener, so avoid creating a subscriber for a dead response.
+        if (res.destroyed || res.writableEnded) return true;
+
         // Set up SSE response
         res.writeHead(200, {
             'Content-Type': 'text/event-stream',
