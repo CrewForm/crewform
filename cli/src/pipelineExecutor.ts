@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright (C) 2026 CrewForm
+import {assertHandoff,validateHandoffContract,handoffInstructions,HandoffValidationError} from './handoffContract.js';
 //
 // pipelineExecutor.ts — Local pipeline team execution engine.
 // Runs multi-agent pipelines from JSON config with step-by-step handoffs.
@@ -68,6 +69,7 @@ export async function executePipeline(
     options: PipelineOptions = {},
 ): Promise<PipelineResult> {
     const steps = team.config.steps ?? [];
+    steps.forEach(step => validateHandoffContract(step.output_contract));
 
     if (steps.length === 0) {
         throw new Error('Pipeline has no steps configured.');
@@ -98,6 +100,7 @@ export async function executePipeline(
                 agentMap, options,
             );
 
+            assertHandoff(step.output_contract, fanOutResult.output);
             stepResults.push(fanOutResult);
 
             if (fanOutResult.status === 'completed') {
@@ -188,6 +191,7 @@ async function executeStepWithRetry(
                 ollamaBaseUrl: options.ollamaBaseUrl,
             });
 
+            assertHandoff(step.output_contract, result.result);
             const stepResult: StepResult = {
                 stepName: step.step_name,
                 agentName: agent.name,
@@ -201,6 +205,7 @@ async function executeStepWithRetry(
 
             return stepResult;
         } catch (err) {
+            if (err instanceof HandoffValidationError) throw err;
             const errMsg = err instanceof Error ? err.message : String(err);
 
             if (attempt >= maxAttempts) {
@@ -460,5 +465,5 @@ function buildStepPrompt(step: PipelineStep, context: StepContext): string {
         );
     }
 
-    return parts.join('\n\n');
+    return parts.join('\n\n') + handoffInstructions(step.output_contract);
 }

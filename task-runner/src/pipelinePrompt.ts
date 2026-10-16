@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: MIT
+// Copyright (C) 2026 CrewForm
+import {handoffInstructions} from './handoffContract';
 import type {PipelineStep, TeamHandoffContext} from './types';
 import {buildMemoryContext} from './memoryContext';
 
@@ -47,6 +49,6 @@ export function buildStepPrompt(step: PipelineStep, context: TeamHandoffContext)
         parts.push(buildMemoryContext(context.team_memories));
     }
 
-    return parts.join('\n\n');
+    return parts.join('\n\n') + handoffInstructions(step.output_contract);
 }
 

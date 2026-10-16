@@ -64,6 +64,7 @@ jobs:
         run: |
           npm run plans:check
           node scripts/sync-security-runtime.mjs --check
+          node scripts/sync-workflow-runtime.mjs --check
 
       - name: Type check
         run: npx tsc --noEmit
@@ -102,6 +103,7 @@ jobs:
         run: |
           npm run plans:check
           node scripts/sync-security-runtime.mjs --check
+          node scripts/sync-workflow-runtime.mjs --check
 
       - name: Type check
         run: npx tsc --noEmit
@@ -226,6 +228,10 @@ jobs:
         run: |
           supabase functions serve personal-worker --workdir /tmp/crewform-ci --no-verify-jwt > /tmp/personal-worker-functions.log 2>&1 &
           node scripts/tests/personal-worker-e2e.mjs /tmp/crewform-ci
+      - name: Build runner for pipeline recovery integration
+        run: npm --prefix task-runner ci && npm --prefix task-runner run build
+      - name: Native pipeline checkpoint and approval integration
+        run: node scripts/tests/pipeline-recovery-e2e.mjs /tmp/crewform-ci
       - name: Concurrent hosted reservations
         run: node scripts/tests/concurrent-quota.mjs supabase_db_crewform-local
       - if: always()

@@ -12,6 +12,7 @@ export const pipelineStepSchema = z.object({
     step_name: z.string().min(1, 'Step name is required').max(100),
     instructions: z.string().max(5000).default(''),
     expected_output: z.string().max(2000).default(''),
+    output_contract_json: z.string().max(32768).default(''),
     on_failure: z.enum(['retry', 'stop', 'skip']).default('stop'),
     max_retries: z.number().int().min(0).max(5).default(1),
     type: z.enum(['sequential', 'fan_out']).default('sequential'),

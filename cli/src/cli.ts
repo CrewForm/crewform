@@ -775,6 +775,7 @@ async function runTeam(
                 step: s.stepName,
                 agent: s.agentName,
                 status: s.status,
+                output: s.output,
                 usage: jsonUsage(s.usage),
                 toolCalls: s.toolCallLogs,
                 error: s.error,

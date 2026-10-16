@@ -32,122 +32,9 @@ interface CronTriggerRow {
     created_at: string;
 }
 
-// ─── CRON Parser (mirrored from triggerScheduler.ts) ────────────────────────
+import {isTriggerDue} from '../_shared/cron.ts';
 
-function matchesCronField(field: string, value: number, max: number): boolean {
-    if (field === '*') return true;
-
-    for (const part of field.split(',')) {
-        if (part.includes('/')) {
-            const [range, stepStr] = part.split('/');
-            const step = parseInt(stepStr, 10);
-            if (isNaN(step) || step <= 0) continue;
-
-            let start = 0;
-            let end = max;
-
-            if (range !== '*') {
-                if (range.includes('-')) {
-                    const [s, e] = range.split('-');
-                    start = parseInt(s, 10);
-                    end = parseInt(e, 10);
-                } else {
-                    start = parseInt(range, 10);
-                }
-            }
-
-            for (let i = start; i <= end; i += step) {
-                if (i === value) return true;
-            }
-            continue;
-        }
-
-        if (part.includes('-')) {
-            const [s, e] = part.split('-');
-            const start = parseInt(s, 10);
-            const end = parseInt(e, 10);
-            if (value >= start && value <= end) return true;
-            continue;
-        }
-
-        if (parseInt(part, 10) === value) return true;
-    }
-
-    return false;
-}
-
-function cronMatchesDate(expression: string, date: Date): boolean {
-    const parts = expression.trim().split(/\s+/);
-    if (parts.length !== 5) return false;
-
-    const [minute, hour, dayOfMonth, month, dayOfWeek] = parts;
-
-    return (
-        matchesCronField(minute, date.getUTCMinutes(), 59) &&
-        matchesCronField(hour, date.getUTCHours(), 23) &&
-        matchesCronField(dayOfMonth, date.getUTCDate(), 31) &&
-        matchesCronField(month, date.getUTCMonth() + 1, 12) &&
-        matchesCronField(dayOfWeek, date.getUTCDay(), 6)
-    );
-}
-
-const MAX_CATCHUP_MS = 48 * 60 * 60 * 1000;
-
-function isTriggerDue(cronExpression: string, lastFiredAt: string | null, createdAt: string): boolean {
-    const now = new Date();
-
-    // Current-minute match
-    if (cronMatchesDate(cronExpression, now)) {
-        if (lastFiredAt) {
-            const last = new Date(lastFiredAt);
-            if (
-                last.getUTCFullYear() === now.getUTCFullYear() &&
-                last.getUTCMonth() === now.getUTCMonth() &&
-                last.getUTCDate() === now.getUTCDate() &&
-                last.getUTCHours() === now.getUTCHours() &&
-                last.getUTCMinutes() === now.getUTCMinutes()
-            ) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    // Catch-up: check for missed firings since last fire, or trigger creation.
-    const baseline = new Date(lastFiredAt ?? createdAt);
-    const gapMs = now.getTime() - baseline.getTime();
-
-    if (gapMs < 2 * 60 * 1000) return false;
-
-    const lookbackStart = new Date(Math.max(baseline.getTime(), now.getTime() - MAX_CATCHUP_MS));
-    const scanTime = new Date(lookbackStart);
-    scanTime.setUTCSeconds(0, 0);
-    scanTime.setUTCMinutes(scanTime.getUTCMinutes() + 1);
-
-    while (scanTime < now) {
-        if (cronMatchesDate(cronExpression, scanTime)) {
-            console.log(
-                `[CronEvaluate] Catch-up: missed firing at ${scanTime.toISOString()} ` +
-                `(baseline: ${lastFiredAt ?? createdAt}, now: ${now.toISOString()})`,
-            );
-            return true;
-        }
-        scanTime.setUTCMinutes(scanTime.getUTCMinutes() + 1);
-    }
-
-    return false;
-}
-
-
-// ─── Template Rendering ─────────────────────────────────────────────────────
-
-function renderTemplate(template: string): string {
-    const now = new Date();
-    return template
-        .replace(/\{\{date\}\}/g, now.toISOString().split('T')[0])
-        .replace(/\{\{time\}\}/g, now.toISOString().slice(11, 19))
-        .replace(/\{\{datetime\}\}/g, now.toISOString());
-}
+import {renderScheduleTemplate as renderTemplate,buildScheduleContext} from '../_shared/scheduleContext.ts';
 
 // ─── Main Handler ───────────────────────────────────────────────────────────
 
@@ -213,7 +100,14 @@ Deno.serve(async (req: Request) => {
                 console.log(`[CronEvaluate] Firing trigger ${trigger.id} for ${target}`);
 
                 const title = renderTemplate(trigger.task_title_template);
-                const description = renderTemplate(trigger.task_description_template);
+                let description = renderTemplate(trigger.task_description_template);
+                description += await buildScheduleContext(trigger.context_options ?? [], async (table,columns,start,end) => {
+                    const result = await db.from(table).select(columns).eq('workspace_id',trigger.workspace_id)
+                        .gte('created_at',start).lt('created_at',end).order('created_at',{ascending:false}).limit(1001);
+                    if (result.error) throw new Error('Requested schedule context is unavailable; firing deferred.');
+                    return (result.data ?? []) as unknown as Record<string,unknown>[];
+                });
+
                 const enqueue = await db.rpc('enqueue_scheduled_firing', {
                     p_trigger_id: trigger.id, p_observed_last_fired: trigger.last_fired_at,
                     p_title: title, p_description: description,

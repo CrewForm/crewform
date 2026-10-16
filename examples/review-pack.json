@@ -1,0 +1,264 @@
+{
+  "name": "Evidence-backed review pack",
+  "description": "Supplied patch \u2192 reviewer \u2192 critic \u2192 structured pack awaiting human review",
+  "mode": "pipeline",
+  "config": {
+    "auto_handoff": true,
+    "steps": [
+      {
+        "agent_ref": "reviewer",
+        "step_name": "Review supplied patch",
+        "instructions": "Review only the supplied patch and context. Every finding needs a supplied file/line or source ID and concrete evidence. Use an empty findings array when unsupported; do not invent repository content.",
+        "output_contract": {
+          "version": 1,
+          "schema": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "version",
+              "findings",
+              "limitations"
+            ],
+            "properties": {
+              "version": {
+                "type": "integer",
+                "enum": [
+                  1
+                ]
+              },
+              "findings": {
+                "type": "array",
+                "maxItems": 20,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "source",
+                    "finding",
+                    "evidence"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "source": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "finding": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "evidence": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              },
+              "limitations": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "expected_output": "One JSON value matching output_contract",
+        "on_failure": "stop",
+        "max_retries": 0
+      },
+      {
+        "agent_ref": "critic",
+        "step_name": "Critique findings",
+        "instructions": "Check the previous findings against the original supplied patch. Keep only supported findings; retain their evidence. Explain limitations and any rejected findings.",
+        "output_contract": {
+          "version": 1,
+          "schema": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "version",
+              "findings",
+              "limitations",
+              "critique"
+            ],
+            "properties": {
+              "version": {
+                "type": "integer",
+                "enum": [
+                  1
+                ]
+              },
+              "findings": {
+                "type": "array",
+                "maxItems": 20,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "source",
+                    "finding",
+                    "evidence"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "source": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "finding": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "evidence": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              },
+              "limitations": {
+                "type": "string",
+                "minLength": 1
+              },
+              "critique": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "expected_output": "One JSON value matching output_contract",
+        "on_failure": "stop",
+        "max_retries": 0
+      },
+      {
+        "agent_ref": "packager",
+        "step_name": "Export review pack",
+        "instructions": "Package the supported findings and limitations without inventing evidence or claiming human approval. The result must await human review.",
+        "output_contract": {
+          "version": 1,
+          "schema": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "version",
+              "findings",
+              "limitations",
+              "reviewStatus"
+            ],
+            "properties": {
+              "version": {
+                "type": "integer",
+                "enum": [
+                  1
+                ]
+              },
+              "findings": {
+                "type": "array",
+                "maxItems": 20,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "source",
+                    "finding",
+                    "evidence"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "source": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "finding": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "evidence": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              },
+              "limitations": {
+                "type": "string",
+                "minLength": 1
+              },
+              "reviewStatus": {
+                "type": "string",
+                "enum": [
+                  "awaiting-human-review"
+                ]
+              }
+            }
+          }
+        },
+        "expected_output": "One JSON value matching output_contract",
+        "on_failure": "stop",
+        "max_retries": 0
+      }
+    ]
+  },
+  "agents": [
+    {
+      "ref_id": "reviewer",
+      "agent": {
+        "name": "Reviewer",
+        "model": "default",
+        "system_prompt": "Use only supplied evidence. Do not modify files or publish results.",
+        "tools": [],
+        "config": {
+          "execution": {
+            "kind": "external",
+            "agent": "codex",
+            "transport": "cli"
+          }
+        }
+      }
+    },
+    {
+      "ref_id": "critic",
+      "agent": {
+        "name": "Critic",
+        "model": "default",
+        "system_prompt": "Use only supplied evidence. Do not modify files or publish results.",
+        "tools": [],
+        "config": {
+          "execution": {
+            "kind": "external",
+            "agent": "claude",
+            "transport": "acp"
+          }
+        }
+      }
+    },
+    {
+      "ref_id": "packager",
+      "agent": {
+        "name": "Packager",
+        "model": "default",
+        "system_prompt": "Use only supplied evidence. Do not modify files or publish results.",
+        "tools": [],
+        "config": {
+          "execution": {
+            "kind": "external",
+            "agent": "codex",
+            "transport": "cli"
+          }
+        }
+      }
+    }
+  ]
+}

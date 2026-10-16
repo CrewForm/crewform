@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (C) 2026 CrewForm
+import {assertHandoff,validateHandoffContract,HandoffValidationError} from './handoffContract';
 import {buildStepPrompt} from './pipelinePrompt';
 import {executionIdentity} from './executionIdentity';
 import {runCheckpointedPipeline, type BoundaryCheckpoint} from './checkpointPipeline';
@@ -108,6 +111,7 @@ async function processPipelineRunInner(run: TeamRun): Promise<void> {
             configuration: {team: NonNullable<typeof teamData>; agents: Record<string, Agent>}};
         teamData = checkpoint.configuration.team;
         const frozenSteps = teamData.config.steps;
+        frozenSteps.forEach(step => validateHandoffContract(step.output_contract));
         const frozenAgents = checkpoint.configuration.agents;
         const rpc = async (name: string, args: Record<string, unknown>) => {
             executionSignal()?.throwIfAborted();
@@ -124,8 +128,10 @@ async function processPipelineRunInner(run: TeamRun): Promise<void> {
                     fileContextBlock: index === 0 ? checkpoint.file_context : '',
                     teamMemories: index === 0 ? checkpoint.memories : [], frozenAgents,
                     previousAgentId: index ? frozenSteps[index - 1].merge_agent_id ?? frozenSteps[index - 1].agent_id : null};
-                return step.type === 'fan_out' && step.parallel_agents?.length
-                    ? executeFanOutStep(input) : executeStep(input);
+                const result = step.type === 'fan_out' && step.parallel_agents?.length
+                    ? await executeFanOutStep(input) : await executeStep(input);
+                if (result) assertHandoff(step.output_contract, result.output);
+                return result;
             },
             commit: (index, result) => rpc('write_pipeline_step', {p_step: index, p_complete: true, p_result: result}),
             afterCommit: async (index, result) => {
@@ -135,7 +141,7 @@ async function processPipelineRunInner(run: TeamRun): Promise<void> {
                     agentId: step.agent_id, provider: result.agentProvider, model: result.agentModel,
                     stepIndex: index, stepName: step.step_name, tokensUsed: result.usage.totalTokens,
                     promptTokens: result.usage.promptTokens, completionTokens: result.usage.completionTokens,
-                    costEstimateUsd: result.usage.costEstimateUSD});
+                    costEstimateUsd: result.usage.costEstimateUSD, usageKnown: result.usage.usageKnown});
             },
             pause: () => rpc('pause_pipeline_boundary', {}),
         });
@@ -163,7 +169,7 @@ async function processPipelineRunInner(run: TeamRun): Promise<void> {
         if (completedRun.error) throw completedRun.error;
         if (!completedRun.data) return;
 
-        console.log(`[PipelineExecutor] Run ${run.id} completed (${steps.length} steps, ${totalTokens} tokens, $${totalCost.toFixed(4)})`);
+        console.log(`[PipelineExecutor] Run ${run.id} completed (${frozenSteps.length} steps; ${completed.usageKnown ? `${totalTokens} tokens, $${totalCost.toFixed(4)}` : 'native usage/cost partly or fully unknown'})`);
 
         // Store output as team memory (fire-and-forget)
         void storeTeamMemory(run.team_id, run.id, run.workspace_id, finalOutput);
@@ -477,6 +483,8 @@ async function executeStep(input: StepInput): Promise<StepResult | null> {
                 }
             }
 
+            assertHandoff(step.output_contract, executionResult.result);
+
             // Record result message
             await supabase.from('team_messages').insert({
                 run_id: run.id,
@@ -520,6 +528,7 @@ async function executeStep(input: StepInput): Promise<StepResult | null> {
                 tokens_used: 0,
             });
 
+            if (error instanceof HandoffValidationError) throw error;
             if (nativeStep || attempts >= maxAttempts) {
                 // All retries exhausted
                 if (step.on_failure === 'skip') {
@@ -740,6 +749,7 @@ async function executeFanOutStep(input: StepInput): Promise<StepResult | null> {
                     completionTokens: 0,
                     totalTokens: totalBranchTokens,
                     costEstimateUSD: totalBranchCost,
+                    usageKnown: branchResults.every(branch => branch.usage.usageKnown !== false) && mergeResult.usage.usageKnown !== false,
                 },
                 agentProvider: mergeResult.agentProvider,
                 agentModel: mergeResult.agentModel,
@@ -759,6 +769,7 @@ async function executeFanOutStep(input: StepInput): Promise<StepResult | null> {
             completionTokens: 0,
             totalTokens: totalBranchTokens,
             costEstimateUSD: totalBranchCost,
+            usageKnown: branchResults.every(branch => branch.usage.usageKnown !== false),
         },
         agentProvider: 'mixed',
         agentModel: 'mixed',

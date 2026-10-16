@@ -63,6 +63,7 @@ export function PipelineStepCard({ step, index, agents, onUpdate, onDelete }: Pi
                 <button
                     type="button"
                     className="cursor-grab rounded p-1 text-gray-600 hover:text-gray-400 active:cursor-grabbing"
+                    aria-label={`Reorder ${step.step_name}`}
                     {...attributes}
                     {...listeners}
                 >
@@ -83,10 +84,11 @@ export function PipelineStepCard({ step, index, agents, onUpdate, onDelete }: Pi
                 {/* Step name */}
                 <input
                     type="text"
+                    aria-label="Step name"
                     value={step.step_name}
                     onChange={(e) => onUpdate(step._id, { step_name: e.target.value })}
                     placeholder={isFanOut ? 'Fan-out name...' : 'Step name...'}
-                    className="flex-1 bg-transparent text-sm font-medium text-gray-200 placeholder-gray-600 outline-none"
+                    className="min-w-0 flex-1 bg-transparent text-sm font-medium text-gray-200 placeholder-gray-600 outline-none"
                 />
 
                 {/* Agent badge or fan-out info */}
@@ -103,6 +105,8 @@ export function PipelineStepCard({ step, index, agents, onUpdate, onDelete }: Pi
                 {/* Expand/collapse */}
                 <button
                     type="button"
+                    aria-label={`${expanded ? 'Collapse' : 'Expand'} ${step.step_name}`}
+                    aria-expanded={expanded}
                     onClick={() => setExpanded(!expanded)}
                     className="rounded p-1 text-gray-600 hover:text-gray-400"
                 >
@@ -112,6 +116,7 @@ export function PipelineStepCard({ step, index, agents, onUpdate, onDelete }: Pi
                 {/* Delete */}
                 <button
                     type="button"
+                    aria-label={`Delete ${step.step_name}`}
                     onClick={() => onDelete(step._id)}
                     className="rounded p-1 text-gray-600 hover:text-red-400"
                 >
@@ -270,6 +275,16 @@ export function PipelineStepCard({ step, index, agents, onUpdate, onDelete }: Pi
                             </div>
                         </>
                     )}
+                            <div>
+                                <label htmlFor={`contract-${step._id}`} className="mb-1 block text-xs font-medium text-gray-400">Final output contract (optional JSON)</label>
+                                <textarea id={`contract-${step._id}`} value={step.output_contract_json}
+                                    onChange={event => onUpdate(step._id, {output_contract_json: event.target.value})}
+                                    rows={4} maxLength={32768} spellCheck={false}
+                                    className="w-full rounded-lg border border-border bg-surface-elevated px-3 py-2 text-base text-gray-300 outline-none focus:border-brand-primary"
+                                    aria-describedby={`contract-help-${step._id}`} />
+                                <p id={`contract-help-${step._id}`} className="mt-1 text-xs text-gray-400">Version 1 bounded JSON schema for the final step result. Invalid output stops the pipeline before handoff, without retrying the agent. Leave blank for text output.</p>
+                            </div>
+
                 </div>
             )}
         </div>

@@ -2,6 +2,7 @@
 // Copyright (C) 2026 CrewForm
 
 import { useState, useCallback } from 'react'
+import {validateHandoffContract, type HandoffContract} from '@/lib/handoffContract'
 import {
     DndContext,
     closestCenter,
@@ -43,6 +44,7 @@ function hydrate(steps: PipelineStep[]): StepWithId[] {
         step_name: s.step_name,
         instructions: s.instructions,
         expected_output: s.expected_output,
+        output_contract_json: s.output_contract ? JSON.stringify(s.output_contract, null, 2) : '',
         on_failure: s.on_failure,
         max_retries: s.max_retries,
         type: s.type ?? 'sequential',
@@ -60,6 +62,7 @@ function dehydrate(steps: StepWithId[]): PipelineStep[] {
         step_name: s.step_name,
         instructions: s.instructions,
         expected_output: s.expected_output,
+        ...(s.output_contract_json.trim() ? {output_contract: JSON.parse(s.output_contract_json) as HandoffContract} : {}),
         on_failure: s.on_failure,
         max_retries: s.max_retries,
         ...(s.type === 'fan_out' ? {
@@ -99,6 +102,7 @@ export function PipelineConfigPanel({ team, agents }: PipelineConfigPanelProps) 
             step_name: `Step ${steps.length + 1}`,
             instructions: '',
             expected_output: '',
+            output_contract_json: '',
             on_failure: 'stop',
             max_retries: 1,
             type: 'sequential',
@@ -117,6 +121,7 @@ export function PipelineConfigPanel({ team, agents }: PipelineConfigPanelProps) 
             step_name: `Fan-Out ${steps.length + 1}`,
             instructions: '',
             expected_output: '',
+            output_contract_json: '',
             on_failure: 'stop',
             max_retries: 1,
             type: 'fan_out',
@@ -183,6 +188,13 @@ export function PipelineConfigPanel({ team, agents }: PipelineConfigPanelProps) 
         const missingName = steps.find((s) => !s.step_name.trim())
         if (missingName) {
             setValidationError('All steps must have a name.')
+            return
+        }
+
+        try {
+            for (const step of steps) if (step.output_contract_json.trim()) validateHandoffContract(JSON.parse(step.output_contract_json))
+        } catch (error) {
+            setValidationError(error instanceof Error ? error.message : 'Invalid output contract JSON.')
             return
         }
 

@@ -817,6 +817,7 @@ export function graphToPipelineConfig(
                     step_name: existingStep.step_name,
                     instructions: existingStep.instructions,
                     expected_output: existingStep.expected_output,
+                    output_contract: existingStep.output_contract,
                     on_failure: existingStep.on_failure,
                     max_retries: existingStep.max_retries,
                     type: 'fan_out',
@@ -843,13 +844,17 @@ export function graphToPipelineConfig(
         } else if (node.type === 'agentNode') {
             // Regular sequential step
             const agentId = resolveAgentId(node, agents)
-            const existingStep = existingConfig.steps.find((s) => s.agent_id === agentId)
+            // Preserve the step's identity across reordering and repeated agents.
+            // Matching the first agent ID would silently replace later contracts.
+            const originalIndex = /^agent-(\d+)$/.exec(node.id)?.[1]
+            const existingStep = originalIndex === undefined ? undefined : existingConfig.steps[Number(originalIndex)]
 
             steps.push({
                 agent_id: agentId,
                 step_name: existingStep?.step_name ?? `Step ${steps.length + 1}`,
                 instructions: existingStep?.instructions ?? '',
                 expected_output: existingStep?.expected_output ?? '',
+                output_contract: existingStep?.output_contract,
                 on_failure: existingStep?.on_failure ?? 'stop',
                 max_retries: existingStep?.max_retries ?? 1,
                 // Preserve fan-out config if this step was a fan-out

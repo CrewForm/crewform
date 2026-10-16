@@ -7,6 +7,8 @@
   exports a clearly labeled simulated artifact. No provider key or login required.
 - `crewform doctor --json` reports runtime availability and setup actions;
   `--runtime codex:cli` checks one runtime and fails if unavailable.
+- Versioned pipeline output contracts stop invalid handoffs without automatic retries; JSON results include per-step outputs.
+- Workflows requiring durable human approvals must run through the platform.
 - Existing API, native CLI, ACP and single-agent personal-worker commands remain.
 
 Version 0.2.0 was published under its original license. This release does not

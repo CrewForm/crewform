@@ -1,4 +1,4 @@
-# Three reproducible workflows
+# Reproducible workflows
 
 Each example supplies fictional source material. Model wording varies; compare the documented output requirements rather than an exact text snapshot. No example needs web search or claims current market facts.
 
@@ -29,3 +29,25 @@ node cli/dist/cli.js run examples/release-notes.json --input examples/fixtures/r
 Expected: R1/R2 appear as completed, R3 remains planned without a delivery promise, and R4 appears as a limitation. Claude tools are disabled, so it uses only the supplied text. This creates a draft; it does not publish or send anything.
 
 For ACP, change the agent/transport to Gemini or Copilot with `"transport":"acp"`, or install an approved Codex/Claude ACP adapter. See [local agent execution](../docs/local-agents.md) for permission and account limits.
+
+## 4. Export an evidence-backed code-review pack
+
+```bash
+node cli/dist/cli.js doctor --runtime codex:cli
+node cli/dist/cli.js doctor --runtime claude:acp
+node cli/dist/cli.js run examples/review-pack.json --input examples/fixtures/review.patch --output review-pack.json --json
+```
+
+This runs real installed agents and may use their account allowance. It requires
+Codex CLI and a Claude ACP adapter, signed in separately. To use only Codex,
+change the critic's execution agent to `codex` and transport to `cli`; steps are
+sequential. No workflow posts comments or applies a patch.
+
+Three schema-validated handoffs produce findings with source/evidence fields,
+a critic's limitations, and a final `reviewStatus: awaiting-human-review` pack.
+Inspect it against the supplied patch before sharing. Schema validity does not
+prove a finding is correct. In the platform, turn off automatic handoff to require
+durable human approval between steps. Paired laptop team dispatch is not included.
+
+For scripted results without accounts or model requests, run
+`node cli/dist/cli.js demo --output simulated-review-pack.json` instead.
