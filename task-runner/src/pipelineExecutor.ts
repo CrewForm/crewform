@@ -3,6 +3,7 @@
 import {assertHandoff,validateHandoffContract,HandoffValidationError} from './handoffContract';
 import {buildStepPrompt} from './pipelinePrompt';
 import {executionIdentity} from './executionIdentity';
+import {executePersonalPipelineStep,validatePersonalPipelineSteps} from './personalPipeline';
 import {runCheckpointedPipeline, type BoundaryCheckpoint} from './checkpointPipeline';
 import { withExecutionScope, executionFetch, executionSignal } from './executionScope';
 import { loadTenantEntities } from './tenantEntities';
@@ -113,6 +114,7 @@ async function processPipelineRunInner(run: TeamRun): Promise<void> {
         const frozenSteps = teamData.config.steps;
         frozenSteps.forEach(step => validateHandoffContract(step.output_contract));
         const frozenAgents = checkpoint.configuration.agents;
+        validatePersonalPipelineSteps(frozenSteps,frozenAgents);
         const rpc = async (name: string, args: Record<string, unknown>) => {
             executionSignal()?.throwIfAborted();
             const response = await supabase.rpc(name, {p_run: run.id, p_attempt: attempt, ...args});
@@ -376,7 +378,9 @@ async function executeStep(input: StepInput): Promise<StepResult | null> {
 
             if (external) {
                 if (hasTools) throw new Error('External agents own their tools. Remove CrewForm tools.');
-                executionResult = await executeLocalAgent(external, {workspaceId: run.workspace_id, agentId:agent.id,agentSnapshot:agent, teamRunId: run.id, systemPrompt, userPrompt, model: agent.model});
+                executionResult = agent.config.paired_device_id
+                    ? await executePersonalPipelineStep({runId:run.id,stepIndex,agentId:agent.id,systemPrompt,userPrompt})
+                    : await executeLocalAgent(external, {workspaceId: run.workspace_id, agentId:agent.id,agentSnapshot:agent, teamRunId: run.id, systemPrompt, userPrompt, model: agent.model});
             } else if (hasTools) {
                 // ── Tool-Use Mode ──
                 console.log(`[PipelineExecutor] Step ${stepIndex + 1} agent has ${agentTools.length} tools: ${agentTools.join(', ')}`);

@@ -9,7 +9,7 @@ export async function executeLocalAgent(execution: ExternalExecution, input: {
     taskId?: string; teamRunId?: string; onStream?: (text: string) => Promise<void> | void;
 }) {
     if ((input.agentSnapshot as {config?:{paired_device_id?:unknown}})?.config?.paired_device_id) {
-        throw new Error('Paired-device agents require the personal-worker queue. Team and shared-runner execution are not supported.');
+        throw new Error('Paired-device agents require the personal-worker queue. Use a sequential pipeline or a single-agent task.');
     }
     if (process.env.CREWFORM_EXTERNAL_AGENTS_ENABLED !== 'true' ||
         process.env.CREWFORM_EXTERNAL_WORKSPACE_ID !== input.workspaceId ||

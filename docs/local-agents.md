@@ -79,7 +79,7 @@ Only tasks and team runs created by that user in that workspace may use the logi
 
 CrewForm's existing MCP/A2A/AG-UI interfaces serve different purposes. [ACP](https://agentclientprotocol.com/get-started/introduction) standardizes client-to-agent sessions, streaming and permissions; it does not provide a billing entitlement or replace A2A publishing.
 
-Direct Sign in with ChatGPT token sharing, hosted personal-worker pairing, resumable ACP sessions, interactive permission approvals and automatic provider fallback are not implemented by this integration. They require separate authentication, entitlement and lifecycle work.
+Direct Sign in with ChatGPT token sharing, resumable ACP sessions, interactive permission approvals and automatic provider fallback are not implemented by this integration. They require separate authentication, entitlement and lifecycle work.
 
 ## Personal worker
 
@@ -102,7 +102,7 @@ For self-hosting, add `--api-url https://your-supabase-origin` and `--app-url ht
 npx @crewformhq/cli@0.2.0 worker start
 ```
 
-Only tasks you create as a signed-in user in that workspace can target your granted device. Workspace API keys, other members, teams, public widgets and model overrides cannot use that personal login. One device per user is supported initially; each grant lasts 30 days. Renew by revoking the old grant and pairing again. Credential rotation does not extend consent.
+Only work you initiate as a signed-in user in that workspace can target your granted device. Workspace API keys, other members, public widgets and model overrides cannot use that personal login. Migrations 107–108 add sequential pipeline steps with saved boundaries and per-step device grants; paired fan-out and other team modes remain unsupported. After migration 108, up to six active device profiles per user are supported; each grant lasts 30 days. Renew by revoking the old grant and pairing again. Credential rotation does not extend consent.
 
 The device makes outbound HTTPS requests; no laptop port needs to be exposed. ACP remains local stdio. The device credential authorizes only the granted jobs and is stored in macOS Keychain where available, otherwise a private 0600 file at `~/.crewform/device.json`. Provider credentials remain with the installed agent.
 
@@ -118,3 +118,6 @@ npx @crewformhq/cli@0.2.0 disconnect
 An interrupted rotation retains a private recovery file. Run `worker rotate` again before starting to recover the same credential, without changing grant expiry. If the grant was already revoked or expired, revoke it in the dashboard and run `disconnect --forget` to remove local credentials before reconnecting. `--forget` alone does not revoke Cloud access.
 
 Native account quota/authentication errors fail the task. Native billing stays unknown. Personal execution is recorded separately from managed compute; a hosted workflow run still consumes its workspace's run allowance.
+
+
+For multiple runtimes on one laptop, CLI 0.3.0 adds isolated `--device-profile` configurations. See [personal pipeline workers](personal-pipeline-workers.md) for checkout instructions while npm publication is pending, approved sequential handoffs, private input files and recovery limits.

@@ -10,11 +10,13 @@ export async function withExecutionScope<T>(kind:'tasks'|'team_runs',id:string,w
  const check=async()=>{
   if(checking) return;checking=true;
   try {
-   const snapshot=await supabase.from(kind).select('status,claimed_by_runner,execution_attempt_id').eq('id',id).eq('workspace_id',workspaceId).single();
+   const snapshot=await supabase.from(kind).select('status,claimed_by_runner,execution_attempt_id,workspaces!inner(suspended_at)').eq('id',id).eq('workspace_id',workspaceId).single();
    const owner=getRunnerIdentity();
    if(!attempt) attempt=snapshot.data?.execution_attempt_id;
    if(!attempt || attempt!==snapshot.data?.execution_attempt_id) controller.abort(new Error('Execution attempt lost'));
    if(snapshot.error || !snapshot.data || !['running','waiting_for_input','paused'].includes(snapshot.data.status) || (owner && snapshot.data.claimed_by_runner!==owner)) controller.abort(new Error('Execution cancelled or lease lost'));
+   const workspace=snapshot.data?.workspaces as unknown as {suspended_at:string|null}|undefined;
+   if(!workspace || workspace.suspended_at!==null) controller.abort(new Error('Workspace suspended or authority unavailable'));
   } catch {controller.abort(new Error('Execution authority unavailable'));} finally {checking=false;}
  };
  await check();

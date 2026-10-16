@@ -254,6 +254,7 @@ export function generateTeamConfig(): string {
 
 function validateExecution(agent: AgentConfig): void {
     const external = parseExecution(agent.config);
+    if (agent.config.paired_device_id && !external) throw new Error('A paired device requires native execution. Remove the device selection before choosing API execution.');
     if (external && (agent.tools.length || agent.fallback_model)) {
         throw new Error('External agents use native tools and have no automatic API fallback. Remove tools and fallback_model.');
     }

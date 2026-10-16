@@ -37,6 +37,7 @@ export function useTask(taskId: string | null) {
 
     useEffect(() => {
         if (!taskId) return
+        let active = true
 
         // Subscribe to changes to this specific task row
         const channel = supabase
@@ -50,6 +51,7 @@ export function useTask(taskId: string | null) {
                     filter: `id=eq.${taskId}`,
                 },
                 (payload) => {
+                    if (!active) return
                     // Update React Query cache directly when an update arrives
                     queryClient.setQueryData(['task', taskId], payload.new as Task)
                 }
@@ -57,6 +59,7 @@ export function useTask(taskId: string | null) {
             .subscribe()
 
         return () => {
+            active = false
             void supabase.removeChannel(channel)
         }
     }, [taskId, queryClient])

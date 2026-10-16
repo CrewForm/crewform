@@ -3,8 +3,9 @@
 
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import {fetchPipelineCheckpoint, continuePipeline, exportRunEvidence} from '@/db/pipelineCheckpoints'
+import {fetchPipelineCheckpoint, continuePipeline, exportRunEvidence, fetchPersonalPipelineJobs} from '@/db/pipelineCheckpoints'
 import {PipelineRecoveryPanel} from '@/components/teams/PipelineRecoveryPanel'
+import {PersonalPipelineStatus} from '@/components/teams/PersonalPipelineStatus'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
     ArrowLeft,
@@ -75,8 +76,11 @@ export function TeamRunDetail() {
     const checkpointQuery = useQuery({queryKey: ['pipeline-checkpoint', runId],
         queryFn: () => fetchPipelineCheckpoint(runId ?? ''), enabled: !!runId && team?.mode === 'pipeline',
         refetchInterval: run?.status === 'running' || run?.status === 'pending' ? 5000 : false})
+    const personalJobs = useQuery({queryKey:['personal-pipeline-jobs',runId],queryFn:()=>fetchPersonalPipelineJobs(runId ?? ''),
+        enabled:!!runId && team?.mode==='pipeline',refetchInterval:run?.status==='running'||run?.status==='pending'?5000:false})
     useEffect(() => {
         if (runId) void queryClient.invalidateQueries({queryKey: ['pipeline-checkpoint', runId]})
+        if (runId) void queryClient.invalidateQueries({queryKey: ['personal-pipeline-jobs', runId]})
     }, [run?.updated_at, runId, queryClient])
     const continuation = useMutation({mutationFn: continuePipeline, onSuccess: async () => {
         await Promise.all([queryClient.invalidateQueries({queryKey: ['team-run', runId]}),
@@ -153,7 +157,7 @@ export function TeamRunDetail() {
                         </div>
 
                         {/* Stats row */}
-                        <div className="flex items-center gap-6 text-xs text-gray-500">
+                        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-gray-500">
                             <span className="flex items-center gap-1.5">
                                 <Clock className="h-3.5 w-3.5" />
                                 {elapsed}
@@ -203,6 +207,8 @@ export function TeamRunDetail() {
                         pending={continuation.isPending} error={continuation.error?.message ?? null}
                         onContinue={() => {if (checkpointQuery.data) continuation.mutate(checkpointQuery.data)}} />}
                     {checkpointQuery.error && <p role="status" className="mb-4 text-sm text-amber-300">Saved pipeline progress is unavailable. Check the backend migration and refresh before attempting continuation.</p>}
+                    {personalJobs.data && <PersonalPipelineStatus jobs={personalJobs.data} agentNames={Object.fromEntries(agents.map(agent=>[agent.id,agent.name]))} />}
+                    {personalJobs.error && <p role="status" className="mb-4 text-sm text-amber-300">Device progress is unavailable. Refresh before deciding whether to retry work.</p>}
 
                     {/* Input task */}
                     <div className="mb-6 rounded-lg border border-border bg-surface-card p-4">

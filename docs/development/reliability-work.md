@@ -16,10 +16,10 @@ first result must demonstrate the value.
 | Human decisions | Durable actor-bound approvals, expiry and cancellation; decisions visible with the run | Implemented for pipeline boundaries; approvals expire after 24 hours |
 | Handoff contracts | Versioned schemas validated before downstream consumption across supported runtimes | Implemented bounded v1 schema subset; CLI→ACP protocol fixtures included |
 | Run history | Inputs, outputs, tools, decisions, attempts, delivery and recovery in one inspectable/exportable record | Committed outputs/decisions in run view; versioned authorized evidence export implemented |
-| Personal-worker coordination | Per-step approved device selection; honest offline waiting, revocation and consent; no shared native accounts | After recovery and decisions |
+| Personal-worker coordination | Per-step approved device selection; honest offline waiting, revocation and consent; no shared native accounts | Implemented for sequential pipelines; migration 108 required; fan-out and other team modes excluded |
 | Scheduling consistency | Shared validated cron semantics and fixtures in runner and Edge scheduler | Shared UTC evaluator/context builder and Node/Deno fixtures implemented |
 | Published CLI | New immutable MIT package version, packaged offline smoke and accurate public installation docs | Version 0.3.0 prepared; publication requires npm authentication |
-| Adoption evidence | Useful supplied-patch workflow; first-artifact and repeat-use measures only with explicit opt-in | Supplied-patch review-pack example implemented; opt-in measurement still pending |
+| Adoption evidence | Useful supplied-patch workflow; first-artifact and repeat-use measures only with explicit opt-in | Review-pack example, manual measurement definitions and optional public feedback form implemented; no automatic telemetry |
 
 Each row needs its own implementation evidence. This checklist does not claim
 the remaining capabilities have shipped. The scripted review pack demonstrates

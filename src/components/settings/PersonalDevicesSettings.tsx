@@ -106,7 +106,7 @@ export function PersonalDevicesSettings() {
         <h1 className="text-2xl font-semibold text-gray-100">Personal devices</h1>
         <p className="text-sm leading-relaxed text-gray-400">
           Run your own Cloud tasks through an installed agent’s login on your laptop. Provider
-          logins stay on that device. A device can run only your approved single-agent jobs.
+          logins stay on that device. A device can run your approved tasks and sequential pipeline steps.
         </p>
       </header>
       <section className="space-y-4" aria-labelledby="pair-device-title">
@@ -117,11 +117,12 @@ export function PersonalDevicesSettings() {
           Run this locally after signing in to the native agent:
         </p>
         <pre className="bg-surface-card overflow-x-auto rounded-lg p-4 text-sm text-gray-200">
-          <code>npx @crewformhq/cli@0.2.0 connect --runtime codex:cli</code>
+          <code>npx @crewformhq/cli connect --runtime codex:cli</code>
         </pre>
         <p className="text-sm text-gray-400">
-          Use <code>claude:cli</code> or a supported <code>agent:acp</code> runtime as needed. One
-          device per user, with a 30-day grant.
+          Use <code>claude:cli</code> or a supported <code>agent:acp</code> runtime as needed. Up to six
+          active device profiles per user, each with a 30-day grant. For another runtime on the same
+          laptop, use CLI 0.3.0 with <code>--device-profile claude</code> before the command.
         </p>
         <div className="flex flex-col gap-3 sm:flex-row">
           <label className="flex-1 space-y-1.5 text-sm text-gray-300">
@@ -247,7 +248,7 @@ export function PersonalDevicesSettings() {
                 : Date.parse(device.approved_until) <= Date.now()
                   ? 'Expired'
                   : device.last_seen_at && Date.now() - Date.parse(device.last_seen_at) < 10_000
-                    ? device.active_task_id
+                    ? device.active_task_id || device.pipeline_busy
                       ? 'Busy'
                       : 'Online'
                     : 'Offline'
