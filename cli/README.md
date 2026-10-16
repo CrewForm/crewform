@@ -243,3 +243,18 @@ Run `npm ci`, `npm run build`, `npm test`, and `npm pack`. The runtime is bundle
 The npm organization is `crewformhq`. Sign in with an account that has publish access to that organization, then use `npm publish --access public` with your account's required 2FA or trusted publishing setup. Organization creation alone does not grant the currently signed-in CLI account access. Never commit npm tokens.
 
 The legacy `code_interpreter` tool is disabled: model-generated JavaScript must not execute inside the CLI process. Use a separately isolated execution service for code tools.
+
+
+## Personal-worker profiles (0.3.0)
+
+Use `crewform --device-profile codex connect --runtime codex:cli` and
+`crewform --device-profile codex worker start` for a named local profile. Use a
+separate profile for Claude or another runtime. This changes only the CrewForm
+device configuration, not the native tool's login store. The default profile
+preserves existing installations.
+
+With backend migrations 107–108, your approved devices can execute sequential
+pipeline steps as well as single-agent tasks. The device owner must initiate the
+run. Queueing, lease checks, native consent and human continuation remain bound
+to that run and step; API fallback and paired fan-out are not supported. See
+[personal pipeline workers](../docs/personal-pipeline-workers.md).

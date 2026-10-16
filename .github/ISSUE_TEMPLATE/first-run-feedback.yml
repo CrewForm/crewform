@@ -1,0 +1,51 @@
+name: First-run feedback (optional)
+description: Share a sanitized setup experience or review-pack result. This issue will be public.
+title: '[First run]: '
+body:
+  - type: markdown
+    attributes:
+      value: 'Sharing is optional and public. Do not include keys, native login details, private source code or unreviewed logs. CrewForm does not upload this feedback automatically.'
+  - type: dropdown
+    id: path
+    attributes:
+      label: Which path did you try?
+      options:
+        - Offline scripted demo
+        - Standalone CLI with a real agent
+        - Self-hosted application
+        - CrewForm Cloud
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: CLI/release version and operating system
+      placeholder: 'For example: CLI 0.3.0, macOS'
+  - type: textarea
+    id: outcome
+    attributes:
+      label: First artifact or setup blocker
+      description: 'What did you save, or which command blocked you? If timed, report the time from starting setup to opening the artifact. Distinguish simulated results from real agent execution.'
+    validations:
+      required: true
+  - type: dropdown
+    id: repeat
+    attributes:
+      label: Did you complete a second real workflow within seven days?
+      options:
+        - Not yet measured
+        - 'Yes'
+        - 'No'
+        - I only tried the simulated demo
+  - type: textarea
+    id: quality
+    attributes:
+      label: What needed human correction?
+      description: 'Describe unsupported findings, confusing recovery behavior or missing diagnostics using non-private examples.'
+  - type: checkboxes
+    id: public
+    attributes:
+      label: Public feedback
+      options:
+        - label: I reviewed this report for private data and choose to share it publicly.
+          required: true

@@ -9,6 +9,7 @@ export interface PersonalDevice {
   revoked_at: string | null
   last_seen_at: string | null
   active_task_id: string | null
+  pipeline_busy?: boolean
 }
 export async function fetchPersonalDevices(workspaceId: string): Promise<PersonalDevice[]> {
   const result = await supabase
@@ -17,7 +18,10 @@ export async function fetchPersonalDevices(workspaceId: string): Promise<Persona
     .eq('workspace_id', workspaceId)
     .order('created_at', { ascending: false })
   if (result.error) throw result.error
-  return result.data as PersonalDevice[]
+  const jobs = await supabase.from('personal_pipeline_jobs').select('device_id').eq('workspace_id',workspaceId).eq('status','running')
+  if (jobs.error) throw jobs.error
+  const busy = new Set(jobs.data.map(job=>job.device_id as string))
+  return (result.data as PersonalDevice[]).map(device=>({...device,pipeline_busy:busy.has(device.id)}))
 }
 export async function deviceRpc<T>(name: string, args: Record<string, unknown>): Promise<T> {
   const result = await supabase.rpc(name, args)

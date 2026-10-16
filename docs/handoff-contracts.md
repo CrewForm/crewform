@@ -60,7 +60,7 @@ See [pipeline recovery](pipeline-recovery.md) for uncertainty and human decision
 | Standalone ACP pipeline | Adapter/provider-dependent | Installed agent | Yes | No |
 | Trusted self-hosted runner pipeline | Provider-dependent | Explicit owner consent for native agents | Yes | Committed step boundaries |
 | CrewForm Cloud managed pipeline | Provider-dependent | No shared native login | Yes | Committed step boundaries |
-| Paired laptop worker | No API fallback | Device owner's installed agent | Single-agent tasks only | Teams not yet supported |
+| Paired laptop worker | No API fallback | Device owner's installed agent | Sequential pipeline steps after migration 108 | Parent pipeline's committed boundaries |
 
 Native eligibility, account limits and ACP adapter compatibility must be checked
 separately. `doctor` checks executable availability only. Unknown native usage is

@@ -42,12 +42,21 @@ export interface PersonalJob {
   prompt: string
   attachments: { id: string; size: number; type: string }[]
 }
-const dir = join(homedir(), '.crewform')
-const configFile = join(dir, 'device.json')
+let dir = join(homedir(), '.crewform')
+let configFile = join(dir, 'device.json')
+let deviceProfile = 'default'
+/** Local control-plane profiles do not change the native agent's login store. */
+export function setDeviceProfile(name: string) {
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,31}$/.test(name)) throw new Error('Device profile must be 1–32 letters, numbers, underscores or hyphens.')
+  deviceProfile = name
+  dir = name === 'default' ? join(homedir(), '.crewform') : join(homedir(), '.crewform', 'profiles', name)
+  configFile = join(dir, 'device.json')
+  rotationFile = join(dir, 'device-rotation.json')
+}
 const service = 'crewform-personal-worker'
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i
 const secret = /^[A-Za-z0-9_-]{43}$/
-const rotationFile = join(dir, 'device-rotation.json')
+let rotationFile = join(dir, 'device-rotation.json')
 function privateFile(path: string) {
   const stat = lstatSync(path)
   if (
@@ -58,6 +67,10 @@ function privateFile(path: string) {
     throw new Error('Device config must be a private file owned by you.')
 }
 function privateDirectory(path: string) {
+  if (path === dir && deviceProfile !== 'default') {
+    privateDirectory(join(homedir(), '.crewform'))
+    privateDirectory(join(homedir(), '.crewform', 'profiles'))
+  }
   if (!existsSync(path)) mkdirSync(path, { recursive: true, mode: 0o700 })
   const stat = lstatSync(path)
   if (
@@ -112,6 +125,7 @@ export function saveDevice(config: DeviceConfig, credential: string) {
   return keychain
 }
 export function loadDevice(): { config: DeviceConfig; credential: string } {
+  privateDirectory(dir)
   privateFile(configFile)
   const config = JSON.parse(readFileSync(configFile, 'utf8')) as DeviceConfig
   if (!uuid.test(config.deviceId) || !uuid.test(config.workspaceId))
@@ -189,6 +203,7 @@ export async function connectDevice(options: {
   appUrl: string
   directory?: string
 }) {
+  privateDirectory(dir)
   if (existsSync(configFile))
     throw new Error(
       'A device is already configured. Disconnect or revoke it in Settings → Personal devices first.',

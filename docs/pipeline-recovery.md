@@ -35,8 +35,8 @@ continuation.
 The creator or a workspace owner/admin can continue an eligible run. Native-login
 runs require the original creator; existing consent and runner ownership checks
 still apply. The local standalone CLI rejects workflows requiring these durable
-approvals. Paired laptop agents remain single-agent only; these checkpoints do
-not add Cloud-to-laptop team dispatch.
+approvals. Migration 108 adds [paired personal devices in sequential pipelines](personal-pipeline-workers.md);
+fan-out, orchestrator and collaboration device execution remain unsupported.
 
 ## Evidence and limits
 

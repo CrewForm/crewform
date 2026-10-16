@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 import {afterEach,describe,it,expect,vi} from 'vitest';
-const fixture=vi.hoisted(()=>({status:'running',runner:'owner',attempt:'attempt-one'}));
-vi.mock('./supabase',()=>({getRunnerIdentity:()=> 'owner',supabase:{from:()=>({select:()=>({eq:()=>({eq:()=>({single:async()=>({data:{status:fixture.status,claimed_by_runner:fixture.runner,execution_attempt_id:fixture.attempt},error:null})})})})})}}));
+const fixture=vi.hoisted(()=>({status:'running',runner:'owner',attempt:'attempt-one',suspended:false}));
+vi.mock('./supabase',()=>({getRunnerIdentity:()=> 'owner',supabase:{from:()=>({select:()=>({eq:()=>({eq:()=>({single:async()=>({data:{status:fixture.status,claimed_by_runner:fixture.runner,execution_attempt_id:fixture.attempt,workspaces:{suspended_at:fixture.suspended?'2026-10-16T00:00:00Z':null}},error:null})})})})})}}));
 vi.mock('./urlSafety',()=>({safeFetch:(url: string,init: RequestInit)=>fetch(url,init),validateProviderBaseUrl:async(url:string)=>new URL(url)}));
 import {withExecutionScope,executionFetch} from './executionScope';
-afterEach(()=>{fixture.status='running';fixture.runner='owner';fixture.attempt='attempt-one';vi.useRealTimers();vi.unstubAllGlobals();});
+afterEach(()=>{fixture.status='running';fixture.runner='owner';fixture.attempt='attempt-one';fixture.suspended=false;vi.useRealTimers();vi.unstubAllGlobals();});
 describe('provider cancellation and execution leases',()=>{
  it('rejects provider requests for a cancelled or reassigned job',async()=>{
   const fetch=vi.fn();vi.stubGlobal('fetch',fetch);
@@ -26,6 +26,24 @@ describe('provider cancellation and execution leases',()=>{
   const run=withExecutionScope('tasks','job','workspace',async()=>executionFetch('https://fixture.invalid'));
   const rejected=expect(run).rejects.toThrow('stopped');
   await vi.advanceTimersByTimeAsync(0);fixture.status='cancelled';await vi.advanceTimersByTimeAsync(1001);await rejected;
+ });
+ it('aborts an in-flight provider call when the workspace is suspended',async()=>{
+  vi.useFakeTimers();
+  vi.stubGlobal('fetch',(_url:unknown,init:RequestInit|undefined)=>new Promise((_resolve,reject)=>init?.signal?.addEventListener('abort',()=>reject(new Error('workspace stopped')))));
+  const run=withExecutionScope('team_runs','job','workspace',()=>executionFetch('https://fixture.invalid'));
+  const rejected=expect(run).rejects.toThrow('workspace stopped');
+  await vi.advanceTimersByTimeAsync(0);fixture.suspended=true;await vi.advanceTimersByTimeAsync(1001);await rejected;
+ });
+ it('aborts unfinished branches when their parent execution scope closes',async()=>{
+  vi.stubGlobal('fetch',(_url:unknown,init:RequestInit|undefined)=>new Promise((_resolve,reject)=>{
+   if(init?.signal?.aborted) reject(new Error('scope closed'));
+   else init?.signal?.addEventListener('abort',()=>reject(new Error('scope closed')));
+  }));
+  let branch:Promise<Response>|undefined;
+  await withExecutionScope('team_runs','job','workspace',async()=>{
+   branch=executionFetch('https://fixture.invalid');void branch.catch(()=>undefined);await Promise.resolve();
+  });
+  await expect(branch).rejects.toThrow('scope closed');
  });
 });
 

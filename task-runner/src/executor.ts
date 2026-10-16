@@ -137,6 +137,7 @@ async function processTaskInner(task: Task) {
         }
 
         const external = parseExecution(agent.config);
+        if (agent.config.paired_device_id && !external) throw new Error('A paired device requires native execution. Remove the device selection before choosing API execution.');
         // Derive provider from model name first (authoritative), fall back to stored value
         const provider = external ? `native-${external.agent}` : (inferProvider(effectiveModel) ?? agent.provider);
         if (!provider) {
