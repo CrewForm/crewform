@@ -54,13 +54,18 @@ run. A disconnected view does not establish that the underlying execution failed
 | Problem | What to check |
 |---|---|
 | Button says **Add OpenAI Key** | Add and activate a valid OpenAI key in Settings |
-| Activation reports a limit | The workspace needs room for three demo agents |
+| Activation reports a limit | The workspace needs room for three demo agents and one team; failed setup leaves no partial demo |
 | Run stays pending | Verify the task runner is running and connected to Supabase |
 | Run fails | Inspect the saved error, provider access and selected model availability |
 | Unsupported findings | Keep the supplied sources and request citations and explicit unknowns |
 
 Use the dashboard banner to remove the demo when finished. Review the removal
 confirmation before deleting its agents and team.
+Cancel active demo runs first. Cleanup uses the tracked resource list and stops
+if agents or team membership were edited, or agents are reused elsewhere. A
+legacy demo offers **Clear marker; keep all data**; review and remove those
+resources individually instead. Tags and workspace settings never select data
+for automatic deletion. Self-hosted upgrades require migration 109.
 
 ## Next steps
 
