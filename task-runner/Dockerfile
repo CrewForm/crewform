@@ -40,6 +40,7 @@ COPY --from=build --chown=node:node /usr/src/app/node_modules ./node_modules
 COPY --from=build --chown=node:node /usr/src/app/package*.json ./
 COPY --from=build --chown=node:node /usr/src/agent-runtime /usr/src/agent-runtime
 COPY --from=build --chown=node:node /usr/src/app/chat-widget/dist ./chat-widget/dist
+COPY --chown=node:node LICENSE ./LICENSE
 USER node
 
 # Readiness includes the runner's database registration and recent heartbeat.
