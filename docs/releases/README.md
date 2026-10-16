@@ -25,16 +25,21 @@ Before release sign-off:
   If the landing update is pending, record its specific gaps and next scope;
   do not mark public-site synchronization complete.
 
-## v1.10.0 follow-through
+## 2026-10-16 follow-through
 
-The platform release is [v1.10.0](https://github.com/CrewForm/crewform/releases/tag/v1.10.0).
-Landing [PR #21](https://github.com/vincentgrobler/crewform-landing/pull/21)
-already aligns Pro $15/month, Team $49/month and on-premises Custom pricing.
+Platform reliability changes merged in PRs #414–419, with production migrations
+107–109 and matching application/runner rollout. See [1.11.0 upgrade notes](v1.11.0.md).
+The earlier MIT/hosted-only policy is migration 106. Cloud Pro remains $15/month
+and Team $49/month; paid self-hosted Custom is retired.
 
-The next landing update must explain native CLI/ACP execution and personal
-Cloud-to-laptop workers, link the release/upgrade guidance, and use the published
-`@crewformhq/cli@0.2.0` commands. State that provider logins stay local while
-results/logs upload to Cloud, and that personal workers currently support
-single-agent jobs. Review existing tier labels and quantified claims against
-source and evidence. Mixed Cloud/local teams, account pools and general
-checkpoint/resume must remain outside the advertised shipped feature set.
+Landing [PR #23](https://github.com/vincentgrobler/crewform-landing/pull/23)
+merged at `9d4e5ea` and updates inspectable workflows, sequential personal-device
+pipelines, explicit recovery limits and the complete setup path. Unsupported
+reliability percentages and one-click deployment claims were removed. Its
+walkthrough uses source instructions while CLI 0.3.0 publication is pending.
+
+Verify the deployed page and version markers before publishing the release.
+Do not describe npm 0.3.0 as published until the registry metadata agrees.
+Publishing a GitHub release triggers the repository's existing Discord
+announcement workflow, including its configured `@everyone` mention; release
+publication and that outbound announcement need explicit authorization.

@@ -9,10 +9,10 @@ first result must demonstrate the value.
 
 | Work | Acceptance criteria | Status |
 |---|---|---|
-| First result | Account-free scripted walkthrough exercises actual pipeline handoffs; outputs clearly marked simulated; current full-stack setup instructions | Implemented in this branch |
+| First result | Account-free scripted walkthrough exercises actual pipeline handoffs; outputs clearly marked simulated; current full-stack setup instructions | Merged to main |
 | Demo lifecycle | Quota failures leave no partial setup; cleanup uses immutable resource identity and preserves edited/reused agents; legacy markers never authorize deletion | Implemented; migration 109 required |
-| Setup diagnostics | Machine-readable runtime availability; no inference requests or credential output; installation does not imply authentication | Implemented in this branch |
-| Stream interruptions | Preserve partial output; distinguish transport interruption from execution failure; no implicit retry; stale connection fencing and bounded parsing tests | Implemented in this branch |
+| Setup diagnostics | Machine-readable runtime availability; no inference requests or credential output; installation does not imply authentication | Merged to main |
+| Stream interruptions | Preserve partial output; distinguish transport interruption from execution failure; no implicit retry; stale connection fencing and bounded parsing tests | Merged to main |
 | Pipeline recovery | Durable completed step outputs and configuration/input identity; continuation at committed boundaries; stale worker, cancellation and uncertain-effect tests | Implemented; migration 107 and matching runner required |
 | Human decisions | Durable actor-bound approvals, expiry and cancellation; decisions visible with the run | Implemented for pipeline boundaries; approvals expire after 24 hours |
 | Handoff contracts | Versioned schemas validated before downstream consumption across supported runtimes | Implemented bounded v1 schema subset; CLI→ACP protocol fixtures included |
@@ -34,3 +34,24 @@ reuse committed outputs, reject changed configuration/input and fence old attemp
 Uncertain in-flight effects require review rather than automatic replay. Native
 usage remains unknown unless the runtime reports it. Cloud quotas and workspace
 authorization continue to apply to recovered work.
+
+## Next assurance scope
+
+The implemented reliability work is not evidence that every review finding is
+closed. Prioritize the following gates before widening personal-device execution:
+
+1. Exercise the full Stripe test-mode lifecycle, including renewal, failed
+   payment, grace, recovery, cancellation and stale/out-of-order webhooks. Keep
+   live subscriptions and manual grants unchanged during these tests.
+2. Extend the authenticated workspace/role matrix across REST, RPC, Storage,
+   MCP, A2A, AG-UI and widgets. Use stubbed providers for failure, egress and
+   aggregate budget tests so denials can be proven before external spending.
+3. Verify frontend and runner deployment images separately, document the
+   historical migration baseline, and establish backup ownership, cadence,
+   retention and an operator-selected destination before any new data upload.
+4. Collect explicitly consented first-artifact and repeat-use evidence, then
+   measure hosted workload/support costs before changing prices or allowances.
+
+Personal-device fan-out, account pools, arbitrary write approvals and native
+session resume require separate designs; they are not implied by sequential
+checkpoint support. Automated telemetry is not installed by this work.

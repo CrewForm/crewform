@@ -8,6 +8,11 @@ The CrewForm CLI (`npx @crewformhq/cli`) is a standalone command-line tool that 
 
 ## Installation
 
+CLI 0.3.0 is prepared under MIT but publication is pending maintainer
+authentication. Until it is published, the commands below may resolve 0.2.0,
+which retains its original licence. Build a matching checkout for the offline
+walkthrough, diagnostics and named device profiles described here.
+
 ```bash
 # Use directly (zero install)
 npx @crewformhq/cli
