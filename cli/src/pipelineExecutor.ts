@@ -6,10 +6,9 @@
 // No Supabase dependency — all agents are inline in the config.
 import { parseExecution } from '@crewformhq/agent-runtime';
 
-import chalk from 'chalk';
 import { executeAgent } from './executor.js';
 import type { AgentConfig, TeamConfig, PipelineStep } from './config.js';
-import type { TokenUsage, ExecutionResult, ToolCallLog } from './types.js';
+import type { TokenUsage, ToolCallLog } from './types.js';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -22,7 +21,7 @@ export interface PipelineResult {
     usage: TokenUsage;
 }
 
-interface StepResult {
+export interface StepResult {
     stepName: string;
     agentName: string;
     output: string;
@@ -42,6 +41,8 @@ interface FanOutBranchResult {
 }
 
 export interface PipelineOptions {
+    /** Trusted host injection for offline fixtures/tests; never read from workflow JSON. */
+    execute?: typeof executeAgent;
     /** Show streaming output for each step */
     onStepStart?: (stepIndex: number, stepName: string, agentName: string) => void;
     /** Called when a step completes */
@@ -179,7 +180,7 @@ async function executeStepWithRetry(
                 fanOutResults,
             });
 
-            const result = await executeAgent(agent, {
+            const result = await (options.execute ?? executeAgent)(agent, {
                 prompt,
                 onStream: options.onStream,
                 onToolCall: options.onToolCall,
@@ -274,7 +275,7 @@ async function executeFanOutStep(
                 accumulatedOutputs,
             });
 
-            const result = await executeAgent(agent, {
+            const result = await (options.execute ?? executeAgent)(agent, {
                 prompt,
                 onToolCall: options.onToolCall,
                 ollamaBaseUrl: options.ollamaBaseUrl,

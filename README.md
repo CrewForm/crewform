@@ -182,41 +182,38 @@ CrewForm is a self-hostable runtime with native support for the three protocols 
 
 Sign up at [crewform.tech](https://crewform.tech) — free tier includes 3 agents and 50 tasks/month.
 
-### Self-Hosted (Docker)
+### Offline walkthrough (no account or provider key)
 
 ```bash
 git clone https://github.com/CrewForm/crewform.git
 cd crewform
-cp .env.example .env  # Edit with your config
-docker compose up -d
+npm --prefix cli ci
+npm --prefix cli run build
+node cli/dist/cli.js demo --output review-pack.json
 ```
 
-Open **http://localhost:3000** — done!
+This runs the real pipeline engine with **scripted simulated results**: supplied
+patch → reviewer → critic → versioned review pack. It invokes no model or native
+agent. Inspect the evidence reference and limitations in `review-pack.json`.
 
-#### 🔬 Research Crew Edition
+### Self-hosted app
 
-Want to start with a pre-configured pipeline? The Research Crew variant includes 3 agents (Researcher → Analyst → Writer) ready to go:
+CrewForm requires a complete Supabase stack as well as the frontend and task runner.
+Install Docker, Node.js 20+ and the Supabase CLI, start Docker, then:
 
 ```bash
-cp .env.example .env  # Edit with your API keys
-docker compose -f docker-compose.yml -f docker-compose.research-crew.yml up -d
+npm ci
+npm --prefix task-runner ci
+npm run local:prepare
+supabase start --workdir .crewform-local
+node scripts/local-services.mjs env
+npm --prefix task-runner run build
+docker compose --env-file .crewform-local/app.env up --build -d
 ```
 
-Open http://localhost:3000, create a task with any topic, and watch the Research Crew produce a polished article.
-
-⚡ **Local Models:** Install [Ollama](https://ollama.com) alongside CrewForm for fully local AI — zero API keys, zero data leaving your network. Run `ollama pull llama3.3` and select Ollama as a provider in Settings.
-
-### Development
-
-```bash
-git clone https://github.com/CrewForm/crewform.git
-cd crewform
-npm install
-cp .env.example .env.local
-npm run dev
-```
-
-> 📖 See the [Self-Hosting Guide](https://docs.crewform.tech/self-hosting) for production deployment details.
+Serve Edge Functions in another terminal with `node scripts/local-services.mjs functions`.
+Open **http://localhost:3000** and register a local account. See the
+[Self-Hosting Guide](docs/self-hosting.md) for production, shutdown and host development commands.
 
 ### One-Click Deploy
 
@@ -420,7 +417,7 @@ See [LICENSING.md](LICENSING.md) for the hosting/licensing boundary.
 
 | Guide | Description |
 |-------|-------------|
-| [Quick Start](https://docs.crewform.tech/quickstart) | Get running in under 5 minutes |
+| [Quick Start](https://docs.crewform.tech/quickstart) | Offline walkthrough and supported setup |
 | [Run Your First Agent System](https://docs.crewform.tech/first-agent-system) | Golden-path demo: add one key, run a real pipeline, inspect the output |
 | [Agents Guide](https://docs.crewform.tech/agents) | Models, system prompts, and agent lifecycle |
 | [Pipeline Teams](https://docs.crewform.tech/pipeline-teams) | Multi-agent sequential workflows |

@@ -4,32 +4,47 @@ description: "Run CrewForm agents from the command line — scriptable, CI/CD-fr
 icon: "terminal"
 ---
 
-The CrewForm CLI (`npx crewform`) is a standalone command-line tool that lets you create, run, and manage AI agents locally — with optional connectivity to the CrewForm platform.
+The CrewForm CLI (`npx @crewformhq/cli`) is a standalone command-line tool that lets you create, run, and manage AI agents locally — with optional connectivity to the CrewForm platform.
 
 ## Installation
 
 ```bash
 # Use directly (zero install)
-npx crewform
+npx @crewformhq/cli
 
 # Or install globally
-npm install -g crewform
+npm install -g @crewformhq/cli
 ```
 
 ## Quick Start
 
 ```bash
 # 1. Create an agent config
-npx crewform init
+npx @crewformhq/cli init
 
 # 2. Run it (defaults to Ollama; set OPENAI_API_KEY for OpenAI, etc.)
-npx crewform run agent.json "Summarise the latest AI news"
+npx @crewformhq/cli run agent.json "Summarise the latest AI news"
 
 # 3. Interactive chat
-npx crewform chat agent.json
+npx @crewformhq/cli chat agent.json
 ```
 
 ## Commands
+
+### Offline walkthrough and diagnostics
+
+From a checkout, build the CLI with `npm --prefix cli ci && npm --prefix cli run build`, then run:
+
+```bash
+node cli/dist/cli.js demo --output review-pack.json
+node cli/dist/cli.js doctor --runtime codex:cli --json
+```
+
+`demo` runs the real sequential pipeline with scripted outputs. It needs no account,
+backend, provider key, installed agent or network access. The JSON pack is marked
+`simulated: true` and `humanReview: required`; it is not an AI evaluation.
+`doctor` probes executable versions only. A successful check does not prove login,
+subscription eligibility, ACP compatibility or model availability.
 
 ### Local Execution
 
@@ -349,7 +364,7 @@ The CLI is designed for automation:
 
 ```bash
 # Install globally in CI
-npm install -g crewform
+npm install -g @crewformhq/cli
 
 # Run with JSON output for parsing
 OPENAI_API_KEY=${{ secrets.OPENAI_KEY }} \

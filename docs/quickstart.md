@@ -1,93 +1,93 @@
 # Quick Start Guide
 
-Get CrewForm running locally in under 5 minutes.
+Start with an offline walkthrough, then choose a real execution environment.
+CrewForm is MIT licensed and free to self-host. Paid plans cover CrewForm Cloud hosting.
 
-<Tip>
-  Want the fastest product tour after setup? Follow [Run Your First Agent System](/first-agent-system) to activate the Research Brief demo and run a real multi-agent pipeline.
-</Tip>
+## 1. Try the workflow without an account
 
-## Prerequisites
-
-- **Node.js** 20+
-- **npm** 10+
-- **Supabase** account (free tier works) — [supabase.com](https://supabase.com)
-- At least one LLM API key (Anthropic, Google, or OpenAI)
-
-## 1. Clone & Install
+Install Node.js 20+ and npm, then:
 
 ```bash
 git clone https://github.com/CrewForm/crewform.git
 cd crewform
-npm install
+npm --prefix cli ci
+npm --prefix cli run build
+node cli/dist/cli.js demo --output review-pack.json
 ```
 
-## 2. Supabase Setup
+This uses the real sequential pipeline engine with **scripted, simulated outputs**:
+review a supplied fictional patch, critique the finding, and export a versioned
+review pack. It makes no model requests, invokes no native agent and needs no
+provider key, database or login. The pack contains a source reference, an explicit
+limitation and `humanReview: required`. It does not measure model quality.
 
-1. Create a new project at [supabase.com/dashboard](https://supabase.com/dashboard)
-2. Go to **Settings → API** and copy your **URL** and **anon key**
-3. Go to **SQL Editor** and run each migration file in order:
+Use `--json` for machine-readable pipeline results. The generated `review-pack.json`
+contains the simulated artifact; inspect it before moving on.
+
+## 2. Choose real execution
+
+- **Hosted app:** open [CrewForm Cloud](https://app.crewform.tech), create a workspace,
+  then follow [Run Your First Agent System](/first-agent-system).
+- **Local agent CLI:** follow [Local Agent Execution](/local-agents) to use a supported
+  installed agent with its own login, or use an API provider/Ollama. Native account
+  eligibility and limits still apply. There is no automatic API fallback.
+- **Full self-hosted app:** use the supported stack below.
+
+To check an installed agent without a model request:
 
 ```bash
-# Files are in supabase/migrations/, run them in numeric order:
-# 001_initial_schema.sql
-# 002_rls_policies.sql
-# ... through to the latest
+node cli/dist/cli.js doctor --runtime codex:cli
+# Or inspect all supported runtime executables:
+node cli/dist/cli.js doctor --json
 ```
 
-## 3. Environment
+Diagnostics check Node and executable availability. They do not authenticate your
+agent or prove that your subscription permits a particular use.
+
+## 3. Run the full app locally
+
+Install Docker and the Supabase CLI, start Docker, and run from the repository root:
 
 ```bash
-cp .env.example .env.local
+npm ci
+npm --prefix task-runner ci
+npm run local:prepare
+supabase start --workdir .crewform-local
+node scripts/local-services.mjs env
+npm --prefix task-runner run build
+docker compose --env-file .crewform-local/app.env up --build -d
 ```
 
-Edit `.env.local` with your values:
-
-```env
-VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_ANON_KEY=your-anon-key
-VITE_APP_URL=http://localhost:5173
-VITE_ENCRYPTION_KEY=generate-a-32-byte-hex-key
-```
-
-> **Generate an encryption key:** `openssl rand -hex 32`
-
-## 4. Start Development
+In a separate terminal:
 
 ```bash
-npm run dev
+node scripts/local-services.mjs functions
 ```
 
-Visit [http://localhost:5173](http://localhost:5173) and sign up for an account.
+Open `http://localhost:3000` and register a local account. CrewForm requires the
+complete Supabase stack, including Auth, Storage, Realtime and Edge Functions.
+The bootstrap handles historical migration numbering and writes ignored local
+configuration with restricted permissions. It leaves linked production state alone.
 
-## 5. Task Runner (for AI execution)
+For production configuration, host processes, ports and shutdown instructions,
+follow [Self-hosting CrewForm](/self-hosting). Provider-key encryption uses the
+server-side `API_KEY_ENCRYPTION_KEY`; never put an encryption secret in a `VITE_`
+variable, which would expose it to the browser.
 
-The task runner processes agent tasks. In a separate terminal:
+## Troubleshooting
 
-```bash
-cd task-runner
-npm install
-cp .env.example .env
-# Add your LLM API keys to .env
-npm start
-```
+| Symptom | Next step |
+|---|---|
+| Offline demo fails | Confirm Node 20+, install CLI dependencies and rebuild; the demo does not need a backend |
+| Doctor reports unavailable | Install the named executable and check its login separately |
+| Local app cannot connect | Confirm the complete Supabase stack is running, then regenerate the local environment |
+| Real run remains pending | Check runner health and backend connectivity; a successful frontend build does not start the runner |
+| Stream disconnects | Check saved run history before retrying; disconnection does not prove execution stopped |
 
-## 6. Add Your First Agent
+## Next steps
 
-1. Navigate to **Agents → New Agent**
-2. Give it a name and description
-3. Select a model (e.g., `claude-sonnet-4-20250514`)
-4. Write a system prompt
-5. Go to **Settings → API Keys** and add your provider key
-6. Create a task from the **Tasks** page to test it
-
-## What's Next?
-
-- [Agents Guide](./agents.md) — Deep dive into agent configuration
-- [Pipeline Teams](./pipeline-teams.md) — Sequential multi-agent workflows
-- [Orchestration Teams](./orchestration-teams.md) — Brain agent delegates to workers dynamically
-- [Collaboration Teams](./collaboration-teams.md) — Agents discuss and reach consensus
-- [Channels](./channels.md) — Inbound messaging (Telegram, Slack, Discord, Email)
-- [Output Routes](./output-routes.md) — Push results to HTTP, Slack, Discord, Telegram, Teams, Asana, Trello
-- [Discord Integration](./discord-integration.md) — Detailed Discord setup guide
-- [API Reference](./api-reference.md) — REST API documentation
-- [Self-Hosting Guide](./self-hosting.md) — Docker production deployment
+- [Run Your First Agent System](/first-agent-system) — A real three-step demo
+- [Pipeline Teams](/pipeline-teams) — Sequential workflows and handoffs
+- [CLI Tool](/cli) — Local configuration and execution
+- [Local Agent Execution](/local-agents) — Native CLI, ACP and personal workers
+- [Self-hosting CrewForm](/self-hosting) — Complete deployment requirements
