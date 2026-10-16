@@ -4,37 +4,13 @@
 /**
  * Unit tests for buildStepPrompt (pipeline handoff context).
  *
- * We import buildStepPrompt by re-exporting it from pipelineExecutor.
- * Since it's a module-level function, we test it via a thin wrapper.
+ * Exercises the production formatter, including handoff and memory context.
  */
 
 import { describe, it, expect } from 'vitest';
 import type { PipelineStep, TeamHandoffContext } from './types';
 
-// Re-implement buildStepPrompt for testability (mirrors pipelineExecutor.ts)
-function buildStepPrompt(step: PipelineStep, context: TeamHandoffContext): string {
-    const parts: string[] = [];
-
-    parts.push(`## Task\n${context.input}`);
-
-    if (context.previous_output) {
-        parts.push(`## Previous Step Output\nThe previous step in this pipeline produced the following output:\n\n${context.previous_output}`);
-    }
-
-    if (step.instructions) {
-        parts.push(`## Your Instructions\n${step.instructions}`);
-    }
-
-    if (step.expected_output) {
-        parts.push(`## Expected Output Format\n${step.expected_output}`);
-    }
-
-    if (context.accumulated_outputs.length > 1) {
-        parts.push(`## Pipeline Context\nThis is step ${context.step_index + 1} in a multi-step pipeline. ${context.accumulated_outputs.length} previous steps have completed.`);
-    }
-
-    return parts.join('\n\n');
-}
+import {buildStepPrompt} from './pipelinePrompt';
 
 describe('buildStepPrompt', () => {
     const baseStep: PipelineStep = {

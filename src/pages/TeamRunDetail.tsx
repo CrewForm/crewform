@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (C) 2026 CrewForm
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import {fetchPipelineCheckpoint, continuePipeline, exportRunEvidence} from '@/db/pipelineCheckpoints'
+import {PipelineRecoveryPanel} from '@/components/teams/PipelineRecoveryPanel'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
     ArrowLeft,
@@ -68,10 +71,24 @@ export function TeamRunDetail() {
     const { agents } = useAgents(workspaceId)
     const { run, messages, isLoading, error } = useTeamRun(runId ?? null)
     const { data: attachments } = useTeamRunAttachments(runId ?? undefined)
+    const queryClient = useQueryClient()
+    const checkpointQuery = useQuery({queryKey: ['pipeline-checkpoint', runId],
+        queryFn: () => fetchPipelineCheckpoint(runId ?? ''), enabled: !!runId && team?.mode === 'pipeline',
+        refetchInterval: run?.status === 'running' || run?.status === 'pending' ? 5000 : false})
+    useEffect(() => {
+        if (runId) void queryClient.invalidateQueries({queryKey: ['pipeline-checkpoint', runId]})
+    }, [run?.updated_at, runId, queryClient])
+    const continuation = useMutation({mutationFn: continuePipeline, onSuccess: async () => {
+        await Promise.all([queryClient.invalidateQueries({queryKey: ['team-run', runId]}),
+            queryClient.invalidateQueries({queryKey: ['pipeline-checkpoint', runId]})])
+    }})
+    const evidence = useMutation({mutationFn: async () => {
+        if (run) await exportRunEvidence(run, messages, checkpointQuery.data ?? null)
+    }})
 
     const isOrchestrator = team?.mode === 'orchestrator'
     const isCollaboration = team?.mode === 'collaboration'
-    const config = team?.config as PipelineConfig | OrchestratorConfig | undefined
+    const config = (checkpointQuery.data?.configuration.team.config ?? team?.config) as PipelineConfig | OrchestratorConfig | undefined
     const steps = (!isOrchestrator && !isCollaboration && config ? (config as PipelineConfig).steps : undefined) ?? []
     const orchConfig = isOrchestrator ? (config as OrchestratorConfig) : null
     const badge = run ? STATUS_BADGE[run.status] : null
@@ -106,6 +123,8 @@ export function TeamRunDetail() {
                         <Skeleton className="h-64" />
                         <Skeleton className="col-span-2 h-64" />
                     </div>
+
+
                 </div>
             )}
 
@@ -170,6 +189,19 @@ export function TeamRunDetail() {
                             )}
                         </div>
                     </div>
+
+                    <div className="mb-4">
+                        <button type="button" disabled={evidence.isPending} onClick={() => {evidence.mutate()}}
+                            className="rounded-lg border border-border px-3 py-2 text-sm text-gray-300 hover:text-white disabled:opacity-50">
+                            {evidence.isPending ? 'Preparing evidence…' : 'Export run evidence'}
+                        </button>
+                        <p className="mt-2 text-xs text-gray-400">Includes authorized prompts, outputs, tool logs, decisions, attempts and delivery records. Review private data before sharing.</p>
+                        {evidence.error && <p role="alert" className="mt-2 text-sm text-red-300">{evidence.error.message}</p>}
+                    </div>
+                    {checkpointQuery.data && <PipelineRecoveryPanel key={checkpointQuery.data.revision} checkpoint={checkpointQuery.data} status={run.status}
+                        pending={continuation.isPending} error={continuation.error?.message ?? null}
+                        onContinue={() => {if (checkpointQuery.data) continuation.mutate(checkpointQuery.data)}} />}
+                    {checkpointQuery.error && <p role="status" className="mb-4 text-sm text-amber-300">Saved pipeline progress is unavailable. Check the backend migration and refresh before attempting continuation.</p>}
 
                     {/* Input task */}
                     <div className="mb-6 rounded-lg border border-border bg-surface-card p-4">

@@ -162,9 +162,12 @@ async function executeTeamRun(run: TeamRun): Promise<void> {
         throw err;
     }
 
-    void writeTeamRunAudit(run.workspace_id, run.created_by, 'team_run_completed', {
-        team_id: run.team_id, run_id: run.id,
-    });
+    const outcome = await supabase.from('team_runs').select('status').eq('id', run.id).single();
+    if (outcome.data?.status === 'completed' || outcome.data?.status === 'failed') {
+        void writeTeamRunAudit(run.workspace_id, run.created_by, outcome.data.status === 'completed' ? 'team_run_completed' : 'team_run_failed', {
+            team_id: run.team_id, run_id: run.id,
+        });
+    }
 }
 
 // ─── Shared: Claim & Execute ────────────────────────────────────────────────

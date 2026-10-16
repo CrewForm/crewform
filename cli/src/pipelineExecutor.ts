@@ -74,6 +74,7 @@ export async function executePipeline(
     }
 
     if (team.mode !== 'pipeline') throw new Error('The local CLI currently supports pipeline teams only.');
+    if (team.config.auto_handoff === false) throw new Error('This workflow requires durable approval between steps. Run it through the CrewForm platform; local CLI execution cannot approve these boundaries.');
     // Build agent lookup by ref_id
     const agentMap = new Map<string, AgentConfig>();
     for (const entry of team.agents) {

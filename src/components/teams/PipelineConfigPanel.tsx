@@ -80,6 +80,7 @@ export function PipelineConfigPanel({ team, agents }: PipelineConfigPanelProps) 
     const config = team.config as PipelineConfig
     const [steps, setSteps] = useState<StepWithId[]>(() => hydrate(config.steps))
     const [hasChanges, setHasChanges] = useState(false)
+    const [autoHandoff, setAutoHandoff] = useState(config.auto_handoff)
     const [validationError, setValidationError] = useState('')
     const [outputRouteIds, setOutputRouteIds] = useState<string[] | null>(team.output_route_ids ?? null)
 
@@ -187,6 +188,7 @@ export function PipelineConfigPanel({ team, agents }: PipelineConfigPanelProps) 
 
         const updatedConfig: PipelineConfig = {
             ...config,
+            auto_handoff: autoHandoff,
             steps: dehydrate(steps),
         }
 
@@ -245,6 +247,11 @@ export function PipelineConfigPanel({ team, agents }: PipelineConfigPanelProps) 
                     )}
                 </div>
             </div>
+
+            <label className="mb-4 flex items-start gap-2 text-sm text-gray-300">
+                <input type="checkbox" checked={!autoHandoff} onChange={event => {setAutoHandoff(!event.target.checked); setHasChanges(true)}} className="mt-1 accent-brand-primary" />
+                Pause for approval between steps. Completed outputs are saved; approvals expire after 24 hours.
+            </label>
 
             {/* Validation error */}
             {validationError && (

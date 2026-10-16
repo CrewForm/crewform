@@ -5,6 +5,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { runOfflineDemo } from '../dist/demo.js';
+import { executePipeline } from '../dist/pipelineExecutor.js';
 
 test('offline walkthrough produces a versioned evidence pack without executables or credentials', () => {
     const directory = mkdtempSync(resolve(tmpdir(), 'crewform-offline-'));
@@ -30,6 +31,12 @@ test('malformed reviewer output stops before critic execution', async () => {
         return {result: '{"schemaVersion":2,"findings":[]}', usage: {totalTokens: 0}, toolCallLogs: []};
     }), /Reviewer.*failed/);
     assert.deepEqual(calls, ['Reviewer']);
+});
+test('local execution cannot silently bypass durable approval settings', async () => {
+    let called = false;
+    await assert.rejects(executePipeline({mode: 'pipeline', agents: [], config: {auto_handoff: false,
+        steps: [{step_name: 'Requires approval'}]}}, 'input', {execute: async () => {called = true;}}), /durable approval/);
+    assert.equal(called, false);
 });
 test('doctor reports unavailable runtimes without printing credentials or running models', () => {
     const result = spawnSync(process.execPath, [resolve('dist/cli.js'), 'doctor', '--runtime', 'codex:cli', '--json'], {
