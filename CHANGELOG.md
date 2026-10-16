@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-10-16
+
+### Added
+
+- Account-free scripted review-pack walkthrough, runtime diagnostics and a supplied-patch native review workflow. CLI 0.3.0 is prepared separately; npm publication remains pending authentication.
+- Durable pipeline checkpoints and actor-bound human approvals, authorized run-evidence export and explicit uncertain-effect handling.
+- Versioned bounded output contracts before downstream handoffs, including CLI/ACP interoperability fixtures.
+- Owner-approved personal-device profiles in sequential pipelines, with separate step leases, one parent hosted reservation and no API fallback or shared native accounts.
+
+### Fixed
+
+- Preserve partial SSE output on interrupted connections and fence stale stream handlers.
+- Share strict UTC cron semantics and prior-day context enrichment across Node and Edge schedulers.
+- Isolate cached data and late callbacks across signed-in accounts; stop unfinished execution branches when a run loses authority.
+- Protect generated local credentials from development-server file access.
+- Create dashboard demo resources atomically and remove only unchanged, tracked resources; preserve legacy, edited or reused data.
+
 ### Changed
 
 - CrewForm-owned source, CLI, local runtime and the former Enterprise directory
@@ -16,6 +33,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Added migration 106 and server-owned deployment policy for hosted-only billing;
   legacy activation endpoints return HTTP 410. See the
   [transition guide](docs/mit-hosting-transition.md) before a coordinated upgrade.
+- Migrations 107–109 and matching runner/frontend are required for the reliability and personal-pipeline changes. See the [1.11.0 upgrade notes](docs/releases/v1.11.0.md).
 
 
 ## [1.10.0] - 2026-10-08

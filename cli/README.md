@@ -8,6 +8,10 @@ npx @crewformhq/cli run agent.json "Summarise the latest AI news"
 
 ## Offline walkthrough (0.3.0)
 
+Version 0.3.0 is prepared under MIT; registry publication is pending maintainer
+authentication. Until published, use the checkout commands below. The existing
+0.2.0 npm artifact retains its original licence and lacks these new commands.
+
 ```bash
 crewform demo --output review-pack.json
 crewform doctor --runtime codex:cli --json
