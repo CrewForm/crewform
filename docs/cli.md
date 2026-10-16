@@ -8,17 +8,15 @@ The CrewForm CLI (`npx @crewformhq/cli`) is a standalone command-line tool that 
 
 ## Installation
 
-CLI 0.3.0 is prepared under MIT but publication is pending maintainer
-authentication. Until it is published, the commands below may resolve 0.2.0,
-which retains its original licence. Build a matching checkout for the offline
-walkthrough, diagnostics and named device profiles described here.
+CLI 0.3.0 uses MIT and includes the offline walkthrough, diagnostics and named
+device profiles. The original 0.2.0 npm artifact retains its original licence.
 
 ```bash
 # Use directly (zero install)
-npx @crewformhq/cli
+npx @crewformhq/cli@0.3.0
 
 # Or install globally
-npm install -g @crewformhq/cli
+npm install -g @crewformhq/cli@0.3.0
 ```
 
 ## Quick Start
@@ -38,7 +36,14 @@ npx @crewformhq/cli chat agent.json
 
 ### Offline walkthrough and diagnostics
 
-From a checkout, build the CLI with `npm --prefix cli ci && npm --prefix cli run build`, then run:
+Use the published package directly:
+
+```bash
+npx @crewformhq/cli@0.3.0 demo --output review-pack.json
+npx @crewformhq/cli@0.3.0 doctor --runtime codex:cli --json
+```
+
+Alternatively, build from a checkout with `npm --prefix cli ci && npm --prefix cli run build`, then run:
 
 ```bash
 node cli/dist/cli.js demo --output review-pack.json

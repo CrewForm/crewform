@@ -36,7 +36,8 @@ Landing [PR #23](https://github.com/vincentgrobler/crewform-landing/pull/23)
 merged at `9d4e5ea` and updates inspectable workflows, sequential personal-device
 pipelines, explicit recovery limits and the complete setup path. Unsupported
 reliability percentages and one-click deployment claims were removed. Its
-walkthrough uses source instructions while CLI 0.3.0 publication is pending.
+walkthrough links to instructions for the published MIT CLI 0.3.0 and a source
+checkout alternative. The CLI is independently versioned from the platform.
 
 Verify the deployed page and version markers before publishing the release.
 Do not describe npm 0.3.0 as published until the registry metadata agrees.
