@@ -23,7 +23,7 @@ export async function withExecutionScope<T>(kind:'tasks'|'team_runs',id:string,w
  const poll=setInterval(()=>{void check();},1000);
  const duration=Math.min(3_600_000,Math.max(1000,Number(process.env.EXECUTION_TIMEOUT_MS)||900_000));
  const timer=setTimeout(()=>controller.abort(new Error('Execution runtime limit reached')),duration);
- try {return await executionIdentity.run({jobId:id,attemptId:attempt??''},()=>current.run(controller.signal,run));} finally {clearInterval(poll);clearTimeout(timer);}
+ try {return await executionIdentity.run({jobId:id,attemptId:attempt??''},()=>current.run(controller.signal,run));} finally {controller.abort(new Error('Execution scope closed'));clearInterval(poll);clearTimeout(timer);}
 }
 /** All provider transports share the job's cancellation and lease signal. */
 export const executionFetch: typeof fetch = async (input,init)=>{

@@ -33,6 +33,7 @@ export interface StepResult {
 }
 
 interface FanOutBranchResult {
+    nativeFailure?: boolean;
     agentName: string;
     status: 'completed' | 'failed';
     output: string | null;
@@ -80,6 +81,7 @@ export async function executePipeline(
     // Build agent lookup by ref_id
     const agentMap = new Map<string, AgentConfig>();
     for (const entry of team.agents) {
+        parseExecution(entry.agent.config);
         agentMap.set(entry.ref_id, entry.agent);
     }
 
@@ -207,6 +209,7 @@ async function executeStepWithRetry(
         } catch (err) {
             if (err instanceof HandoffValidationError) throw err;
             const errMsg = err instanceof Error ? err.message : String(err);
+            if (parseExecution(agent.config)) throw new Error(`Native step "${step.step_name}" stopped: ${errMsg}. Review its outcome; native failures are not retried or skipped automatically.`);
 
             if (attempt >= maxAttempts) {
                 if (step.on_failure === 'skip') {
@@ -296,6 +299,7 @@ async function executeFanOutStep(
             };
         } catch (err) {
             return {
+                nativeFailure: parseExecution(agent.config) !== null,
                 agentName: agent.name,
                 status: 'failed',
                 output: null,
@@ -327,6 +331,7 @@ async function executeFanOutStep(
         );
     }
 
+    if (branchResults.some(branch=>branch.nativeFailure)) throw new Error('A native fan-out branch failed. Review its outcome before continuing; native failures cannot be ignored by a partial-results policy.');
     const completedBranches = branchResults.filter(b => b.status === 'completed');
     if (completedBranches.length === 0) {
         throw new Error(`Fan-out step "${step.step_name}" failed: all branches failed.`);

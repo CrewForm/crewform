@@ -34,6 +34,17 @@ describe('provider cancellation and execution leases',()=>{
   const rejected=expect(run).rejects.toThrow('workspace stopped');
   await vi.advanceTimersByTimeAsync(0);fixture.suspended=true;await vi.advanceTimersByTimeAsync(1001);await rejected;
  });
+ it('aborts unfinished branches when their parent execution scope closes',async()=>{
+  vi.stubGlobal('fetch',(_url:unknown,init:RequestInit|undefined)=>new Promise((_resolve,reject)=>{
+   if(init?.signal?.aborted) reject(new Error('scope closed'));
+   else init?.signal?.addEventListener('abort',()=>reject(new Error('scope closed')));
+  }));
+  let branch:Promise<Response>|undefined;
+  await withExecutionScope('team_runs','job','workspace',async()=>{
+   branch=executionFetch('https://fixture.invalid');void branch.catch(()=>undefined);await Promise.resolve();
+  });
+  await expect(branch).rejects.toThrow('scope closed');
+ });
 });
 
 describe('provider error redaction',()=>{

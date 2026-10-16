@@ -67,7 +67,7 @@ try {
     process.chdir(temporary);
     const {supabase,setRunnerIdentity}=require(resolve(root,'task-runner/dist/supabase.js'));setRunnerIdentity(runnerId);
     const {processPipelineRun}=require(resolve(root,'task-runner/dist/pipelineExecutor.js'));
-    const claim=async()=>{const rows=checked(await supabase.rpc('claim_next_team_run',{p_runner_id:runnerId}));assert.equal(rows[0]?.id,run.id);return rows[0];};
+    const claim=async(expected=run.id)=>{const rows=checked(await supabase.rpc('claim_next_team_run',{p_runner_id:runnerId}));assert.equal(rows[0]?.id,expected);return rows[0];};
     const work=async worker=>{
         let job;
         for(let index=0;index<40;index++) {const result=await worker.client.request({action:'claim'});if(result.job){job=result.job;break;}await sleep(250);}
@@ -88,7 +88,21 @@ try {
     const jobs=checked(await user.from('personal_pipeline_jobs').select('status,device_id,step_idx').eq('run_id',run.id));
     assert.equal(jobs.length,2);assert.ok(jobs.every(job=>job.status==='completed'));assert.notEqual(jobs[0].device_id,jobs[1].device_id);
     assert.equal(checked(await admin.from('execution_usage').select('job_id').eq('workspace_id',workspaceId)).length,1);
-    console.log('Personal pipeline E2E passed: two approved profiles, CLI→ACP handoff, private attachments, human approval, one hosted reservation, no managed native login.');
+    // A failed issued native lease cannot silently advance via on_failure=skip.
+    checked(await user.from('teams').update({config:{auto_handoff:true,steps:[{agent_id:agents[0].id,step_name:'Failure fixture',instructions:'Fixture only',expected_output:'Text',on_failure:'skip',max_retries:0}]}}).eq('id',team.id));
+    const failedRun=checked(await user.from('team_runs').insert({team_id:team.id,workspace_id:workspaceId,input_task:'Failure fixture',created_by:userId,status:'pending'}).select().single());
+    const failing=processPipelineRun(await claim(failedRun.id));
+    let failedJob;
+    for(let index=0;index<40;index++){const result=await workers[0].client.request({action:'claim'});if(result.job){failedJob=result.job;break;}await sleep(250);}
+    assert.ok(failedJob);
+    await assert.rejects(executePersonalJob(workers[0].client,workers[0],failedJob,undefined,async()=>{throw new Error('Fixture native failure')}),/Fixture native failure/);
+    await failing;
+    assert.equal(checked(await user.from('team_runs').select('status').eq('id',failedRun.id).single()).status,'failed');
+    const failedCheckpoint=checked(await user.from('pipeline_checkpoints').select('in_flight,next_step,revision').eq('run_id',failedRun.id).single());
+    assert.equal(failedCheckpoint.in_flight,0);assert.equal(failedCheckpoint.next_step,0);
+    const blocked=await user.rpc('continue_pipeline_run',{p_run:failedRun.id,p_revision:failedCheckpoint.revision,p_approval:null});
+    assert.match(blocked.error?.message??'',/uncertain/);
+    console.log('Personal pipeline E2E passed: approved CLI→ACP profiles, private files, human approval, one reservation per workflow, native failures cannot auto-skip, no managed native login.');
 } finally {
     process.chdir(previousDirectory);
     if(uploadedPath) checked(await admin.storage.from('attachments').remove([uploadedPath]));

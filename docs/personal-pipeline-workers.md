@@ -54,6 +54,7 @@ human can then explicitly continue. Once a lease was issued, an interrupted resu
 is uncertain and cannot be replayed through continuation. Lease expiry, revocation,
 workspace suspension, cancellation and changed consent stop further accepted work.
 Stopping the native process follows the existing worker heartbeat/termination bounds.
+Native failures stop the pipeline even when a step was configured to skip or retry.
 
 Native usage and cost remain unknown when not reported. A step uses its parent
 workflow's hosting reservation rather than charging another hosted run. Provider
