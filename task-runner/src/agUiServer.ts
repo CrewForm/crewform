@@ -163,23 +163,34 @@ export async function handleAgUiRequest(
 
         // Subscribe to AG-UI events for this task
         const stream = agUiEventBus.subscribe(taskId);
+        const iterator = stream[Symbol.asyncIterator]();
 
         // Handle client disconnect
         let disconnected = false;
-        req.on('close', () => {
+        const handleDisconnect = () => {
+            if (disconnected) return;
             disconnected = true;
-        });
+            // Wake a pending next() so the handler can release its subscription.
+            void iterator.return?.();
+        };
+        req.on('close', handleDisconnect);
+        res.on('close', handleDisconnect);
 
         // Stream events as SSE
         try {
-            for await (const event of stream) {
-                if (disconnected) break;
+            while (!disconnected) {
+                const result = await iterator.next();
+                if (result.done || disconnected) break;
 
-                const sseData = `data: ${JSON.stringify(event)}\n\n`;
+                const sseData = `data: ${JSON.stringify(result.value)}\n\n`;
                 res.write(sseData);
             }
         } catch {
             // Client disconnected or stream error — clean exit
+        } finally {
+            req.off('close', handleDisconnect);
+            res.off('close', handleDisconnect);
+            await iterator.return?.();
         }
 
         res.end();
