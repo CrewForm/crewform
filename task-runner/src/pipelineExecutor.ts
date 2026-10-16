@@ -1,3 +1,6 @@
+import {buildStepPrompt} from './pipelinePrompt';
+import {executionIdentity} from './executionIdentity';
+import {runCheckpointedPipeline, type BoundaryCheckpoint} from './checkpointPipeline';
 import { withExecutionScope, executionFetch, executionSignal } from './executionScope';
 import { loadTenantEntities } from './tenantEntities';
 import { parseExecution } from '@crewformhq/agent-runtime';
@@ -10,7 +13,7 @@ import { decryptApiKey } from './crypto';
 import { writeTeamRunUsageRecord } from './usageWriter';
 import { dispatchTeamRunWebhooks } from './webhookDispatcher';
 import { loadInputFiles, buildFileContext, extractAndSaveArtifacts } from './fileAttachments';
-import { storeTeamMemory, retrieveRelevantMemories, buildMemoryContext } from './teamMemory';
+import { storeTeamMemory, retrieveRelevantMemories } from './teamMemory';
 import { executeWithToolLoop, getToolDefinitions } from './toolExecutor';
 import type { CustomToolConfig, ToolCallLog } from './toolExecutor';
 import type { TeamRun, Agent, ApiKey, PipelineConfig, PipelineStep, TeamHandoffContext, TokenUsage, FanOutBranchResult } from './types';
@@ -64,8 +67,11 @@ async function processPipelineRunInner(run: TeamRun): Promise<void> {
             throw new Error('Pipeline has no steps configured.');
         }
 
-        // 2. Load input files for the team run
-        const inputFiles = await loadInputFiles(null, run.id, run.workspace_id);
+        // A resumed run must retain its original file and memory context. Do not
+        // perform fresh retrieval/model calls for already checkpointed work.
+        const existing = await supabase.from('pipeline_checkpoints').select('run_id').eq('run_id', run.id).maybeSingle();
+        if (existing.error) throw existing.error;
+        const inputFiles = existing.data ? [] : await loadInputFiles(null, run.id, run.workspace_id);
         let fileContextBlock = '';
         if (inputFiles.length > 0) {
             // Peek at first step's agent model to determine multimodal support
@@ -83,7 +89,7 @@ async function processPipelineRunInner(run: TeamRun): Promise<void> {
         // Retrieve relevant team memories for context (non-blocking — errors never affect the run)
         let teamMemories: string[] = [];
         try {
-            teamMemories = await retrieveRelevantMemories(run.team_id, run.workspace_id, run.input_task);
+            teamMemories = existing.data ? [] : await retrieveRelevantMemories(run.team_id, run.workspace_id, run.input_task);
             if (teamMemories.length > 0) {
                 console.log(`[PipelineExecutor] Found ${teamMemories.length} relevant memories for team ${run.team_id}`);
             }
@@ -92,92 +98,51 @@ async function processPipelineRunInner(run: TeamRun): Promise<void> {
             console.warn(`[PipelineExecutor] Memory retrieval failed (non-fatal): ${msg}`);
         }
 
-        // 3. Execute each step (sequential or fan-out)
-        const accumulatedOutputs: string[] = [];
-        let previousOutput: string | null = null;
-
-        for (let i = 0; i < steps.length; i++) {
-            const step = steps[i];
-
-            if (step.type === 'fan_out' && step.parallel_agents && step.parallel_agents.length > 0) {
-                // ── Fan-Out Step ──
-                const fanOutResult = await executeFanOutStep({
-                    run,
-                    step,
-                    stepIndex: i,
-                    inputTask: run.input_task,
-                    previousOutput,
-                    accumulatedOutputs,
-                    fileContextBlock: i === 0 ? fileContextBlock : '',
-                    teamMemories: i === 0 ? teamMemories : [],
-                });
-
-                if (fanOutResult !== null) {
-                    accumulatedOutputs.push(fanOutResult.output);
-                    previousOutput = fanOutResult.output;
-                    totalTokens += fanOutResult.usage.totalTokens;
-                    totalCost += fanOutResult.usage.costEstimateUSD;
-
-                    // Write usage record for fan-out step (aggregated)
-                    await writeTeamRunUsageRecord({
-                        workspaceId: run.workspace_id,
-                        teamRunId: run.id,
-                        agentId: step.agent_id, // fan-out step agent (trigger agent)
-                        provider: fanOutResult.agentProvider,
-                        model: fanOutResult.agentModel,
-                        stepIndex: i,
-                        stepName: step.step_name,
-                        tokensUsed: fanOutResult.usage.totalTokens,
-                        promptTokens: fanOutResult.usage.promptTokens,
-                        completionTokens: fanOutResult.usage.completionTokens,
-                        costEstimateUsd: fanOutResult.usage.costEstimateUSD,
-                    });
-                }
-            } else {
-                // ── Sequential Step ──
-                const stepOutput = await executeStep({
-                    run,
-                    step,
-                    stepIndex: i,
-                    inputTask: run.input_task,
-                    previousOutput,
-                    accumulatedOutputs,
-                    fileContextBlock: i === 0 ? fileContextBlock : '',
-                    teamMemories: i === 0 ? teamMemories : [],
-                });
-
-                if (stepOutput !== null) {
-                    accumulatedOutputs.push(stepOutput.output);
-                    previousOutput = stepOutput.output;
-                    totalTokens += stepOutput.usage.totalTokens;
-                    totalCost += stepOutput.usage.costEstimateUSD;
-
-                    // Write usage record for this step
-                    await writeTeamRunUsageRecord({
-                        workspaceId: run.workspace_id,
-                        teamRunId: run.id,
-                        agentId: step.agent_id,
-                        provider: stepOutput.agentProvider,
-                        model: stepOutput.agentModel,
-                        stepIndex: i,
-                        stepName: step.step_name,
-                        tokensUsed: stepOutput.usage.totalTokens,
-                        promptTokens: stepOutput.usage.promptTokens,
-                        completionTokens: stepOutput.usage.completionTokens,
-                        costEstimateUsd: stepOutput.usage.costEstimateUSD,
-                    });
-                }
-            }
-
-            // Update run totals progressively
-            await supabase
-                .from('team_runs')
-                .update({
-                    tokens_total: totalTokens,
-                    cost_estimate_usd: totalCost,
-                })
-                .eq('id', run.id);
-        }
+        const attempt = executionIdentity.getStore()?.attemptId;
+        if (!attempt) throw new Error('Pipeline execution attempt is required.');
+        const opened = await supabase.rpc('open_pipeline_checkpoint', {
+            p_run: run.id, p_attempt: attempt, p_file_context: fileContextBlock, p_memories: teamMemories,
+        });
+        if (opened.error) throw opened.error;
+        const checkpoint = opened.data as BoundaryCheckpoint & {file_context: string; memories: string[];
+            configuration: {team: NonNullable<typeof teamData>; agents: Record<string, Agent>}};
+        teamData = checkpoint.configuration.team;
+        const frozenSteps = teamData.config.steps;
+        const frozenAgents = checkpoint.configuration.agents;
+        const rpc = async (name: string, args: Record<string, unknown>) => {
+            executionSignal()?.throwIfAborted();
+            const response = await supabase.rpc(name, {p_run: run.id, p_attempt: attempt, ...args});
+            if (response.error) throw response.error;
+        };
+        const completed = await runCheckpointedPipeline({
+            checkpoint, stepCount: frozenSteps.length, autoHandoff: teamData.config.auto_handoff !== false,
+            start: index => rpc('write_pipeline_step', {p_step: index, p_complete: false}),
+            execute: async (index, outputs) => {
+                const step = frozenSteps[index];
+                const input: StepInput = {run, step, stepIndex: index, inputTask: run.input_task,
+                    previousOutput: outputs.at(-1) ?? null, accumulatedOutputs: outputs,
+                    fileContextBlock: index === 0 ? checkpoint.file_context : '',
+                    teamMemories: index === 0 ? checkpoint.memories : [], frozenAgents,
+                    previousAgentId: index ? frozenSteps[index - 1].merge_agent_id ?? frozenSteps[index - 1].agent_id : null};
+                return step.type === 'fan_out' && step.parallel_agents?.length
+                    ? executeFanOutStep(input) : executeStep(input);
+            },
+            commit: (index, result) => rpc('write_pipeline_step', {p_step: index, p_complete: true, p_result: result}),
+            afterCommit: async (index, result) => {
+                if (!result) return;
+                const step = frozenSteps[index];
+                await writeTeamRunUsageRecord({workspaceId: run.workspace_id, teamRunId: run.id,
+                    agentId: step.agent_id, provider: result.agentProvider, model: result.agentModel,
+                    stepIndex: index, stepName: step.step_name, tokensUsed: result.usage.totalTokens,
+                    promptTokens: result.usage.promptTokens, completionTokens: result.usage.completionTokens,
+                    costEstimateUsd: result.usage.costEstimateUSD});
+            },
+            pause: () => rpc('pause_pipeline_boundary', {}),
+        });
+        totalTokens = completed.tokens;
+        totalCost = completed.cost;
+        if (completed.paused) return;
+        const previousOutput = completed.outputs.at(-1) ?? null;
 
         // 3. Finalize run as completed
         const finalOutput = previousOutput ?? '';
@@ -187,7 +152,7 @@ async function processPipelineRunInner(run: TeamRun): Promise<void> {
             .update({
                 status: 'completed',
                 output: finalOutput,
-                current_step_idx: steps.length - 1,
+                current_step_idx: frozenSteps.length - 1,
                 tokens_total: totalTokens,
                 cost_estimate_usd: totalCost,
                 completed_at: new Date().toISOString(),
@@ -218,17 +183,17 @@ async function processPipelineRunInner(run: TeamRun): Promise<void> {
         const errMsg = error instanceof Error ? error.message : String(error);
         console.error(`[PipelineExecutor] Run ${run.id} failed:`, errMsg);
 
-        await supabase
+        const failedRun = await supabase
             .from('team_runs')
             .update({
                 status: 'failed',
                 error_message: errMsg,
-                tokens_total: totalTokens,
-                cost_estimate_usd: totalCost,
                 completed_at: new Date().toISOString(),
             })
             .eq('id', run.id)
-            .neq('status', 'cancelled');
+            .eq('status', 'running')
+            .select('id').maybeSingle();
+        if (failedRun.error || !failedRun.data) return;
 
         // Fire team_run.failed webhook (fire-and-forget)
         void dispatchTeamRunWebhooks(
@@ -252,6 +217,8 @@ interface StepInput {
     fileContextBlock?: string;
     teamMemories?: string[];
     fanOutResults?: FanOutBranchResult[];
+    frozenAgents?: Record<string, Agent>;
+    previousAgentId?: string | null;
 }
 
 interface StepResult {
@@ -293,7 +260,7 @@ async function executeStep(input: StepInput): Promise<StepResult | null> {
             // Record handoff
             await supabase.from('team_handoffs').insert({
                 run_id: run.id,
-                from_agent_id: stepIndex > 0 ? getPreviousAgentId() : null,
+                from_agent_id: input.previousAgentId ?? null,
                 to_agent_id: step.agent_id,
                 direction: 'forward',
                 context: handoffContext,
@@ -313,7 +280,7 @@ async function executeStep(input: StepInput): Promise<StepResult | null> {
             });
 
             // Fetch agent
-            const agentResponse = await supabase
+            const agentResponse = input.frozenAgents ? {data: input.frozenAgents[step.agent_id], error: null} : await supabase
                 .from('agents')
                 .select('*')
                 .eq('id', step.agent_id)
@@ -585,61 +552,6 @@ async function executeStep(input: StepInput): Promise<StepResult | null> {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function getPreviousAgentId(): string | null {
-    // This is a simplified lookup — in a real implementation we'd track this
-    // For now, we don't have the previous step's agent_id in scope
-    // The handoff record will have from_agent_id = null for step 0
-    return null;
-}
-
-function buildStepPrompt(step: PipelineStep, context: TeamHandoffContext): string {
-    const parts: string[] = [];
-
-    parts.push(`## Task\n${context.input}`);
-
-    if (context.previous_output) {
-        parts.push(`## Previous Step Output\nThe previous step in this pipeline produced the following output:\n\n${context.previous_output}`);
-    }
-
-    // Fan-out merge context — format all parallel branch results for the merge agent
-    if (context.fan_out_results && context.fan_out_results.length > 0) {
-        const branchParts = context.fan_out_results.map((branch, idx) => {
-            if (branch.status === 'completed') {
-                return `### Branch ${idx + 1} — ${branch.agent_name} ✅\n${branch.output}`;
-            }
-            return `### Branch ${idx + 1} — ${branch.agent_name} ❌ (Failed)\nError: ${branch.error ?? 'Unknown error'}`;
-        });
-
-        const completedCount = context.fan_out_results.filter(b => b.status === 'completed').length;
-        const totalCount = context.fan_out_results.length;
-
-        parts.push(
-            `## Fan-Out Results (${completedCount}/${totalCount} branches completed)\n` +
-            `The following agents processed the task in parallel. Review and aggregate their outputs.\n\n` +
-            branchParts.join('\n\n')
-        );
-    }
-
-    if (step.instructions) {
-        parts.push(`## Your Instructions\n${step.instructions}`);
-    }
-
-    if (step.expected_output) {
-        parts.push(`## Expected Output Format\n${step.expected_output}`);
-    }
-
-    if (context.accumulated_outputs.length > 1) {
-        parts.push(`## Pipeline Context\nThis is step ${context.step_index + 1} in a multi-step pipeline. ${context.accumulated_outputs.length} previous steps have completed.`);
-    }
-
-    // Inject team memory context
-    if (context.team_memories && context.team_memories.length > 0) {
-        parts.push(buildMemoryContext(context.team_memories));
-    }
-
-    return parts.join('\n\n');
-}
-
 // ─── Fan-Out Execution ───────────────────────────────────────────────────────
 
 async function executeFanOutStep(input: StepInput): Promise<StepResult | null> {
@@ -689,6 +601,8 @@ async function executeFanOutStep(input: StepInput): Promise<StepResult | null> {
             accumulatedOutputs,
             fileContextBlock: fileContextBlock,
             teamMemories: teamMemories,
+            frozenAgents: input.frozenAgents,
+            previousAgentId: input.previousAgentId,
         });
     });
 
@@ -811,6 +725,8 @@ async function executeFanOutStep(input: StepInput): Promise<StepResult | null> {
             previousOutput: null, // merge agent gets fan_out_results instead
             accumulatedOutputs,
             fanOutResults: branchResults,
+            frozenAgents: input.frozenAgents,
+            previousAgentId: input.previousAgentId,
         });
 
         if (mergeResult) {
