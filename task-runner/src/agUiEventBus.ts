@@ -126,7 +126,13 @@ class AgUiEventBus {
                     },
                     return(): Promise<IteratorResult<AgUiEvent>> {
                         done = true;
+                        queue.length = 0;
                         emitter.removeListener(channel, handler);
+                        if (resolve) {
+                            const pending = resolve;
+                            resolve = null;
+                            pending({ value: undefined as unknown as AgUiEvent, done: true });
+                        }
                         return Promise.resolve({ value: undefined as unknown as AgUiEvent, done: true });
                     },
                 };
